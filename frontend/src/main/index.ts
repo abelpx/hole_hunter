@@ -1,0 +1,72 @@
+/**
+ * Electron 主进程入口
+ */
+
+import { app } from 'electron';
+import { WindowManager } from './window/WindowManager';
+import { IPCHandlers } from './ipc/handlers';
+import { DatabaseManager } from './database/DatabaseManager';
+
+class Application {
+  private windowManager: WindowManager;
+  private ipcHandlers: IPCHandlers;
+  private databaseManager: DatabaseManager;
+
+  constructor() {
+    this.windowManager = new WindowManager();
+    this.databaseManager = DatabaseManager.getInstance();
+    this.ipcHandlers = new IPCHandlers();
+  }
+
+  async initialize() {
+    // 初始化数据库
+    await this.databaseManager.initialize();
+
+    // 注册应用事件
+    this.registerAppEvents();
+
+    // 当 Electron 准备好时创建窗口
+    app.whenReady().then(() => {
+      this.windowManager.createMainWindow();
+    });
+  }
+
+  private registerAppEvents() {
+    // 所有窗口关闭时
+    app.on('window-all-closed', () => {
+      if (process.platform !== 'darwin') {
+        app.quit();
+      }
+    });
+
+    // macOS 点击 dock 图标时重新创建窗口
+    app.on('activate', () => {
+      if (!this.windowManager.getMainWindow()) {
+        this.windowManager.createMainWindow();
+      }
+    });
+
+    // 应用退出前清理
+    app.on('before-quit', async () => {
+      this.ipcHandlers.dispose();
+      await this.databaseManager.close();
+    });
+
+    // 处理未捕获的异常
+    process.on('uncaughtException', (error: Error) => {
+      console.error('Uncaught Exception:', error);
+    });
+
+    process.on('unhandledRejection', (reason: unknown, promise: unknown) => {
+      console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+    });
+  }
+}
+
+// 创建应用实例并初始化
+const application = new Application();
+application.initialize().catch((error) => {
+  console.error('Failed to initialize application:', error);
+  app.quit();
+});
+
