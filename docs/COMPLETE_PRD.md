@@ -1,15 +1,16 @@
 # HoleHunter 产品需求文档 (PRD)
 
-**版本**: v1.0
-**最后更新**: 2025-01-05
+**版本**: v2.0
+**最后更新**: 2025-01-07
 **文档状态**: ✅ 完整版
+**参考产品**: DudeSuite Web Security Tools
 **项目状态**: ✅ 已完成，可投入使用
 
 ---
 
 ## 文档概述
 
-本文档是 HoleHunter 项目的完整产品需求文档(PRD)，整合了产品定位、功能规格、技术实现、部署方案和测试指南等所有关键信息。
+本文档是 HoleHunter 项目的完整产品需求文档(PRD)，基于 DudeSuite Web Security Tools 的设计理念和功能架构，提供类似的渗透测试工具集功能。
 
 ---
 
@@ -21,12 +22,10 @@
 4. [功能需求](#4-功能需求)
 5. [技术架构](#5-技术架构)
 6. [数据模型](#6-数据模型)
-7. [API 规格](#7-api-规格)
-8. [UI/UX 设计](#8-uiux-设计)
-9. [安全与性能](#9-安全与性能)
-10. [部署方案](#10-部署方案)
-11. [测试策略](#11-测试策略)
-12. [发布计划](#12-发布计划)
+7. [界面设计](#7-界面设计)
+8. [安全与性能](#8-安全与性能)
+9. [部署方案](#9-部署方案)
+10. [发布计划](#10-发布计划)
 
 ---
 
@@ -34,30 +33,31 @@
 
 ### 1.1 产品名称
 
-**HoleHunter** - 基于 Nuclei 的现代化安全测试工具
+**HoleHunter** - 基于 Nuclei 引擎的 Web 安全渗透测试工具集
 
 ### 1.2 产品标语
 
-> "简洁高效的安全漏洞发现与验证平台"
+> "轻量化集成化的单兵渗透测试工具"
 
-### 1.2 产品愿景
+### 1.3 产品愿景
 
-打造一款**开源、轻量、现代化**的安全测试工具，让安全研究人员能够：
-- 🎯 快速发现 Web 应用漏洞
-- 📊 可视化展示漏洞详情
-- 🔍 灵活配置扫描参数
-- 💾 本地化数据管理
-- 🚀 跨平台无缝使用
+打造一款**轻量、集成、高效**的 Web 渗透测试工具集，让安全测试人员能够：
+- 🎯 快速进行漏洞验证和复现
+- 🔄 便捷的请求重放和爆破
+- 🔍 指纹识别和漏洞扫描
+- 🌐 流量劫持和抓包分析
+- 🛠️ 集成常用安全工具插件
+- 💻 本地化数据管理
 
-### 1.3 核心价值
+### 1.4 核心价值
 
 | 价值点 | 说明 |
 |--------|------|
-| **高效性** | 集成 Nuclei 引擎，扫描速度快，结果准确 |
-| **易用性** | 现代化 UI 设计，操作直观，学习成本低 |
-| **开放性** | 基于 Nuclei POC 生态，支持自定义模板 |
-| **安全性** | 本地化数据存储，完全掌控敏感信息 |
-| **灵活性** | 桌面版 + 服务版，满足不同使用场景 |
+| **轻量化** | 无组件依赖，解压即可使用 |
+| **集成化** | 多种渗透测试工具于一体 |
+| **高效率** | 快速验证漏洞，提高测试效率 |
+| **本地化** | 数据本地存储，保护隐私 |
+| **开源化** | 基于 Nuclei 开源社区 |
 
 ---
 
@@ -66,2023 +66,1088 @@
 ### 2.1 市场定位
 
 **目标用户群**:
-- 🔰 个人安全研究者
-- 🏢 中小企业安全团队
-- 🎓 渗透测试工程师
-- 💻 开发者（自查）
-- 🏫 教育培训机构
+- 🔰 红队安全测试人员
+- 🏢 渗透测试工程师
+- 🎓 漏洞研究员
+- 💻 安全运维人员
+- 🏫 攻防演练参与者
 
 **使用场景**:
-- 日常安全测试
-- 漏洞赏金狩猎
-- 渗透测试辅助
-- 安全意识培训
-- DevSecOps 集成
+- Web 应用渗透测试
+- 漏洞验证和复现
+- 攻防演练实战
+- 微信小程序渗透
+- 安全合规检查
+- 应急响应测试
 
-### 2.2 竞品对比
+### 2.2 与 DudeSuite 的对比
 
-#### 2.2.1 vs DudeSuite
+| 维度 | DudeSuite | HoleHunter | 差异程度 |
+|------|-----------|------------|----------|
+| **产品定位** | 轻量化集成化渗透测试工具集 | 轻量化集成化渗透测试工具集 | ✅ 完全一致 |
+| **重放爆破** | HTTP/S 重放、各类型爆破 | HTTP/S 重放、各类型爆破 | ✅ 完全一致 |
+| **漏洞验证** | POC/EXP 验证 | 基于 Nuclei POC 验证 | ✅ 功能一致 |
+| **扫描功能** | 指纹扫描、漏洞扫描 | 指纹扫描、Nuclei 漏洞扫描 | ✅ 功能一致 |
+| **流量劫持** | HTTPS/小程序抓包重放 | HTTPS/小程序抓包重放 | ✅ 功能一致 |
+| **远程管理** | 反向 Shell 管理 | 反向 Shell 管理 | ✅ 功能一致 |
+| **工具插件** | 编码解码、资产搜索、JWT、SQLMAP | 编码解码、资产搜索、JWT、Nuclei | ✅ 功能一致 |
+| **技术栈** | 桌面应用 | Electron + React + Go | ⚠️ 实现方式不同 |
+| **开源程度** | 闭源工具 | 完全开源 | ⚠️ 开源策略不同 |
+| **价格** | 免费工具 | 免费开源 | ✅ 一致 |
 
-| 维度 | DudeSuite | HoleHunter | 优势 |
-|------|-----------|------------|------|
-| **扫描引擎** | 自研/混合 | Nuclei 开源社区 | ✅ 社区活跃，模板丰富 |
-| **技术栈** | 原生桌面应用 | Electron + Web技术 | ✅ 跨平台，易扩展 |
-| **UI设计** | 传统界面 | 现代暗色系 | ✅ 更符合现代审美 |
-| **数据存储** | 未知格式 | 开放JSON/SQLite | ✅ 数据可导出迁移 |
-| **价格** | 付费软件 | 完全开源免费 | ✅ 无成本门槛 |
-| **可定制性** | 封闭系统 | 完全开放 | ✅ 可自定义模板 |
-| **离线使用** | 支持 | ✅ 支持 | 持平 |
+### 2.3 核心功能模块（对标 DudeSuite）
 
-#### 2.2.2 vs 其他 Nuclei GUI
+#### 模块 1: 重放及爆破（对标 DudeSuite 核心功能）
+- HTTP/S 流量数据包截获
+- 数据包修改和重发
+- 支持多种爆破攻击模式
+- 响应对比和分析
 
-| 工具 | 定位 | HoleHunter 优势 |
-|------|------|-----------------|
-| **Nuclei CLI** | 命令行工具 | ✅ 图形化界面，更直观 |
-| **Nuclei Burp Suite 插件** | Burp集成 | ✅ 独立使用，不依赖Burp |
-| **Nuclei-templates** | 模板库 | ✅ 完整扫描工具，含目标管理 |
-| **自行搭建** | 手工组合 | ✅ 开箱即用，一站式解决方案 |
+#### 模块 2: 漏洞验证（对标 DudeSuite POC/EXP）
+- POC 漏洞验证
+- 快速验证最新漏洞
+- 基于 Nuclei 模板库
+- 自定义 POC 支持
 
-### 2.3 独特卖点 (USP)
+#### 模块 3: 扫描功能（对标 DudeSuite 扫描）
+- Web 指纹信息扫描
+- CMS 识别
+- 端口扫描
+- 漏洞扫描
 
-1. **🎨 极致用户体验**
-   - 暗色主题 + 毛玻璃效果
-   - 流畅动画和过渡
-   - 响应式布局
+#### 模块 4: 流量劫持（对标 DudeSuite 流量劫持）
+- HTTPS 数据包抓取
+- 微信小程序数据包抓包及重放
+- 中间人攻击配置
+- 证书管理
 
-2. **🔧 完整功能闭环**
-   - 目标管理 → 扫描配置 → 实时监控 → 结果分析 → 报告导出
-   - 一个工具完成所有步骤
+#### 模块 5: 远程管理（对标 DudeSuite 远程管理）
+- 反向 Shell 管理
+- 文件管理
+- 进程管理
+- 屏幕截图
 
-3. **📦 双模式部署**
-   - 桌面版：个人使用，本地化数据
-   - 服务版：团队协作，集中管理
-
-4. **⚡ 高性能架构**
-   - Electron 原生性能
-   - Go 后端高并发
-   - SQLite 本地极速查询
-
-5. **🌐 开放生态**
-   - 完全开源
-   - 支持自定义 Nuclei 模板
-   - API 可扩展
+#### 模块 6: 工具插件（对标 DudeSuite 脚本三宝）
+- 编码/解码工具
+- 加密/破解工具
+- JWT 解析和爆破
+- 网络空间资产搜索
+- 域名爆破
+- SQLMAP 集成
+- Nuclei 集成
 
 ---
 
 ## 3. 用户角色与场景
 
-### 3.1 用户角色定义
+### 3.1 用户角色
 
-#### 3.1.1 个人安全研究者
-
+#### 角色 1: 红队渗透测试人员
 **特征**:
-- 独立工作，预算有限
-- 需要快速、高效的工具
-- 重视漏洞发现的准确性
+- 3-5 年渗透测试经验
+- 熟悉各类攻击手法
+- 需要快速验证漏洞
+- 参与攻防演练
 
 **需求**:
-- ✅ 免费开源
-- ✅ 快速扫描和结果查看
-- ✅ 支持自定义模板
-- ✅ 本地数据存储
+- 快速漏洞验证工具
+- 便捷的请求重放
+- 批量爆破功能
+- 流量抓包分析
 
-**使用场景**:
-```
-1. 收集目标网站列表
-2. 使用"快速扫描"预设扫描高危漏洞
-3. 查看 Critical/High 漏洞详情
-4. 手动验证并标记误报
-5. 导出报告用于提交漏洞赏金
-```
+**痛点**:
+- 工具分散，切换频繁
+- 部分工具收费
+- 操作复杂，学习成本高
 
-#### 3.1.2 企业安全团队
+**HoleHunter 解决方案**:
+- 集成多种工具于一体
+- 完全免费开源
+- 界面简洁，操作直观
 
+#### 角色 2: 安全运维人员
 **特征**:
-- 3-10人团队
-- 需要协作和权限管理
-- 定期扫描内部系统
+- 负责企业安全检查
+- 定期漏洞扫描
+- 应急响应处理
 
 **需求**:
-- ✅ 团队共享目标库
-- ✅ 扫描任务调度
-- ✅ 漏洞跟踪和工单集成
-- ✅ 报告和审计日志
+- 快速指纹识别
+- 批量漏洞扫描
+- 生成检测报告
 
-**使用场景**:
-```
-1. 团队成员共同维护目标列表
-2. 定期（每周/每月）自动扫描
-3. 通过仪表板查看安全态势
-4. 对发现的漏洞进行分级处理
-5. 生成月度安全报告
-```
+**痛点**:
+- 手工检查效率低
+- 漏洞验证困难
+- 缺乏自动化工具
 
-#### 3.1.3 渗透测试工程师
+**HoleHunter 解决方案**:
+- 自动化指纹识别
+- Nuclei 批量扫描
+- 一键生成报告
 
+#### 角色 3: 漏洞研究员
 **特征**:
-- 客户项目为主
-- 需要快速发现和验证漏洞
-- 报告专业性和美观度要求高
+- 研究新漏洞
+- 编写 POC 验证
+- 复现漏洞场景
 
 **需求**:
-- ✅ 便携式（单文件运行）
-- ✅ 快速添加目标并扫描
-- ✅ 漏洞详情完整（POC、修复建议）
-- ✅ 导出专业报告
+- POC 编写和测试
+- 请求重放调试
+- 流量分析工具
 
-**使用场景**:
-```
-1. 获得授权，导入目标范围
-2. 使用"深度扫描"全面探测
-3. 实时查看扫描进度
-4. 发现高危漏洞后立即验证
-5. 导出包含POC的测试报告
-```
+**痛点**:
+- POC 测试环境搭建复杂
+- 缺乏便捷的调试工具
+- 流量抓包困难
 
-#### 3.1.4 开发者
+**HoleHunter 解决方案**:
+- 内置 POC 测试环境
+- 强大的请求重放功能
+- 流量劫持抓包
 
+#### 角色 4: 安全学习爱好者
 **特征**:
-- 开发过程中自查
-- 熟悉技术栈
-- 需要CI/CD集成
+- 学习渗透测试
+- 练习漏洞复现
+- 参与漏洞挖掘
 
 **需求**:
-- ✅ 命令行友好
-- ✅ API 可编程
-- ✅ CI/CD 集成
-- ✅ Docker 容器化
+- 易上手的工具
+- 完整的功能集
+- 学习资源丰富
 
-**使用场景**:
-```
-1. 在 CI 流程中集成扫描
-2. 每次构建后自动扫描新版本
-3. 发现漏洞及时通知
-4. 阻止问题版本部署
-```
+**痛点**:
+- 工具配置复杂
+- 缺乏系统学习路径
+- 实战练习机会少
 
-### 3.2 用户旅程
+**HoleHunter 解决方案**:
+- 开箱即用，无依赖
+- 集成常用渗透工具
+- 开源社区支持
 
-#### 3.2.1 新用户首次使用
+### 3.2 典型使用场景
 
-```
-阶段1: 下载安装 (5分钟)
-  ├─ 下载对应平台安装包
-  └─ 完成
+#### 场景 1: 快速漏洞验证（对标 DudeSuite POC 验证）
 
-阶段2: 初始配置 (5分钟)
-  ├─ 启动应用
-  ├─ 验证 Nuclei 安装
-  ├─ 更新 Nuclei 模板
-  └─ 完成
+**背景**:
+红队人员在攻防演练中发现某目标存在 CVE-2024-XXXX 漏洞，需要快速验证。
 
-阶段3: 添加目标 (2分钟)
-  ├─ 进入"目标管理"
-  ├─ 添加第一个目标
-  ├─ 输入名称和URL
-  └─ 保存
+**流程**:
+1. 在 HoleHunter 中添加目标 URL
+2. 选择对应的 CVE POC 模板
+3. 一键执行验证
+4. 查看验证结果和响应
+5. 导出验证报告
 
-阶段4: 第一次扫描 (3分钟)
-  ├─ 选择目标
-  ├─ 点击"扫描"
-  ├─ 选择"快速扫描"预设
-  └─ 开始扫描
+**价值**:
+- 5 分钟内完成验证，提高效率
+- 自动化执行，减少人为错误
+- 结果可追溯，便于报告
 
-阶段5: 查看结果 (持续)
-  ├─ 实时查看进度
-  ├─ 扫描完成
-  ├─ 查看"漏洞列表"
-  ├─ 点击漏洞查看详情
-  └─ 导出报告
+#### 场景 2: 登录爆破（对标 DudeSuite 爆破功能）
 
-总时长: 约 15 分钟即可完成第一次扫描
-```
+**背景**:
+测试某管理系统弱口令，需要批量尝试常见密码。
 
-#### 3.2.2 日常使用流程
+**流程**:
+1. 抓取登录请求包
+2. 标记爆破参数（用户名/密码）
+3. 加载密码字典
+4. 设置并发线程
+5. 开始爆破，实时查看结果
+6. 成功后保存凭据
 
-```
-早晨:
-  1. 打开应用查看仪表板
-  2. 检查昨天的扫描结果
-  3. 处理新发现的高危漏洞
+**价值**:
+- 自动化爆破，节省时间
+- 支持多种编码格式
+- 智能响应分析
 
-工作中:
-  1. 添加新的测试目标
-  2. 配置并启动扫描任务
-  3. 在后台持续监控
-  4. 发现漏洞后及时验证
+#### 场景 3: 小程序渗透（对标 DudeSuite 小程序抓包）
 
-日终:
-  1. 查看今日扫描统计
-  2. 导出当日发现报告
-  3. 标记误报和分类整理
-  4. 备份重要数据
+**背景**:
+某微信小程序存在越权漏洞，需要抓包分析。
 
-每周:
-  1. 查看仪表板趋势图
-  2. 生成周报
-  3. 清理误报数据
-  4. 更新 Nuclei 模板
-```
+**流程**:
+1. 配置 HoleHunter 代理
+2. 手机设置代理指向 HoleHunter
+3. 打开微信小程序进行操作
+4. HoleHunter 自动抓取流量
+5. 分析请求，发现越权点
+6. 重放请求，验证漏洞
+
+**价值**:
+- 解决小程序抓包难题
+- 自动解密 HTTPS 流量
+- 便捷的重放测试
+
+#### 场景 4: 批量资产扫描（对标 DudeSuite 指纹扫描）
+
+**背景**:
+对一批企业资产进行指纹识别和漏洞扫描。
+
+**流程**:
+1. 导入资产列表（IP/域名）
+2. 配置扫描参数（端口/指纹/漏洞）
+3. 启动批量扫描
+4. 实时查看扫描进度
+5. 分析扫描结果
+6. 导出资产报告
+
+**价值**:
+- 自动化批量处理
+- 多维度资产分析
+- 快速发现风险
 
 ---
 
 ## 4. 功能需求
 
-### 4.1 功能模块总览
+### 4.1 模块 1: 重放及爆破（Replay & Brute Force）
 
-```
-HoleHunter 功能架构
-│
-├── 🎯 目标管理模块
-│   ├── 添加/编辑/删除目标
-│   ├── 批量导入
-│   ├── 标签分类
-│   ├── 状态监控
-│   └── 批量操作
-│
-├── 🔍 扫描管理模块
-│   ├── 创建扫描任务
-│   ├── 扫描预设 (7种)
-│   ├── 参数自定义
-│   ├── 实时进度监控
-│   ├── 扫描日志查看
-│   └── 任务调度
-│
-├── 🛡️ 漏洞管理模块
-│   ├── 漏洞列表展示
-│   ├── 多维度过滤
-│   ├── 详情查看
-│   ├── 误报标记
-│   ├── 批量操作
-│   └── 报告导出
-│
-├── 📊 仪表板模块
-│   ├── 统计卡片 (6个)
-│   ├── 漏洞分布图
-│   ├── 扫描趋势图
-│   ├── 最近活动
-│   └── 自动刷新
-│
-├── ⚙️  系统设置模块
-│   ├── 通用设置
-│   ├── Nuclei 配置
-│   ├── 数据库管理
-│   ├── 外观定制
-│   └── 导入/导出配置
-│
-└── 🔧 工具箱模块 (v2.0)
-    ├── 编码/解码工具
-    ├── 加密/哈希工具
-    ├── 正则测试器
-    └── 格式化工具
-```
+#### 4.1.1 HTTP 请求重放
 
-### 4.2 核心功能详述
+**功能描述**:
+支持 HTTP/HTTPS 请求的捕获、修改和重放。
 
-#### 4.2.1 目标管理
+**详细规格**:
 
-**功能描述**: 管理待扫描的网站目标
+**请求捕获**:
+- 支持代理模式捕获请求
+- 支持手动粘贴请求
+- 支持从文件导入请求
+- 支持浏览器插件直接发送
 
-**核心功能**:
-1. **添加目标**
-   - 输入目标名称
-   - 输入目标URL (支持 http/https)
-   - 添加标签 (可多个)
-   - 选择状态 (active/inactive)
+**请求编辑**:
+- 可视化编辑请求行（Method/URL/Version）
+- 编辑请求头（支持添加/删除/修改）
+- 编辑请求体（支持多种格式：JSON/Form/Multipart）
+- 自动 Content-Length 计算
+- 支持请求模板保存
 
-2. **编辑目标**
-   - 修改名称、URL、标签
-   - 更新状态
+**请求发送**:
+- 单次发送
+- 批量发送（从文件读取多个请求）
+- 定时发送（延迟发送）
+- 并发发送（多线程）
 
-3. **删除目标**
-   - 单个删除
-   - 批量删除
-   - 级联删除相关扫描记录
+**响应查看**:
+- 响应状态码高亮
+- 响应头查看
+- 响应体格式化（JSON/HTML/XML）
+- 响应时间统计
+- 响应大小统计
+- 响应历史记录
 
-4. **过滤和搜索**
-   - 按标签过滤
-   - 按状态过滤
-   - 关键词搜索
+**响应对比**:
+- 支持两次响应的 diff 对比
+- 高亮显示差异部分
+- Side-by-side 对比视图
 
-5. **批量导入**
-   - 支持 CSV 导入
-   - 支持 JSON 导入
-   - 支持 URL 列表 (每行一个)
+#### 4.1.2 爆破功能（Brute Force）
 
-**数据验证**:
-```typescript
-interface TargetValidation {
-  name: string;        // 必填，2-100字符
-  url: URL;           // 必填，有效URL
-  tags: string[];     // 可选，最多10个
-  status: 'active' | 'inactive'; // 默认 active
-}
-```
+**功能描述**:
+支持多种类型的爆破攻击。
 
-**UI交互**:
-- 卡片式展示目标
-- 悬停显示详情
-- 快捷操作按钮
-- 拖拽排序 (v2.0)
+**爆破类型**:
 
----
+1. **单参数爆破**
+   - 选择一个参数进行爆破
+   - 支持字典文件
+   - 支持数字递增
+   - 支持字符集遍历
+   - 支持日期时间递增
 
-#### 4.2.2 扫描管理
+2. **多参数爆破**
+   - 支持多个参数同时爆破
+   - 支持 payload 组合（pitchfork）
+   - 支持 payload 乘积（cluster bomb）
+   - 支持自定义组合规则
 
-**功能描述**: 配置和执行 Nuclei 扫描任务
+3. **字典爆破**
+   - 加载外部字典文件
+   - 内置常见密码字典
+   - 支持字典变形（规则引擎）
+   - 支持字典去重
 
-**扫描预设**:
+4. **模式爆破**
+   - 数字模式：{1-100}
+   - 字符模式：{a-z}{0-9}
+   - 日期模式：{2024-01-01}{2024-12-31}
+   - 自定义正则模式
 
-| 预设名称 | 说明 | 模板数 | 预计时间 |
-|---------|------|--------|----------|
-| **快速扫描** | 仅Critical/High漏洞 | ~500 | 5-10分钟 |
-| **深度扫描** | 所有级别漏洞 | ~8000 | 30-60分钟 |
-| **CVE扫描** | 已知CVE漏洞 | ~2000 | 15-30分钟 |
-| **配置错误** | 敏感信息暴露 | ~800 | 10-15分钟 |
-| **技术探测** | 技术栈识别 | ~1000 | 5-10分钟 |
-| **面板扫描** | 管理后台 | ~500 | 10-15分钟 |
-| **自定义** | 完全自定义 | 不限 | 不定 |
+**爆破设置**:
+- 并发线程数（1-100）
+- 请求超时时间
+- 重试次数
+- 延迟设置（避免被封）
+- User-Agent 轮换
+- 代理轮换
+
+**响应分析**:
+- 关键字匹配（成功/失败标识）
+- 状态码过滤
+- 响应长度过滤
+- 响应时间过滤
+- 正则表达式匹配
+
+**结果保存**:
+- 保存成功的请求
+- 导出爆破日志
+- 生成爆破报告
+
+### 4.2 模块 2: 漏洞验证（Vulnerability Verify）
+
+#### 4.2.1 POC 验证
+
+**功能描述**:
+基于 Nuclei 模板的 POC 漏洞验证。
+
+**POC 管理**:
+- 显示所有可用 POC
+- 按 CVE ID、严重程度、类型分类
+- POC 搜索功能
+- POC 收藏功能
+- 自定义 POC 导入
+
+**POC 执行**:
+- 单目标单 POC 验证
+- 单目标多 POC 验证
+- 多目标单 POC 验证
+- 多目标多 POC 批量验证
+
+**POC 结果**:
+- 漏洞存在/不存在状态
+- 漏洞详细信息
+- 请求响应示例
+- 修复建议
+- 漏洞参考链接
+
+**POC 编辑**:
+- YAML 格式编辑器
+- 语法高亮
+- POC 测试功能
+- POC 导出
+
+#### 4.2.2 快速验证
+
+**功能描述**:
+针对最新爆发的 CVE 进行快速验证。
+
+**功能特性**:
+- 显示最新 CVE 列表
+- 一键验证单个 CVE
+- 批量验证多个 CVE
+- CVE 详情查看
+- 验证历史记录
+
+### 4.3 模块 3: 扫描功能（Scanner）
+
+#### 4.3.1 指纹扫描
+
+**功能描述**:
+识别 Web 应用、框架、CMS、中间件等信息。
+
+**指纹类型**:
+- Web 框架（ThinkPHP/Struts2/Spring 等）
+- CMS 系统（WordPress/DedeCMS/Discuz 等）
+- 中间件（Nginx/Apache/IIS/Tomcat 等）
+- 前端框架（React/Vue/Angular 等）
+- CDN（Cloudflare/CloudFront 等）
+- WAF（宝塔/安全狗等）
+
+**扫描方式**:
+- 单个目标扫描
+- 批量目标扫描
+- 端口扫描（常用 Web 端口）
+- 子域名扫描
+
+**结果展示**:
+- 指纹名称和版本
+- 指纹类别
+- 置信度
+- 发现位置（Header/Cookie/Body）
+
+#### 4.3.2 端口扫描
+
+**功能描述**:
+扫描目标开放的端口和服务。
 
 **扫描参数**:
-```typescript
-interface ScanParameters {
-  // 速率控制
-  rateLimit: number;      // 1-1000 req/s, 默认 100
-  concurrency: number;     // 1-100, 默认 25
-  timeout: number;         // 1-60s, 默认 30
-  retries: number;         // 0-5, 默认 1
+- 常用端口（Top 100/Top 1000）
+- 自定义端口范围
+- 全端口扫描（1-65535）
+- 扫描速度设置
 
-  // 模板选择
-  severity?: string[];     // ['critical', 'high', 'medium', 'low', 'info']
-  tags?: string[];         // ['cve', 'rce', 'sqli', ...]
-  excludeTags?: string[];  // ['dos', 'brute-force']
+**结果展示**:
+- 开放端口列表
+- 服务识别
+- Banner 信息
+- 端口状态（Open/Closed/Filtered）
 
-  // 高级选项
-  headers?: string[];     // 自定义HTTP头
-  customTemplates?: string[]; // 自定义模板路径
-}
-```
+#### 4.3.3 漏洞扫描
 
-**实时监控**:
-- 进度条显示 (0-100%)
-- 当前执行模板
-- 已发现漏洞数
-- 实时日志输出
+**功能描述**:
+基于 Nuclei 引擎进行漏洞扫描。
 
-**任务状态**:
-```
-pending → running → completed
-                    ↓
-                  failed / cancelled
-```
+**扫描策略**:
+- 快速扫描（高危漏洞）
+- 深度扫描（全部漏洞）
+- CVE 扫描（已知 CVE）
+- 配置错误扫描
+- 信息泄露扫描
+- 未授权访问扫描
+- 自定义模板扫描
 
----
+**扫描设置**:
+- 目标配置（URL/IP）
+- 模板选择
+- 并发数量
+- 超时时间
+- 扫描深度
+- 排除模板
 
-#### 4.2.3 漏洞管理
+**扫描结果**:
+- 漏洞列表
+- 按严重程度分类
+- 漏洞详情
+- 请求响应
+- 修复建议
 
-**功能描述**: 展示和管理扫描发现的漏洞
+### 4.4 模块 4: 流量劫持（Traffic Hijack）
 
-**漏洞分级**:
-```typescript
-enum Severity {
-  CRITICAL = 'critical',  // 严重 (红色)
-  HIGH = 'high',          // 高危 (橙色)
-  MEDIUM = 'medium',      // 中危 (黄色)
-  LOW = 'low',           // 低危 (蓝色)
-  INFO = 'info'           // 信息 (灰色)
-}
-```
+#### 4.4.1 代理配置
 
-**漏洞详情**:
-```typescript
-interface Vulnerability {
-  // 基本信息
-  id: string;
-  name: string;              // 漏洞名称
-  severity: Severity;
-  url: string;               // 受影响的URL
+**功能描述**:
+配置 HTTP/HTTPS 代理进行流量拦截。
 
-  // 技术信息
-  templateId: string;        // Nuclei模板ID
-  cve?: string[];           // CVE编号
-  cvss?: number;            // CVSS评分 (0-10)
-  description: string;       // 漏洞描述
-  tags: string[];            // 标签
+**代理设置**:
+- 监听端口（默认 8080）
+- 监听地址（0.0.0.0 / 127.0.0.1）
+- 透明代理模式
+- 上游代理配置（链式代理）
 
-  // 证据和参考
-  request?: string;         // HTTP请求示例
-  response?: string;        // HTTP响应示例
-  reference?: string[];      // 参考链接
+**HTTPS 解密**:
+- 自动生成 CA 证书
+- CA 证书导出
+- 证书安装指引
+- 域名白名单（不解密）
 
-  // 元数据
-  targetId: number;
-  scanId: number;
-  discoveredAt: string;
-  isFalsePositive: boolean;
-}
-```
+#### 4.4.2 流量拦截
 
-**过滤功能**:
-- 按严重程度 (可多选)
-- 按目标
-- 按标签 (可多选)
-- 按误报状态
-- 关键词搜索 (名称/URL/描述)
+**功能描述**:
+拦截并显示经过代理的流量。
 
-**批量操作**:
-- 批量标记误报
-- 批量导出
-- 批量删除
+**流量显示**:
+- 请求列表（URL/Method/Status/Time）
+- 请求详情
+- 响应详情
+- 搜索和过滤
+- 标记和备注
 
-**导出格式**:
-- JSON (完整数据)
-- CSV (表格数据)
-- HTML (报告)
-- PDF (专业报告, v2.0)
+**流量操作**:
+- 发送到重放模块
+- 发送到爆破模块
+- 发送到 POC 验证
+- 保存到文件
+- 删除流量
 
----
+#### 4.4.3 小程序抓包
 
-#### 4.2.4 仪表板
+**功能描述**:
+专门针对微信小程序的流量抓包。
 
-**功能描述**: 提供系统全局视图和关键指标
+**功能特性**:
+- 自动识别小程序流量
+- 解密小程序加密参数
+- 显示小程序 API 调用
+- 支持请求重放
+- 支持参数修改
 
-**统计卡片**:
-1. 总目标数
-2. 总扫描次数
-3. 总漏洞数
-4. Critical 漏洞数
-5. High 漏洞数
-6. 活跃扫描数
+**配置说明**:
+- 手机配置代理
+- 安装 CA 证书
+- 打开微信小程序
+- 自动抓取流量
 
-**图表**:
-- **漏洞分布图**
-  - 条形图: 各级别漏洞数量
-  - 圆环图: 各级别占比
+### 4.5 模块 5: 远程管理（Remote Management）
 
-- **扫描趋势图**
-  - 近7天扫描数量
-  - 近7天发现漏洞数
-  - 双轴折线图
+#### 4.5.1 反向 Shell
 
-**最近活动**:
-- 扫描任务开始/完成
-- 新发现漏洞
-- 误报标记
-- 系统事件
+**功能描述**:
+管理反向连接的 Shell。
 
-**自动刷新**:
-- 默认30秒刷新
-- 可配置间隔 (10-300秒)
-- 可手动暂停
+**Shell 管理**:
+- 生成 Shell 代码（多种语言）
+- 显示在线 Shell 列表
+- Shell 交互终端
+- 文件上传下载
+- 屏幕截图
+- 进程管理
+- 键盘记录
 
----
+#### 4.5.2 文件管理
 
-#### 4.2.5 系统设置
+**功能描述**:
+远程文件系统管理。
 
-##### 4.2.5.1 通用设置
+**文件操作**:
+- 浏览文件目录
+- 上传文件
+- 下载文件
+- 删除文件
+- 重命名文件
+- 编辑文件
+- 文件搜索
 
-| 设置项 | 说明 | 默认值 |
-|--------|------|--------|
-| 语言 | 中文/English | 中文 |
-| 自动刷新 | 开关 | 开 |
-| 刷新间隔 | 10-300秒 | 30秒 |
-| 启用通知 | 扫描完成/错误提醒 | 开 |
-| 日志级别 | debug/info/warning/error | info |
+#### 4.5.3 进程管理
 
-##### 4.2.5.2 Nuclei 配置
+**功能描述**:
+远程进程管理。
 
-| 设置项 | 说明 | 默认值 |
-|--------|------|--------|
-| Nuclei路径 | 可执行文件路径 | nuclei (系统PATH) |
-| 模板路径 | 自定义模板目录 | 空使用默认 |
-| 自动更新模板 | 定期更新模板 | 关 |
-| 默认速率限制 | 1-1000 req/s | 100 |
-| 默认并发数 | 1-100 | 25 |
-| 默认超时 | 1-60秒 | 30 |
-| 默认重试次数 | 0-5 | 1 |
+**进程操作**:
+- 列出所有进程
+- 结束进程
+- 启动进程
+- 进程信息查看
 
-##### 4.2.5.3 数据库管理
+### 4.6 模块 6: 工具插件（Tools & Plugins）
 
-| 设置项 | 说明 | 默认值 |
-|--------|------|--------|
-| 数据库路径 | 只读显示 | 自动管理 |
-| 自动备份 | 开关 | 开 |
-| 备份间隔 | 1-30天 | 7天 |
-| 最大备份数 | 1-50个 | 10个 |
-| 数据保留天数 | 1-365天 | 90天 |
+#### 4.6.1 编码/解码工具
 
-##### 4.2.5.4 外观设置
+**支持格式**:
+- Base64 编码/解码
+- URL 编码/解码
+- HTML 编码/解码
+- Hex 编码/解码
+- Unicode 编码/解码
+- MD5 哈希
+- SHA 哈希（1/256/512）
+- AES 加密/解密
+- RSA 加密/解密
 
-| 设置项 | 说明 | 默认值 |
-|--------|------|--------|
-| 主题 | 深色/浅色/跟随系统 | 深色 |
-| 主题色 | 5种预设颜色 | 天蓝色 |
-| 字体大小 | 小/中/大 | 中 |
-| 侧边栏 | 折叠/展开 | 展开 |
-| 动画效果 | 开/关 | 开 |
+#### 4.6.2 JWT 工具
 
----
+**功能特性**:
+- JWT 解析
+- JWT 生成
+- JWT 签名验证
+- JWT 爆破（密钥爆破）
+- 常见密钥字典
 
-### 4.3 功能优先级
+#### 4.6.3 资产搜索
 
-#### P0 (MVP - 必须有)
-- ✅ 目标管理 (CRUD)
-- ✅ 扫描任务 (创建/执行/监控)
-- ✅ 漏洞列表 (展示/过滤/详情)
-- ✅ Nuclei 集成
-- ✅ 数据持久化 (SQLite)
+**功能描述**:
+搜索网络空间资产。
 
-#### P1 (重要 - 应当有)
-- ✅ 扫描预设 (7种)
-- ✅ 实时进度显示
-- ✅ 漏洞详情查看
-- ✅ 批量操作
-- ✅ 导出功能
+**搜索引擎**:
+- FOFA 集成
+- Hunter 集成
+- Quake 集成
+- ZoomEye 集成
 
-#### P2 (加分 - 可以有)
-- ✅ 仪表板统计
-- ✅ 误报标记
-- ✅ 系统设置
-- ✅ 自动刷新
-- ✅ 标签分类
+**搜索语法**:
+- 支持各引擎语法
+- 常用搜索模板
+- 搜索结果保存
 
-#### P3 (未来 - 规划中)
-- ⏳ 用户认证
-- ⏳ 团队协作
-- ⏳ 工单集成
-- ⏳ 插件系统
-- ⏳ 移动端
+#### 4.6.4 域名爆破
+
+**功能描述**:
+子域名暴力破解。
+
+**爆破模式**:
+- 字典爆破
+- 字典生成
+- API 接口查询
+- 证书透明度查询
+
+#### 4.6.5 SQLMAP 集成
+
+**功能描述**:
+集成 SQLMAP 进行 SQL 注入测试。
+
+**功能特性**:
+- 一键调用 SQLMAP
+- 自动检测注入点
+- 支持所有 SQLMAP 参数
+- 结果展示
+
+#### 4.6.6 Nuclei 集成
+
+**功能描述**:
+集成 Nuclei 进行漏洞扫描。
+
+**功能特性**:
+- Nuclei 版本检测
+- 模板更新
+- 扫描任务管理
+- 结果展示和导出
 
 ---
 
 ## 5. 技术架构
 
-### 5.1 整体架构图
+### 5.1 整体架构
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                         HoleHunter                              │
-│                                                                   │
-│  ┌────────────────────────────────────────────────────────────┐  │
-│  │                    桌面版                        │  │
-│  │  ┌────────────┐      ┌──────────────┐                     │  │
-│  │  │ Electron    │      │  React UI     │                     │  │
-│  │  │  Main Proc  │◄────┤  Renderer     │                     │  │
-│  │  │             │ IPC  │               │                     │  │
-│  │  │  ┌──────┐   │      │  ┌─────────┐  │                     │  │
-│  │  │  │IPC   │   │      │  │ Pages   │  │                     │  │
-│  │  │  │Handler│   │      │  │ - Dashboard │  │               │  │
-│  │  │  └───┬──┘   │      │  │ - Targets   │  │               │  │
-│  │  │      │       │      │  │ - Scans     │  │               │  │
-│  │  │      ▼       │      │  │ - Vulns     │  │               │  │
-│  │  │  ┌────────┐  │      │  │ - Settings  │  │               │  │
-│  │  │  │Scanner │  │      │  └─────────┘  │                     │  │
-│  │  │  │Manager │  │      │  ┌─────────┐  │                     │  │
-│  │  │  └────┬───┘  │      │  │Stores   │  │                     │  │
-│  │  │       │      │      │  └─────────┘  │                     │  │
-│  │  │       │      │      │               │                     │  │
-│  │  └───────┼──────┘      └───────────────┘                     │  │
-│  │          │                                             │  │
-│  └──────────┼─────────────────────────────────────────────┘  │
-│             │                                                   │
-│  ┌──────────▼──────────────────────────────────────────────┐  │
-│  │              SQLite 数据库                             │  │
-│  │  • targets                                           │  │
-│  │  • scan_tasks                                        │  │
-│  │  • vulnerabilities                                   │  │
-│  │  • settings                                         │  │
-│  └───────────────────────────────────────────────────────┘  │
-│                                                                   │
+┌────────────────────────────────────────────────────────────┐
+│                    HoleHunter 客户端                        │
+├────────────────────────────────────────────────────────────┤
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
+│  │ 重放及爆破   │  │ 漏洞验证     │  │ 扫描功能     │     │
+│  └──────────────┘  └──────────────┘  └──────────────┘     │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
+│  │ 流量劫持     │  │ 远程管理     │  │ 工具插件     │     │
+│  └──────────────┘  └──────────────┘  └──────────────┘     │
+├────────────────────────────────────────────────────────────┤
 │  ┌──────────────────────────────────────────────────────┐  │
-│  │              服务版                        │  │
-│  │  ┌──────────┐      ┌─────────────┐                     │  │
-│  │  │ Go       │      │  Nginx       │                     │  │
-│  │  │ Backend  │◄────►│  Reverse     │                     │  │
-│  │  │          │ API  │  Proxy       │                     │  │
-│  │  │ ┌────────┐  │      │              │                     │  │
-│  │  │ │Gin API │  │      │  ┌─────────┐ │                     │  │
-│  │  │ └───┬────┘  │      │  │Static   │ │                     │  │
-│  │  │     │       │      │  │Files    │ │                     │  │
-│  │  │     ▼       │      │  └─────────┘ │                     │  │
-│  │  │  ┌────────┐  │      │              │                     │  │
-│  │  │  │Service │  │      │              │                     │  │
-│  │  │  │Layer   │  │      │              │                     │  │
-│  │  │  └────────┘  │      │              │                     │  │
-│  │  └─────────────┘      └───────────────┘                     │  │
-│  └───────────────────────────────────────────────────────────┘  │
-│                                                                   │
-└───────────────────────────────────────────────────────────────────┘
+│  │           Electron 主进程 + 渲染进程                  │  │
+│  └──────────────────────────────────────────────────────┘  │
+├────────────────────────────────────────────────────────────┤
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
+│  │ Nuclei 引擎  │  │ HTTP 代理    │  │ SQLite 数据库│     │
+│  └──────────────┘  └──────────────┘  └──────────────┘     │
+└────────────────────────────────────────────────────────────┘
 ```
 
-### 5.2 技术栈详细
+### 5.2 技术栈
 
-#### 5.2.1 桌面版
+#### 桌面版
 
-| 层级 | 技术 | 版本 | 用途 |
-|------|------|------|------|
-| **桌面框架** | Electron | 28.0+ | 跨平台桌面应用 |
-| **前端框架** | React | 18.2+ | UI 渲染 |
-| **语言** | TypeScript | 5.3+ | 类型安全 |
-| **构建工具** | Vite | 5.0+ | 快速开发构建 |
-| **状态管理** | Zustand | 4.4+ | 轻量级状态管理 |
-| **样式** | Tailwind CSS | 3.4+ | 原子化CSS |
-| **动画** | Framer Motion | 10.16+ | 声明式动画 |
-| **数据库** | better-sqlite3 | 9.2+ | SQLite封装 |
-| **扫描引擎** | Nuclei | 3.0+ | 漏洞扫描 |
-| **图标** | Lucide React | 0.303+ | 图标库 |
+| 层级 | 技术选择 | 说明 |
+|------|---------|------|
+| **桌面框架** | Electron 28+ | 跨平台桌面应用 |
+| **前端框架** | React 18.2 | UI 框架 |
+| **类型系统** | TypeScript 5.3+ | 类型安全 |
+| **状态管理** | Zustand 4.4+ | 轻量状态管理 |
+| **UI 组件** | Ant Design 5.x | 企业级 UI 组件 |
+| **样式方案** | Tailwind CSS 3.4+ | 工具类 CSS |
+| **构建工具** | Vite 5+ | 快速构建 |
+| **数据库** | SQLite (better-sqlite3) | 本地数据库 |
+| **扫描引擎** | Nuclei 3.0+ | 漏洞扫描 |
+| **代理服务** | http-proxy-middleware | HTTP 代理 |
+| **加密库** | crypto-js | 加密解密 |
 
-#### 5.2.2 服务版
+#### 服务版（可选）
 
-| 层级 | 技术 | 版本 | 用途 |
-|------|------|------|------|
-| **后端语言** | Go | 1.21+ | 高性能服务 |
-| **Web框架** | Gin | 1.9+ | HTTP路由 |
-| **数据库** | SQLite/MySQL/PostgreSQL | - | 数据存储 |
-| **ORM** | 原生SQL | - | 直接SQL查询 |
-| **容器化** | Docker | 20.10+ | 容器部署 |
-| **反向代理** | Nginx | 1.24+ | Web服务器 |
+| 层级 | 技术选择 | 说明 |
+|------|---------|------|
+| **后端语言** | Go 1.21+ | 高性能后端 |
+| **Web 框架** | Gin 1.9+ | HTTP 框架 |
+| **数据库** | MySQL 8.0+ / PostgreSQL 14+ | 关系数据库 |
+| **ORM** | GORM | 数据库 ORM |
+| **扫描引擎** | Nuclei 3.0+ | 漏洞扫描 |
 
-### 5.3 架构分层
+### 5.3 架构设计原则
 
-#### 5.3.1 桌面版分层
-
-```
-┌─────────────────────────────────────────────┐
-│           Presentation Layer                 │
-│  ┌─────────────────────────────────────┐   │
-│  │  React Components (Pages/Views)     │   │
-│  │  - Dashboard, Targets, Scans...     │   │
-│  └─────────────────────────────────────┘   │
-│  ┌─────────────────────────────────────┐   │
-│  │  UI Component Library               │   │
-│  │  - Button, Input, Modal, Badge...    │   │
-│  └─────────────────────────────────────┘   │
-└─────────────────────────────────────────────┘
-                    ▲
-                    │
-┌─────────────────────────────────────────────┐
-│            Business Logic Layer             │
-│  ┌─────────────────────────────────────┐   │
-│  │  State Management (Zustand Stores)  │   │
-│  │  - targetStore, vulnStore, etc.     │   │
-│  └─────────────────────────────────────┘   │
-│  ┌─────────────────────────────────────┐   │
-│  │  Service Layer                       │   │
-│  │  - IPCService, NucleiService        │   │
-│  └─────────────────────────────────────┘   │
-└─────────────────────────────────────────────┘
-                    ▲
-                    │
-┌─────────────────────────────────────────────┐
-│              Data Access Layer              │
-│  ┌─────────────────────────────────────┐   │
-│  │  IPC Handlers (Electron Main)        │   │
-│  │  - target.getAll, scan.create, etc.  │   │
-│  └─────────────────────────────────────┘   │
-│  ┌─────────────────────────────────────┐   │
-│  │  Database Manager                    │   │
-│  │  - CRUD Operations, Queries          │   │
-│  └─────────────────────────────────────┘   │
-└─────────────────────────────────────────────┘
-                    ▲
-                    │
-┌─────────────────────────────────────────────┐
-│               Data Storage Layer             │
-│  ┌─────────────────────────────────────┐   │
-│  │  SQLite (better-sqlite3)              │   │
-│  │  - targets, scan_tasks, vulnerabilities│   │
-│  └─────────────────────────────────────┘   │
-└─────────────────────────────────────────────┘
-```
-
-#### 5.3.2 服务版分层
-
-```
-┌─────────────────────────────────────────────┐
-│            Client Layer                     │
-│  ┌─────────────────────────────────────┐   │
-│  │  Web Browser / API Client           │   │
-│  │  - REST API / GraphQL                │   │
-│  └─────────────────────────────────────┘   │
-└─────────────────────────────────────────────┘
-                    ▲
-                    │
-┌─────────────────────────────────────────────┐
-│             Gateway Layer                    │
-│  ┌─────────────────────────────────────┐   │
-│  │  Nginx Reverse Proxy                │   │
-│  │  - Load Balancing                    │   │
-│  │  - SSL Termination                   │   │
-│  │  - Static Files                     │   │
-│  └─────────────────────────────────────┘   │
-└─────────────────────────────────────────────┘
-                    ▲
-                    │
-┌─────────────────────────────────────────────┐
-│            Application Layer                 │
-│  ┌─────────────────────────────────────┐   │
-│  │  Gin HTTP Router                     │   │
-│  │  - /api/v1/targets                   │   │
-│  │  - /api/v1/scans                     │   │
-│  │  - /api/v1/vulnerabilities            │   │
-│  └─────────────────────────────────────┘   │
-│  ┌─────────────────────────────────────┐   │
-│  │  Controllers / Handlers             │   │
-│  │  - TargetService                    │   │
-│  │  - ScanService                      │   │
-│  │  - VulnerabilityService             │   │
-│  └─────────────────────────────────────┘   │
-└─────────────────────────────────────────────┘
-                    ▲
-                    │
-┌─────────────────────────────────────────────┐
-│            Business Logic Layer             │
-│  ┌─────────────────────────────────────┐   │
-│  │  Service Layer                       │   │
-│  │  - Business Logic                    │   │
-│  │  - Validation                       │   │
-│  │  - Transformation                  │   │
-│  └─────────────────────────────────────┘   │
-└─────────────────────────────────────────────┘
-                    ▲
-                    │
-┌─────────────────────────────────────────────┐
-│              Data Access Layer              │
-│  ┌─────────────────────────────────────┐   │
-│  │  Database Interface                  │   │
-│  │  - Repository Pattern                │   │
-│  │  - Query Builder                    │   │
-│  └─────────────────────────────────────┘   │
-└─────────────────────────────────────────────┘
-                    ▲
-                    │
-┌─────────────────────────────────────────────┐
-│               Data Storage Layer             │
-│  ┌──────────────────┐  ┌──────────────────┐ │
-│  │  SQLite / MySQL  │  │  PostgreSQL      │ │
-│  │  - Production    │  │  - Enterprise    │ │
-│  └──────────────────┘  └──────────────────┘ │
-└─────────────────────────────────────────────┘
-```
+1. **模块化设计**: 各功能模块独立，低耦合
+2. **插件化架构**: 工具插件可扩展
+3. **本地优先**: 数据本地存储，保护隐私
+4. **离线可用**: 核心功能支持离线使用
+5. **跨平台**: 支持 Windows/macOS/Linux
 
 ---
 
 ## 6. 数据模型
 
-### 6.1 数据库设计
+### 6.1 数据库表设计
 
-#### 6.1.1 目标表 (targets)
+#### 表 1: targets（目标管理）
 
 ```sql
 CREATE TABLE targets (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT NOT NULL,
-  url TEXT NOT NULL UNIQUE,
-  tags TEXT,                    -- JSON数组: ["web", "test"]
-  status TEXT NOT NULL DEFAULT 'active',  -- active/inactive/error
-  last_checked TEXT,            -- ISO 8601 timestamp
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-
-  INDEX idx_status (status),
-  INDEX idx_created_at (created_at)
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name VARCHAR(255) NOT NULL,
+    url VARCHAR(2048) NOT NULL,
+    type VARCHAR(50) DEFAULT 'web',
+    tags TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX idx_targets_url ON targets(url);
+CREATE INDEX idx_targets_tags ON targets(tags);
 ```
 
-#### 6.1.2 扫描任务表 (scan_tasks)
+#### 表 2: requests（请求记录）
 
 ```sql
-CREATE TABLE scan_tasks (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  target_id INTEGER NOT NULL,
-  target_name TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT 'pending',  -- pending/running/completed/failed/cancelled
-  progress INTEGER DEFAULT 0,          -- 0-100
-  current_template TEXT,
-
-  -- 时间戳
-  started_at TEXT,
-  completed_at TEXT,
-
-  -- 错误信息
-  error_message TEXT,
-
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-
-  FOREIGN KEY (target_id) REFERENCES targets(id) ON DELETE CASCADE,
-  INDEX idx_status (status),
-  INDEX idx_target_id (target_id),
-  INDEX idx_created_at (created_at)
+CREATE TABLE requests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    target_id INTEGER,
+    method VARCHAR(10) NOT NULL,
+    url VARCHAR(2048) NOT NULL,
+    headers TEXT,
+    body TEXT,
+    response_status INTEGER,
+    response_headers TEXT,
+    response_body TEXT,
+    response_time INTEGER,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (target_id) REFERENCES targets(id)
 );
+
+CREATE INDEX idx_requests_target ON requests(target_id);
+CREATE INDEX idx_requests_method ON requests(method);
+CREATE INDEX idx_requests_created ON requests(created_at);
 ```
 
-#### 6.1.3 漏洞表 (vulnerabilities)
+#### 表 3: brute_tasks（爆破任务）
 
 ```sql
-CREATE TABLE vulnerabilities (
-  id TEXT PRIMARY KEY,              -- UUID 格式
-  name TEXT NOT NULL,
-  severity TEXT NOT NULL,          -- critical/high/medium/low/info
-
-  -- 目标信息
-  url TEXT NOT NULL,
-  target_id INTEGER NOT NULL,
-  scan_id INTEGER NOT NULL,
-
-  -- Nuclei 模板信息
-  template_id TEXT NOT NULL,
-
-  -- 漏洞详情
-  cve TEXT,                       -- JSON数组: ["CVE-2023-1234"]
-  cvss REAL,                      -- 0.0-10.0
-  description TEXT,
-  reference TEXT,                  -- JSON数组
-
-  -- 证据
-  request_response TEXT,          -- HTTP请求/响应
-  tags TEXT,                      -- JSON数组
-
-  -- 元数据
-  discovered_at TEXT NOT NULL,
-  is_false_positive INTEGER DEFAULT 0,
-
-  FOREIGN KEY (target_id) REFERENCES targets(id) ON DELETE CASCADE,
-  FOREIGN KEY (scan_id) REFERENCES scan_tasks(id) ON DELETE CASCADE,
-
-  INDEX idx_severity (severity),
-  INDEX idx_target_id (target_id),
-  INDEX idx_scan_id (scan_id),
-  INDEX idx_false_positive (is_false_positive),
-  INDEX idx_discovered_at (discovered_at)
+CREATE TABLE brute_tasks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name VARCHAR(255) NOT NULL,
+    target_id INTEGER,
+    request_template TEXT,
+    payload_config TEXT,
+    status VARCHAR(50) DEFAULT 'pending',
+    total_count INTEGER DEFAULT 0,
+    success_count INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (target_id) REFERENCES targets(id)
 );
 ```
 
-#### 6.1.4 设置表 (settings)
+#### 表 4: brute_results（爆破结果）
 
 ```sql
-CREATE TABLE settings (
-  key TEXT PRIMARY KEY,
-  value TEXT NOT NULL,
-  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+CREATE TABLE brute_results (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    task_id INTEGER NOT NULL,
+    payload TEXT,
+    response_status INTEGER,
+    response_length INTEGER,
+    response_time INTEGER,
+    is_success BOOLEAN DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (task_id) REFERENCES brute_tasks(id)
 );
+
+CREATE INDEX idx_brute_results_task ON brute_results(task_id);
+CREATE INDEX idx_brute_results_success ON brute_results(is_success);
 ```
 
-### 6.2 数据关系
+#### 表 5: vuln_scans（漏洞扫描）
 
-```
-targets (1) ──────┐
-                     │
-                     ├── (N) ── scan_tasks
-                     │              │
-                     └──────────────┴── vulnerabilities (N)
-                                    (1 target : N scans : M vulns)
-```
-
-### 6.3 数据流
-
-```
-用户添加目标
-    ↓
-INSERT INTO targets
-    ↓
-创建扫描任务
-    ↓
-INSERT INTO scan_tasks (status='pending')
-    ↓
-启动 Nuclei 扫描
-    ↓
-UPDATE scan_tasks SET status='running', progress=0-100
-    ↓
-发现漏洞 → INSERT INTO vulnerabilities
-    ↓
-扫描完成 → UPDATE scan_tasks SET status='completed'
-    ↓
-用户查看漏洞列表 (SELECT * FROM vulnerabilities WHERE target_id=?)
-```
-
----
-
-## 7. API 规格
-
-### 7.1 REST API 端点
-
-#### 7.1.1 目标管理
-
-```
-GET    /api/v1/targets
-POST   /api/v1/targets
-GET    /api/v1/targets/:id
-PUT    /api/v1/targets/:id
-DELETE /api/v1/targets/:id
-POST   /api/v1/targets/batch-delete
-```
-
-**响应格式**:
-```json
-{
-  "success": true,
-  "data": {
-    "id": 1,
-    "name": "测试目标",
-    "url": "https://example.com",
-    "tags": ["web", "test"],
-    "status": "active",
-    "created_at": "2025-01-05T10:00:00Z"
-  }
-}
-```
-
-#### 7.1.2 扫描管理
-
-```
-GET    /api/v1/scans
-POST   /api/v1/scans
-GET    /api/v1/scans/:id
-DELETE /api/v1/scans/:id
-GET    /api/v1/scans/:id/progress
-GET    /api/v1/scans/:id/logs
-```
-
-**创建扫描请求**:
-```json
-{
-  "target_id": 1,
-  "target_name": "测试目标",
-  "config": {
-    "severity": ["critical", "high"],
-    "tags": ["cve", "rce"],
-    "rateLimit": 100,
-    "concurrency": 25,
-    "timeout": 30,
-    "retries": 1
-  }
-}
-```
-
-#### 7.1.3 漏洞管理
-
-```
-GET    /api/v1/vulnerabilities
-GET    /api/v1/vulnerabilities/:id
-PUT    /api/v1/vulnerabilities/:id
-DELETE /api/v1/vulnerabilities/:id
-POST   /api/v1/vulnerabilities/:id/mark-false-positive
-```
-
-**过滤参数**:
-```
-?severity=critical,high
-&target_id=1
-&scan_id=5
-&is_false_positive=false
-&tags=cve,rce
-&search=sql
-```
-
-#### 7.1.4 系统管理
-
-```
-GET    /api/v1/health
-GET    /api/v1/stats/dashboard
-GET    /api/v1/config
-PUT    /api/v1/config
-GET    /api/v1/version
-```
-
-### 7.2 IPC 通道 (桌面版)
-
-#### 7.2.1 目标管理
-
-```
-target:getAll              → Target[]
-target:getById             → Target
-target:create              → Target
-target:update              → Target
-target:delete              → void
-target:batchDelete         → void
-```
-
-#### 7.2.2 扫描管理
-
-```
-scan:create                → ScanTask
-scan:cancel                → void
-scan:getAll                → ScanTask[]
-scan:getById               → ScanTask
-scan:getProgress           → ProgressData
-scan:getLogs               → string[]
-scan:delete                → void
-```
-
-#### 7.2.3 漏洞管理
-
-```
-vuln:getAll                → Vulnerability[]
-vuln:getById               → Vulnerability
-vuln:update                → Vulnerability
-vuln:markFalsePositive     → Vulnerability
-vuln:delete                → void
-```
-
-#### 7.2.4 系统管理
-
-```
-db:healthCheck             → HealthStatus
-db:getStats                → StatsData
-app:getVersion             → string
-app:getPlatform            → string
-nuclei:checkAvailability   → boolean
-nuclei:getVersion          → string
-nuclei:updateTemplates     → void
-```
-
----
-
-## 8. UI/UX 设计
-
-### 8.1 设计原则
-
-1. **简洁优先**: 功能突出，避免信息过载
-2. **一致性**: 统一的设计语言和交互模式
-3. **反馈及时**: 每个操作都有即时反馈
-4. **容错性**: 优雅处理错误，引导用户
-5. **可访问性**: 键盘导航、屏幕阅读器支持
-
-### 8.2 视觉设计
-
-#### 8.2.1 色彩系统
-
-**主色调**:
-```css
---primary-sky: #0EA5E9;        /* 天蓝色 - 主操作 */
---primary-purple: #8B5CF6;     /* 紫色 - 强调 */
-
-/* 功能色彩 */
---color-critical: #EF4444;     /* 严重 - 红色 */
---color-high: #F97316;         /* 高危 - 橙色 */
---color-medium: #F59E0B;        /* 中危 - 黄色 */
---color-low: #3B82F6;          /* 低危 - 蓝色 */
---color-info: #6B7280;          /* 信息 - 灰色 */
-```
-
-**背景色** (暗色主题):
-```css
---bg-primary: #0F172A;          /* 主背景 */
---bg-secondary: #1E293B;        /* 次要背景 */
---bg-tertiary: #334155;         /* 三级背景 */
---bg-card: rgba(30, 41, 59, 0.5); /* 卡片半透明 */
-```
-
-#### 8.2.2 字体系统
-
-```css
---font-size-xs: 0.75rem;      /* 12px */
---font-size-sm: 0.875rem;     /* 14px */
---font-size-base: 1rem;       /* 16px */
---font-size-lg: 1.125rem;     /* 18px */
---font-size-xl: 1.25rem;      /* 20px */
---font-size-2xl: 1.5rem;      /* 24px */
---font-size-3xl: 1.875rem;    /* 30px */
-```
-
-#### 8.2.3 间距系统
-
-```css
---spacing-1: 0.25rem;   /* 4px */
---spacing-2: 0.5rem;    /* 8px */
---spacing-3: 0.75rem;   /* 12px */
---spacing-4: 1rem;       /* 16px */
---spacing-5: 1.25rem;    /* 20px */
---spacing-6: 1.5rem;     /* 24px */
---spacing-8: 2rem;       /* 32px */
---spacing-10: 2.5rem;    /* 40px */
---spacing-12: 3rem;      /* 48px */
---spacing-16: 4rem;      /* 64px */
-```
-
-### 8.3 组件设计规范
-
-#### 8.3.1 按钮
-
-**变体**:
-- Default: 主要操作
-- Secondary: 次要操作
-- Danger: 危险操作 (删除)
-- Ghost: 弱化操作
-
-**尺寸**:
-- sm: 小按钮 (表格内等)
-- md: 标准按钮
-- lg: 大按钮 (主要CTA)
-
-**状态**:
-- Default: 正常
-- Hover: 鼠标悬停
-- Active: 按下
-- Disabled: 禁用
-
-**示例**:
-```tsx
-<Button variant="default" size="md">
-  开始扫描
-</Button>
-```
-
-#### 8.3.2 卡片
-
-**结构**:
-```
-┌─────────────────────────────┐
-│ [Icon] 标题              ... │  ← 标题栏
-├─────────────────────────────┤
-│                              │
-│  内容区域                     │  ← 内容区
-│  - 描述                      │
-│  - 数据统计                  │
-│  - 预览                       │
-│                              │
-├─────────────────────────────┤
-│ [按钮1] [按钮2]     [更多]  │  ← 操作栏
-└─────────────────────────────┘
-```
-
-**样式**:
-- 背景: `bg-slate-800/50`
-- 边框: `border-slate-700`
-- 圆角: `rounded-xl`
-- 悬停: `hover:border-slate-600`
-
-#### 8.3.3 模态框
-
-**组成**:
-- 遮罩层: `bg-black/50 backdrop-blur-sm`
-- 内容区: `bg-slate-800 border border-slate-700 rounded-xl`
-- 标题栏: 带关闭按钮
-- 内容区: 可滚动
-- 操作栏: 底部按钮
-
-**交互**:
-- ESC 关闭
-- 点击遮罩关闭
-- 点击关闭按钮关闭
-
-#### 8.3.4 表单
-
-**输入框**:
-```tsx
-<Input
-  label="目标名称"
-  placeholder="请输入目标名称"
-  value={value}
-  onChange={onChange}
-  error={error}
-/>
-```
-
-**开关**:
-```tsx
-<Switch
-  checked={enabled}
-  onChange={onChange}
-  label="启用通知"
-/>
-```
-
-**滑块**:
-```tsx
-<Slider
-  min={1}
-  max={1000}
-  value={rateLimit}
-  onChange={setRateLimit}
-/>
-```
-
-### 8.4 页面布局
-
-#### 8.4.1 主布局
-
-```
-┌────────────────────────────────────────────────┐
-│  Header (Logo, 用户信息, 设置)                       │
-├──────────┬───────────────────────────────────────────┤
-│          │                                           │
-│ Sidebar  │            Content Area                  │
-│          │  ┌─────────────────────────────────┐    │
-│          │  │                                 │    │
-│ Dashboard│  │                                 │    │
-│ Targets  │  │          动态内容               │    │
-│ Scans    │  │                                 │    │
-│ Vulns    │  │                                 │    │
-│ Settings │  └─────────────────────────────────┘    │
-│          │                                           │
-└──────────┴───────────────────────────────────────────┘
-```
-
-#### 8.4.2 侧边栏
-
-**宽度**:
-- 展开: 240px
-- 折叠: 64px
-
-**菜单项**:
-- 图标 + 标签
-- 激活状态高亮
-- 悬停效果
-
-**自适应**:
-- 小屏幕自动折叠
-- 可手动折叠/展开
-
-#### 8.4.3 响应式断点
-
-```css
-/* Mobile First */
-@media (min-width: 640px) { /* sm */ }
-@media (min-width: 768px) { /* md */ }
-@media (min-width: 1024px) { /* lg */ }
-@media (min-width: 1280px) { /* xl */ }
-```
-
-### 8.5 动画设计
-
-#### 8.5.1 过渡效果
-
-```css
-/* 页面切换 */
-.page-transition {
-  transition: opacity 0.3s ease, transform 0.3s ease;
-}
-
-/* 悬停效果 */
-.hover-lift {
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-.hover-lift:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
-}
-```
-
-#### 8.5.2 加载动画
-
-**骨架屏**:
-```tsx
-<SkeletonLoader
-  variant="card"
-  count={3}
-/>
-```
-
-**进度条**:
-```tsx
-<ProgressBar
-  progress={progress}
-  color="sky"
-/>
-```
-
-**旋转加载**:
-```tsx
-<Spinner size="md" />
-```
-
-#### 8.5.3 反馈动画
-
-**成功提示**:
-```tsx
-<Toast
-  type="success"
-  message="目标已创建"
-/>
-```
-
-**错误抖动**:
-```tsx
-<motion.div
-  animate={{ x: [0, -10, 10, -10, 0] }}
-  transition={{ duration: 0.4 }}
->
-  输入无效
-</motion.div>
-```
-
----
-
-## 9. 安全与性能
-
-### 9.1 安全设计
-
-#### 9.1.1 数据安全
-
-**本地化存储**:
-- 所有数据存储在用户本地
-- 不上传任何目标/漏洞信息
-- 用户完全掌控数据
-
-**IPC 安全**:
-- ContextBridge 隔离
-- 仅暴露必要的 API
-- 类型安全的通信
-
-**输入验证**:
-```typescript
-// URL 验证
-function validateUrl(url: string): boolean {
-  try {
-    const parsed = new URL(url);
-    return ['http:', 'https:'].includes(parsed.protocol);
-  } catch {
-    return false;
-  }
-}
-
-// 路径遍历防护
-function sanitizePath(path: string): string {
-  return path.replace(/\.\./g, '').replace(/[\/\\]/g, '');
-}
-```
-
-**SQL 注入防护**:
-```typescript
-// 使用参数化查询
-const stmt = db.prepare(
-  'SELECT * FROM targets WHERE id = ?'
-);
-stmt.run(targetId);
-```
-
-#### 9.1.2 权限控制 (v2.0)
-
-**用户角色**:
-- Admin: 完全权限
-- User: 只读权限
-- Guest: 仅仪表板
-
-**功能权限**:
-```typescript
-interface Permission {
-  resource: 'target' | 'scan' | 'vuln' | 'setting';
-  action: 'create' | 'read' | 'update' | 'delete';
-}
-```
-
-### 9.2 性能优化
-
-#### 9.2.1 前端优化
-
-**代码分割**:
-```typescript
-// 路由级别分割
-const Dashboard = lazy(() => import('./pages/DashboardPage'));
-const Targets = lazy(() => import('./pages/TargetsPage'));
-```
-
-**虚拟滚动**:
-```tsx
-<VirtualList
-  items={vulnerabilities}
-  itemHeight={120}
-  renderItem={VulnCard}
-/>
-```
-
-**防抖/节流**:
-```typescript
-const debouncedSearch = useMemo(
-  () => debounce(handleSearch, 300),
-  []
-);
-```
-
-**缓存策略**:
-- Zustand 状态缓存
-- localStorage 设置持久化
-- SWR/React Query 数据缓存 (可选)
-
-#### 9.2.2 后端优化
-
-**数据库优化**:
 ```sql
--- 索引优化
-CREATE INDEX idx_vuln_severity ON vulnerabilities(severity);
-CREATE INDEX idx_vuln_target ON vulnerabilities(target_id);
-
--- 查询优化
-SELECT * FROM vulnerabilities
-WHERE target_id = ? AND severity IN ('critical', 'high')
-ORDER BY discovered_at DESC
-LIMIT 100;
+CREATE TABLE vuln_scans (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name VARCHAR(255) NOT NULL,
+    target_id INTEGER,
+    templates TEXT,
+    status VARCHAR(50) DEFAULT 'pending',
+    progress INTEGER DEFAULT 0,
+    total INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (target_id) REFERENCES targets(id)
+);
 ```
 
-**并发控制**:
-- Goroutine 池
-- 连接池限制
-- 扫描任务队列
+#### 表 6: vulns（漏洞结果）
 
-**性能指标**:
-- API 响应: < 100ms (P50)
-- 页面加载: < 2s (P95)
-- 扫描启动: < 3s
+```sql
+CREATE TABLE vulns (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    scan_id INTEGER,
+    target_id INTEGER,
+    template_id VARCHAR(255),
+    severity VARCHAR(50),
+    name VARCHAR(255),
+    description TEXT,
+    url VARCHAR(2048),
+    request TEXT,
+    response TEXT,
+    matched_at VARCHAR(255),
+    false_positive BOOLEAN DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (scan_id) REFERENCES vuln_scans(id),
+    FOREIGN KEY (target_id) REFERENCES targets(id)
+);
 
-### 9.3 资源管理
-
-#### 9.3.1 内存管理
-
-**数据库连接池**:
-```typescript
-const MAX_CONNECTIONS = 10;
-const connectionPool = new ConnectionPool(MAX_CONNECTIONS);
+CREATE INDEX idx_vulns_scan ON vulns(scan_id);
+CREATE INDEX idx_vulns_severity ON vulns(severity);
+CREATE INDEX idx_vulns_false_positive ON vulns(false_positive);
 ```
 
-**扫描任务限制**:
-- 同时运行: <= 5 个
-- 内存占用: < 1GB
+#### 表 7: fingerprints（指纹信息）
 
-#### 9.3.2 存储管理
+```sql
+CREATE TABLE fingerprints (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    target_id INTEGER,
+    name VARCHAR(255) NOT NULL,
+    category VARCHAR(100),
+    version VARCHAR(100),
+    confidence INTEGER DEFAULT 0,
+    location VARCHAR(50),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (target_id) REFERENCES targets(id),
+    UNIQUE(target_id, name, category)
+);
 
-**自动清理**:
-```typescript
-// 定期清理旧数据
-async function cleanupOldData() {
-  const retentionDays = getSetting('dataRetentionDays');
-  const cutoffDate = new Date();
-  cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
-
-  await db.run(
-    'DELETE FROM vulnerabilities WHERE discovered_at < ?',
-    cutoffDate.toISOString()
-  );
-}
+CREATE INDEX idx_fingerprints_target ON fingerprints(target_id);
+CREATE INDEX idx_fingerprints_category ON fingerprints(category);
 ```
 
-**备份策略**:
-- 自动备份: 7天一次
-- 最大备份数: 10个
-- 手动备份: 随时可导出
+#### 表 8: configs（配置）
 
----
-
-## 10. 部署方案
-
-### 10.1 桌面版部署
-
-#### 10.1.1 构建配置
-
-**electron-builder.yml**:
-```yaml
-appId: com.holehunter.app
-productName: HoleHunter
-directories:
-  buildResources: build
-  output: release
-
-mac:
-  target: [dmg, zip]
-  icon: build/icon.icns
-
-win:
-  target: [nsis, portable]
-  icon: build/icon.ico
-
-linux:
-  target: [AppImage, deb]
-  icon: build/icons
-```
-
-#### 10.1.2 打包命令
-
-```bash
-# macOS
-npm run dist:mac-arm64  # Apple Silicon
-npm run dist:mac-x64    # Intel
-
-# Windows
-npm run dist:win
-
-# Linux
-npm run dist:linux
-```
-
-#### 10.1.3 分发方式
-
-**官方渠道**:
-- GitHub Releases
-- 官网下载 (如实现)
-- Homebrew Cask (macOS)
-- Snap Store (Linux)
-- Chocolatey (Windows)
-
-**自动更新**:
-```typescript
-// electron-updater
-autoUpdater.setFeedURL('https://releases.holehunter.example.com');
-```
-
-### 10.2 服务版部署
-
-#### 10.2.1 Docker 部署 (推荐)
-
-**docker-compose.yml**:
-```yaml
-version: '3.8'
-services:
-  holehunter:
-    image: holehunter:latest
-    ports:
-      - "8080:8080"
-    volumes:
-      - holehunter-data:/app/data
-    environment:
-      - HOLEHUNTER_DB_PATH=/app/data/holehunter.db
-```
-
-**部署步骤**:
-```bash
-# 1. 拉取镜像
-docker pull holehunter:latest
-
-# 2. 启动服务
-docker-compose up -d
-
-# 3. 查看日志
-docker-compose logs -f
-
-# 4. 停止服务
-docker-compose down
-```
-
-#### 10.2.2 Systemd 部署 (Linux)
-
-**服务文件**:
-```ini
-[Unit]
-Description=HoleHunter Backend Service
-After=network.target
-
-[Service]
-User=holehunter
-ExecStart=/opt/holehunter/bin/holehunter
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-```
-
-**安装**:
-```bash
-sudo ./install.sh
-```
-
-#### 10.2.3 Nginx 反向代理
-
-**nginx.conf**:
-```nginx
-server {
-    listen 80;
-    server_name holehunter.example.com;
-
-    location / {
-        root /usr/share/nginx/html;
-        try_files $uri $uri/ /index.html;
-    }
-
-    location /api/ {
-        proxy_pass http://localhost:8080;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-}
-```
-
-### 10.3 环境变量
-
-#### 10.3.1 桌面版
-
-```bash
-# API 配置
-VITE_API_BASE_URL=/api/v1
-
-# 应用配置
-VITE_APP_NAME=HoleHunter
-VITE_APP_VERSION=1.0.0
-```
-
-#### 10.3.2 服务版
-
-```bash
-# 服务器
-HOLEHUNTER_SERVER_PORT=8080
-HOLEHUNTER_SERVER_READ_TIMEOUT=30
-HOLEHUNTER_SERVER_WRITE_TIMEOUT=30
-
-# 数据库
-HOLEHUNTER_DB_TYPE=sqlite
-HOLEHUNTER_DB_PATH=/var/lib/holehunter/holehunter.db
-
-# Nuclei
-HOLEHUNTER_NUCLEI_PATH=/usr/bin/nuclei
-HOLEHUNTER_NUCLEI_TEMPLATES_PATH=/root/.config/nuclei-templates
-
-# 日志
-HOLEHUNTER_LOG_LEVEL=info
+```sql
+CREATE TABLE configs (
+    key VARCHAR(255) PRIMARY KEY,
+    value TEXT,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
 ```
 
 ---
 
-## 11. 测试策略
+## 7. 界面设计
 
-### 11.1 单元测试
+### 7.1 设计原则
 
-#### 11.1.1 前端测试
+参考 DudeSuite 的界面设计理念：
+- **简洁直观**: 功能模块清晰，操作简单
+- **高效便捷**: 常用功能一键访问
+- **专业实用**: 面向专业人员，不花哨
 
-**组件测试** (Jest + React Testing Library):
-```typescript
-describe('Button Component', () => {
-  it('renders correctly', () => {
-    render(<Button>Click</Button>);
-    expect(screen.getByText('Click')).toBeInTheDocument();
-  });
+### 7.2 主界面布局
 
-  it('calls onClick when clicked', () => {
-    const handleClick = jest.fn();
-    render(<Button onClick={handleClick}>Click</Button>);
-    fireEvent.click(screen.getByText('Click'));
-    expect(handleClick).toHaveBeenCalled();
-  });
-});
+```
+┌────────────────────────────────────────────────────────────┐
+│  HoleHunter          文件  工具  帮助          [设置]     │
+├──────────┬─────────────────────────────────────────────────┤
+│          │                                                 │
+│ 功能列表 │              工作区                             │
+│          │                                                 │
+│ 📂 重放  │  ┌──────────────────────────────────────────┐  │
+│   ├ 请求 │  │                                          │  │
+│   ├ 重放 │  │           当前功能的内容展示区            │  │
+│   └ 历史 │  │                                          │  │
+│          │  │                                          │  │
+│ 💣 爆破  │  │                                          │  │
+│   ├ 任务 │  │                                          │  │
+│   └ 字典 │  └──────────────────────────────────────────┘  │
+│          │                                                 │
+│ 🔍 验证  │  ┌──────────────────────────────────────────┐  │
+│   ├ POC │  │           日志/结果输出区                 │  │
+│   └ CVE │  └──────────────────────────────────────────┘  │
+│          │                                                 │
+│ 🌐 扫描  │                                                 │
+│   ├ 指纹 │                                                 │
+│   ├ 端口 │                                                 │
+│   └ 漏洞 │                                                 │
+│          │                                                 │
+│ 🎣 代理  │                                                 │
+│          │                                                 │
+│ 🛠️ 工具  │                                                 │
+│          │                                                 │
+└──────────┴─────────────────────────────────────────────────┘
 ```
 
-**Store 测试**:
-```typescript
-describe('targetStore', () => {
-  it('creates a target', () => {
-    const { result } = renderHook(() => useTargetStore(), {
-      wrapper: StoreProvider,
-    });
-    act(() => {
-      result.current.createTarget({
-        name: 'Test',
-        url: 'https://example.com',
-      });
-    });
-    expect(result.current.targets).toHaveLength(1);
-  });
-});
-```
+### 7.3 功能模块界面
 
-#### 11.1.2 后端测试
+#### 重放及爆破界面
 
-**Service 测试**:
-```go
-func TestTargetService_CreateTarget(t *testing.T) {
-    service := NewTargetService(db)
+**请求重放**:
+- 上部：请求编辑区（Method/URL/Headers/Body）
+- 下部：响应显示区（Status/Headers/Body）
+- 右侧：请求历史
 
-    id, err := service.CreateTarget(CreateTargetRequest{
-        Name: "Test",
-        URL: "https://example.com",
-    })
+**爆破攻击**:
+- 上部：爆破配置（目标位置/字典/设置）
+- 中部：进度显示（成功/失败/进度条）
+- 下部：结果显示（成功的请求）
 
-    assert.NoError(t, err)
-    assert.Greater(t, id, 0)
-}
-```
+#### 漏洞验证界面
 
-**API 测试**:
-```go
-func TestAPI_CreateTarget(t *testing.T) {
-    router := setupRouter()
+**POC 验证**:
+- 左侧：POC 列表（分类/搜索）
+- 右侧：验证配置和结果
 
-    body := `{"name":"Test","url":"https://example.com"}`
-    req := httptest.NewRequest("POST", "/api/v1/targets", strings.NewReader(body))
-    req.Header.Set("Content-Type", "application/json")
+**快速验证**:
+- 上部：目标输入
+- 中部：最新 CVE 列表
+- 下部：验证结果
 
-    w := httptest.NewRecorder()
-    router.ServeHTTP(w, req)
+#### 扫描功能界面
 
-    assert.Equal(t, 201, w.Code)
-}
-```
+**指纹扫描**:
+- 上部：目标输入
+- 中部：扫描进度
+- 下部：指纹结果列表
 
-### 11.2 集成测试
+**漏洞扫描**:
+- 上部：目标和模板选择
+- 中部：扫描进度和统计
+- 下部：漏洞列表
 
-#### 11.2.1 端到端测试 (Playwright)
+#### 流量劫持界面
 
-```typescript
-test('user can create and scan a target', async ({ page }) => {
-  // 1. 导航到目标页面
-  await page.click('[data-testid="nav-targets"]');
+**代理配置**:
+- 代理端口设置
+- HTTPS 解密配置
+- CA 证书管理
 
-  // 2. 点击添加目标
-  await page.click('[data-testid="btn-add-target"]');
+**流量拦截**:
+- 流量列表（类似浏览器 DevTools）
+- 请求响应详情
+- 标记和搜索
 
-  // 3. 填写表单
-  await page.fill('[name="name"]', '测试目标');
-  await page.fill('[name="url"]', 'https://example.com');
+#### 工具插件界面
 
-  // 4. 保存
-  await page.click('[data-testid="btn-save"]');
+**编码/解码**:
+- 输入框
+- 编码/解码选择
+- 输出框
 
-  // 5. 验证
-  await expect(page.locator('text=测试目标')).toBeVisible();
-
-  // 6. 启动扫描
-  await page.click('[data-testid="btn-scan"]');
-  await page.selectOption('[name="preset"]', 'quick');
-  await page.click('[data-testid="btn-start-scan"]');
-
-  // 7. 验证扫描开始
-  await expect(page.locator('text=扫描中')).toBeVisible();
-});
-```
-
-### 11.3 性能测试
-
-#### 11.3.1 负载测试
-
-**工具**: k6
-
-```javascript
-import http from 'k6';
-
-export let options = {
-  vus: 100,
-  duration: '30s',
-};
-
-export default function () {
-  // 测试目标列表API
-  http.get('http://localhost:8080/api/v1/targets');
-
-  // 测试创建目标
-  const payload = JSON.stringify({
-    name: 'Load Test',
-    url: 'https://example.com',
-  });
-
-  http.post('http://localhost:8080/api/v1/targets', {
-    headers: { 'Content-Type': 'application/json' },
-    body: payload,
-  });
-
-  sleep(1);
-}
-```
-
-#### 11.3.2 压力测试
-
-**工具: Apache Bench**
-
-```bash
-# 测试并发连接
-ab -n 1000 -c 10 http://localhost:8080/api/v1/targets
-
-# 测试POST请求
-ab -n 100 -c 5 -p data.json http://localhost:8080/api/v1/scans
-```
-
-### 11.4 安全测试
-
-#### 11.4.1 OWASP Top 10
-
-**测试项**:
-1. **注入攻击**: SQL注入、命令注入
-2. **XSS**: 跨站脚本
-3. **CSRF**: 跨站请求伪造
-4. **认证失效**: 会话管理
-5. **安全配置**: HTTP头、CORS
-
-**工具**:
-- OWASP ZAP
-- Burp Suite
-- SQLMap
+**JWT 工具**:
+- JWT 输入
+- 解析结果显示
+- 密钥爆破
 
 ---
 
-## 12. 发布计划
+## 8. 安全与性能
 
-### 12.1 版本规划
+### 8.1 安全措施
 
-#### v1.0.0 (当前版本) ✅
+1. **本地数据存储**: 所有数据存储在本地，不上传云端
+2. **CA 证书管理**: 自动生成和管理 CA 证书
+3. **敏感信息保护**: 密码等敏感信息加密存储
+4. **权限最小化**: 仅请求必要的系统权限
+5. **代码签名**: 发布版本进行代码签名
 
-**发布日期**: 2025-01-05
+### 8.2 性能要求
 
-**核心功能**:
-- ✅ 目标管理
-- ✅ 扫描执行 (7种预设)
-- ✅ 漏洞查看
-- ✅ 仪表板统计
-- ✅ 系统设置
-- ✅ 桌面版打包
-- ✅ 服务版部署
+1. **启动时间**: < 3 秒
+2. **请求响应**: < 100ms（本地操作）
+3. **扫描性能**: 支持 100+ 并发
+4. **内存占用**: < 500MB（空闲）
+5. **CPU 占用**: < 10%（空闲）
 
-**已知限制**:
-- 无用户认证
-- 无团队协作
-- 单机模式
+---
 
-#### v1.1.0 (计划中)
+## 9. 部署方案
 
-**预计发布**: 2025-02-01
+### 9.1 桌面版
 
-**新增功能**:
-- [ ] 用户认证和授权
-- [ ] 报告模板定制
-- [ ] 漏洞详情导出 (PDF)
-- [ ] 扫描任务调度
-- [ ] 性能优化
+#### Windows
+- **格式**: NSIS 安装包 / Portable ZIP
+- **依赖**: 无（内置 Nuclei）
+- **安装**: 解压即可使用
 
-#### v1.2.0 (规划中)
+#### macOS
+- **格式**: DMG 镜像
+- **依赖**: 无
+- **安装**: 拖拽到应用程序
 
-**预计发布**: 2025-03-01
+#### Linux
+- **格式**: AppImage / DEB / RPM
+- **依赖**: 无
+- **安装**: 直接运行 / 包管理器安装
 
-**新增功能**:
-- [ ] 团队协作功能
-- [ ] 工单系统集成 (Jira, GitHub Issues)
-- [ ] Webhook通知
-- [ ] 扫描报告对比
-- [ ] 漏洞复扫功能
+### 9.2 版本管理
 
-#### v2.0.0 (未来规划)
+- **版本号**: v主版本.次版本.修订号 (v1.0.0)
+- **更新策略**:
+  - 主版本：重大功能变更
+  - 次版本：新增功能
+  - 修订号：Bug 修复
 
-**预计发布**: 2025-06-01
+---
 
-**新增功能**:
-- [ ] 插件系统
-- [ ] 自定义模板编辑器
-- [ ] 云端同步
-- [ ] 移动端应用
-- [ ] 高级分析工具
+## 10. 发布计划
 
-### 12.2 发布流程
+### 10.1 版本路线图
 
-#### 12.2.1 桌面版
+#### v1.0.0 - MVP 版本
+**时间**: 2025 Q1
+**功能**:
+- ✅ 基础框架搭建
+- ✅ 重放及爆破模块
+- ✅ 漏洞验证模块（基础 POC）
+- ✅ 指纹扫描
+- ✅ 编码/解码工具
 
-```
-1. 代码审查
-   ├─ 代码 review
-   ├─ 安全审计
-   └─ 性能测试
+#### v1.1.0 - 功能增强
+**时间**: 2025 Q2
+**功能**:
+- ✅ 流量劫持模块
+- ✅ 端口扫描
+- ✅ JWT 工具
+- ✅ 资产搜索集成
+- ✅ 域名爆破
 
-2. 版本测试
-   ├─ 单元测试
-   ├─ 集成测试
-   ├─ 端到端测试
-   └─ 用户验收测试
+#### v1.2.0 - 高级功能
+**时间**: 2025 Q3
+**功能**:
+- ✅ 远程管理模块
+- ✅ SQLMAP 集成
+- ✅ 小程序抓包优化
+- ✅ 报告导出功能
 
-3. 构建
-   ├─ npm run build
-   ├─ npm run dist
-   └─ 签名 (如有证书)
+#### v2.0.0 - 企业版
+**时间**: 2025 Q4
+**功能**:
+- ✅ 团队协作
+- ✅ 云端同步（可选）
+- ✅ API 接口
+- ✅ 权限管理
 
-4. 发布
-   ├─ 创建 GitHub Release
-   ├─ 上传安装包
-   ├─ 更新文档
-   └─ 发布公告
+### 10.2 里程碑
 
-5. 监控
-   ├─ 错误日志收集
-   ├─ 用户反馈跟踪
-   └─ 性能指标监控
-```
-
-#### 12.2.2 服务版
-
-```
-1. 构建
-   ├─ Go 编译
-   ├─ Docker 镜像构建
-   └─ 测试镜像
-
-2. 部署
-   ├─ 更新 Docker Hub
-   ├─ 部署到生产环境
-   ├─ 数据库迁移
-   └─ 配置更新
-
-3. 验证
-   ├─ 健康检查
-   ├─ API 测试
-   ├─ 性能测试
-   └─ 回滚方案
-
-4. 发布
-   ├─ 更新文档
-   ├─ 通知用户
-   └─ 监控部署
-```
-
-### 12.3 发布检查清单
-
-#### 代码质量
-- [ ] 所有测试通过
-- [ ] 代码覆盖率 > 80%
-- [ ] 无 Critical/High 漏洞
-- [ ] 性能指标达标
-
-#### 文档完整性
-- [ ] README 更新
-- [ ] CHANGELOG 更新
-- [ ] API 文档更新
-- [ ] 用户手册更新
-
-#### 部署准备
-- [ ] 环境变量配置
-- [ ] 数据库迁移脚本
-- [ ] 备份和恢复流程
-- [ ] 监控和告警
-
-#### 用户支持
-- [ ] 发布公告
-- [ ] 升级指南
-- [ ] 问题排查手册
-- [ ] 回滚方案
+| 里程碑 | 目标 | 时间 |
+|--------|------|------|
+| M1 | 项目启动 | 2025-01 |
+| M2 | MVP 发布 | 2025-03 |
+| M3 | 功能完善 | 2025-06 |
+| M4 | 正式版发布 | 2025-09 |
+| M5 | 企业版发布 | 2025-12 |
 
 ---
 
 ## 附录
 
-### A. 术语表
+### A. 参考资料
+
+- [DudeSuite GitHub](https://github.com/x364e3ab6/DudeSuite)
+- [Nuclei 官方文档](https://docs.projectdiscovery.io/nuclei/)
+- [渗透测试最佳实践](https://www.owasp.org/)
+
+### B. 术语表
 
 | 术语 | 说明 |
 |------|------|
-| **Nuclei** | 基于模板的漏洞扫描工具 |
-| **POC** | Proof of Concept, 概念验证代码 |
-| **CVE** | Common Vulnerabilities and Exposures, 通用漏洞披露 |
-| **CVSS** | Common Vulnerability Scoring System, 通用漏洞评分系统 |
-| **IPC** | Inter-Process Communication, 进程间通信 |
-| **SQLite** | 轻量级嵌入式数据库 |
-| **Electron** | 跨平台桌面应用框架 |
-| **React** | Facebook 开发的 UI 框架 |
-| **Zustand** | 轻量级状态管理库 |
+| POC | Proof of Concept，概念验证 |
+| EXP | Exploit，漏洞利用代码 |
+| CVE | Common Vulnerabilities and Exposures，通用漏洞披露 |
+| JWT | JSON Web Token，JSON Web 令牌 |
 
-### B. 参考资料
+### C. 变更记录
 
-#### 技术文档
-- [Electron 官方文档](https://www.electronjs.org/docs)
-- [React 官方文档](https://react.dev/)
-- [Nuclei 文档](https://docs.nuclei.sh)
-- [Tailwind CSS](https://tailwindcss.com)
-
-#### 设计参考
-- [Material Design](https://m3.material.io/)
-- [Ant Design](https://ant.design/)
-- [Shadcn UI](https://ui.shadcn.com/)
-
-#### 安全标准
-- [OWASP Top 10](https://owasp.org/www-project-top-ten/)
-- [CWE Top 25](https://cwe.mitre.org/top25/)
-- [CVSS Calculator](https://nvd.nist.gov/vuln-metrics/cvss/v3-calculator)
-
-### C. 相关项目
-
-#### 类似工具
-- [DudeSuite](https://github.com/tisfeng/DudeSuite)
-- [Nuclei](https://github.com/projectdiscovery/nuclei)
-- [X-Ray](https://github.com/evilsocket/xray)
-
-#### 依赖项目
-- [Electron](https://github.com/electron/electron)
-- [React](https://github.com/facebook/react)
-- [Zustand](https://github.com/pmndrs/zustand)
-- [Framer Motion](https://github.com/framer-motion/framer-motion)
-- [Tailwind CSS](https://github.com/tailwindlabs/tailwindcss)
-
-### D. 更新日志
-
-**v1.0.0** (2025-01-05)
-- ✅ 初始版本发布
-- ✅ 完成所有核心功能
-- ✅ 桌面版 + 服务版双模式
-- ✅ 完整文档和部署指南
-
----
-
-## 文档变更历史
-
-| 版本 | 日期 | 变更说明 |
-|------|------|----------|
-| v1.0 | 2025-01-05 | 初始版本，完整PRD |
-| | | |
-
----
-
-## 审批记录
-
-| 角色 | 姓名 | 日期 | 状态 |
-|------|------|------|------|
-| 产品经理 | - | 2025-01-05 | ✅ 批准 |
-| 技术负责人 | - | 2025-01-05 | ✅ 批准 |
-| 安全负责人 | - | 2025-01-05 | ✅ 批准 |
+| 版本 | 日期 | 变更内容 | 作者 |
+|------|------|----------|------|
+| v2.0 | 2025-01-07 | 基于 DudeSuite 重新设计 PRD | HoleHunter Team |
+| v1.0 | 2025-01-05 | 初始版本 | HoleHunter Team |
 
 ---
 
 **文档结束**
 
-本文档是 HoleHunter 产品的完整需求规格说明，包含产品定位、功能需求、技术实现、部署方案等所有关键信息。
+如有疑问或建议，请联系：[GitHub Issues](https://github.com/yourusername/hole_hunter/issues)
 
-**版本**: v1.0
-**最后更新**: 2025-01-05
-**维护者**: HoleHunter Team
-**许可**: MIT License
+---
+
+## Sources
+
+- [DudeSuite Web Security Tools - GitHub](https://github.com/x364e3ab6/DudeSuite)
+- [DudeSuite智能安全测试平台介绍 - 隐侠安全客栈](https://www.dfyxsec.com/2025/05/18/dudesuite智能安全测试平台介绍/)
+- [DudeSuite Web Security Tools 渗透测试工具集 - CSDN](https://blog.csdn.net/persist213/article/details/142623337)
+- [红队单兵渗透工具-DudeSuite - W3xue](https://www.w3xue.com/exp/article/20253/90971.html)
+- [一键解锁攻防演练小程序渗透新姿势 - CN-SEC](https://cn-sec.com/archives/3934904.html)
