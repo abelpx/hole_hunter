@@ -457,7 +457,7 @@ Content-Type: application/json
 | severity | string[] | 否 | 严重程度过滤 |
 | start_date | datetime | 否 | 开始日期 |
 | end_date | datetime | 否 | 结束日期 |
-| format | string | 是 | 导出格式：json/html/csv |
+| format | string | 是 | 导出格式：json/html/csv/pdf/word |
 
 **JSON 格式响应**:
 
@@ -499,6 +499,14 @@ Content-Type: application/json
 **CSV 格式响应**:
 
 直接下载 CSV 文件，适用于数据分析。
+
+**PDF 格式响应**:
+
+下载打印友好的 HTML 文件，可在浏览器中打开后使用"打印"功能另存为 PDF。文件已针对 A4 纸张优化，包含分页控制和中文字体支持。
+
+**Word 格式响应**:
+
+下载 RTF (Rich Text Format) 文件，Microsoft Word 原生支持。包含颜色标记和格式化文本，可直接在 Word 中编辑。
 
 ## 状态码
 
