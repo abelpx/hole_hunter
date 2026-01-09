@@ -47,7 +47,7 @@ func main() {
 
 	// Initialize services
 	targetService := services.NewTargetService(db)
-	scanService := services.NewScanService(db, cfg.Nuclei)
+	scanService := services.NewScanService(db, &cfg.Nuclei)
 	vulnService := services.NewVulnerabilityService(db)
 
 	// Setup router

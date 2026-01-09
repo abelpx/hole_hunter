@@ -2,6 +2,7 @@ package services
 
 import (
 	"database/sql"
+	"encoding/json"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -69,9 +70,10 @@ func (s *TargetService) CreateTarget(c *gin.Context) {
 		return
 	}
 
+	tagsJSON, _ := json.Marshal(req.Tags)
 	result, err := s.db.Exec(
 		"INSERT INTO targets (name, url, description, tags) VALUES (?, ?, ?, ?)",
-		req.Name, req.URL, req.DESC, req.Tags,
+		req.Name, req.URL, req.DESC, string(tagsJSON),
 	)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -93,9 +95,10 @@ func (s *TargetService) UpdateTarget(c *gin.Context) {
 		return
 	}
 
+	tagsJSON, _ := json.Marshal(req.Tags)
 	_, err := s.db.Exec(
 		"UPDATE targets SET name = ?, url = ?, description = ?, tags = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-		req.Name, req.URL, req.DESC, req.Tags, id,
+		req.Name, req.URL, req.DESC, string(tagsJSON), id,
 	)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

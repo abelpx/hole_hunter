@@ -1,7 +1,6 @@
 package models
 
 import (
-	"database/sql"
 	"encoding/json"
 	"time"
 )
@@ -51,8 +50,8 @@ type ScanTask struct {
 	TotalTemplates    int       `json:"total_templates"`
 	ExecutedTemplates int       `json:"executed_templates"`
 	Progress          int       `json:"progress"`
-	CurrentTemplate   string    `json:"current_template,omitempty"`
-	Error             string    `json:"error,omitempty"`
+	CurrentTemplate   *string   `json:"current_template,omitempty"`
+	Error             *string   `json:"error,omitempty"`
 	CreatedAt         time.Time `json:"created_at"`
 }
 
