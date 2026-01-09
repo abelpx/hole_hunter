@@ -5,6 +5,7 @@ node_modules/
 
 # Build outputs
 dist/
+**/dist/
 build/
 out/
 *.exe
@@ -71,11 +72,14 @@ coverage/
 .fusebox/
 .dynamodb/
 .tern-port
-.yarn/cache
+.yarn/cache/
 .yarn/unplugged
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+# Vite cache
+.vite/
 
 # Nuclei templates
 templates/
@@ -93,3 +97,13 @@ Thumbs.db
 tmp/
 temp/
 *.tmp
+
+# Claude local settings
+.claude/settings.local.json
+
+# Local development files
+backend/holehunter.db
+
+# Build artifacts and releases
+releases/
+artifacts/
