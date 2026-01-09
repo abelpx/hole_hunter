@@ -47,11 +47,15 @@ func main() {
 
 	// Initialize services
 	targetService := services.NewTargetService(db)
-	scanService := services.NewScanService(db, &cfg.Nuclei)
+	scanService := services.NewScanService(db, &cfg.Nuclei, &cfg.Scan)
 	vulnService := services.NewVulnerabilityService(db)
+	reportService := services.NewReportService(db, cfg)
+
+	// Start WebSocket hub
+	scanService.StartWebSocketHub()
 
 	// Setup router
-	router := api.SetupRouter(cfg, targetService, scanService, vulnService)
+	router := api.SetupRouter(cfg, targetService, scanService, vulnService, reportService)
 
 	// Create HTTP server
 	srv := &http.Server{

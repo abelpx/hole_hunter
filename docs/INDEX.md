@@ -44,7 +44,17 @@
 - 故障排查指南
 - 性能优化建议
 
-### 4. [UI_FUNCTIONALITY_TEST.md](./UI_FUNCTIONALITY_TEST.md) - UI功能测试指南
+### 4. [PROGRESS.md](./PROGRESS.md) - 项目进度跟踪
+**用途**: 跟踪项目开发进度和优先级
+**大小**: 8KB
+**内容**:
+- 整体进度概览 (65%)
+- 各模块详细进度
+- 版本规划和里程碑
+- 开发优先级 (P0/P1/P2)
+- 技术债务清单
+
+### 5. [UI_FUNCTIONALITY_TEST.md](./UI_FUNCTIONALITY_TEST.md) - UI功能测试指南
 **用途**: 功能测试步骤、已知问题解决方案
 **大小**: 13KB
 **内容**:
@@ -54,6 +64,16 @@
 - 性能测试场景
 - 用户流程测试
 - 已知限制和解决方案
+
+### 6. [API.md](./API.md) - 后端 API 文档
+**用途**: API 接口规范和开发参考
+**大小**: 12KB
+**内容**:
+- RESTful API 规范
+- 目标管理接口
+- 扫描任务接口
+- 漏洞管理接口
+- 统计数据接口
 
 ---
 
@@ -101,6 +121,7 @@
 ### QA/测试工程师
 1. 查看 [COMPLETE_PRD.md](./COMPLETE_PRD.md) 第4章：功能需求（测试基准）
 2. 查看 [UI_FUNCTIONALITY_TEST.md](./UI_FUNCTIONALITY_TEST.md) 完整测试流程
+3. 查看 [PROGRESS.md](./PROGRESS.md) 了解当前开发进度和已知问题
 
 ---
 
@@ -135,11 +156,13 @@ HoleHunter v2.0 基于 **DudeSuite Web Security Tools** 设计，提供类似的
 - ✅ README.md - 项目主文档
 - ✅ COMPLETE_PRD.md - 产品需求文档（v2.0，基于DudeSuite）
 - ✅ BUILD_AND_DEPLOYMENT.md - 构建部署文档
+- ✅ PROGRESS.md - 项目进度跟踪
+- ✅ API.md - 后端 API 文档
 - ✅ UI_FUNCTIONALITY_TEST.md - 功能测试文档
 - ✅ INDEX.md - 文档索引导航
 
 ---
 
-**最后更新**: 2025-01-07
-**文档版本**: v2.0
+**最后更新**: 2025-01-09
+**文档版本**: v2.1
 **参考产品**: DudeSuite Web Security Tools

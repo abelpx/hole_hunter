@@ -6,7 +6,7 @@ import (
 	"github.com/holehunter/backend/pkg/config"
 )
 
-func SetupRouter(cfg *config.Config, targetService *services.TargetService, scanService *services.ScanService, vulnService *services.VulnerabilityService) *gin.Engine {
+func SetupRouter(cfg *config.Config, targetService *services.TargetService, scanService *services.ScanService, vulnService *services.VulnerabilityService, reportService *services.ReportService) *gin.Engine {
 	router := gin.Default()
 
 	// CORS middleware
@@ -64,8 +64,19 @@ func SetupRouter(cfg *config.Config, targetService *services.TargetService, scan
 			config.PUT("", UpdateConfig)
 		}
 
+		// Reports
+		reports := v1.Group("/reports")
+		{
+			reports.POST("/export", reportService.ExportReport)
+		}
+
 		// Health check
 		v1.GET("/health", HealthCheck)
+
+		// WebSocket endpoint
+		v1.GET("/ws", func(c *gin.Context) {
+			scanService.GetWebSocketHub().HandleWebSocket(c)
+		})
 	}
 
 	return router
