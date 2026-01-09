@@ -377,6 +377,129 @@ GET /api/v1/templates
 GET /api/v1/templates/categories
 ```
 
+### WebSocket 连接
+
+#### 建立 WebSocket 连接
+
+```http
+GET /api/v1/ws
+```
+
+升级为 WebSocket 连接后，服务器会实时推送以下事件：
+
+#### 扫描进度更新
+
+```json
+{
+  "type": "scan_progress",
+  "data": {
+    "task_id": 1,
+    "status": "running",
+    "total_templates": 1000,
+    "executed_templates": 250,
+    "progress": 25,
+    "current_template": "cves/2021/CVE-2021-44228.yaml",
+    "vuln_count": 5,
+    "timestamp": "2026-01-09T10:00:00Z"
+  }
+}
+```
+
+#### 扫描完成
+
+```json
+{
+  "type": "scan_completed",
+  "data": {
+    "task_id": 1,
+    "status": "completed",
+    "error": null,
+    "duration": "2m30s"
+  }
+}
+```
+
+#### 扫描取消
+
+```json
+{
+  "type": "scan_cancelled",
+  "data": {
+    "task_id": 1
+  }
+}
+```
+
+### 报告导出
+
+#### 导出报告
+
+```http
+POST /api/v1/reports/export
+Content-Type: application/json
+
+{
+  "task_id": 1,
+  "target_id": null,
+  "severity": ["critical", "high"],
+  "start_date": "2026-01-01T00:00:00Z",
+  "end_date": "2026-01-31T23:59:59Z",
+  "format": "json"
+}
+```
+
+**请求参数**:
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| task_id | int | 否 | 扫描任务ID |
+| target_id | int | 否 | 目标ID |
+| severity | string[] | 否 | 严重程度过滤 |
+| start_date | datetime | 否 | 开始日期 |
+| end_date | datetime | 否 | 结束日期 |
+| format | string | 是 | 导出格式：json/html/csv |
+
+**JSON 格式响应**:
+
+直接下载 JSON 文件，包含以下结构：
+
+```json
+{
+  "generated_at": "2026-01-09T10:00:00Z",
+  "total": 10,
+  "summary": {
+    "critical": 2,
+    "high": 3,
+    "medium": 3,
+    "low": 1,
+    "info": 1
+  },
+  "vulnerabilities": [
+    {
+      "id": 1,
+      "task_id": 1,
+      "template_id": "cves/2021/CVE-2021-44228",
+      "severity": "critical",
+      "name": "Apache Log4j RCE",
+      "description": "Apache Log4j 远程代码执行漏洞",
+      "url": "https://example.com",
+      "matched_at": "/log",
+      "cve": "CVE-2021-44228",
+      "cvss": 10.0,
+      "created_at": "2026-01-09T10:00:00Z"
+    }
+  ]
+}
+```
+
+**HTML 格式响应**:
+
+直接下载 HTML 文件，包含样式的完整报告。
+
+**CSV 格式响应**:
+
+直接下载 CSV 文件，适用于数据分析。
+
 ## 状态码
 
 | 状态码 | 说明 |
