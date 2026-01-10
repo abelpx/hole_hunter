@@ -52,24 +52,26 @@ function App() {
     checkEnvironment();
   }, []);
 
+  const handleMenuItemClick = (item: string) => {
+    setActiveMenuItem(item);
+    setShowDashboard(item === 'dashboard');
+    setShowTargetsPage(item === 'targets');
+    setShowScansPage(item === 'scans');
+    setShowVulnPage(item === 'vulnerabilities');
+    setShowSettingsPage(item === 'settings');
+  };
+
   return (
     <ContentLayout
       activeMenuItem={
         showDashboard ? 'dashboard' : showTargetsPage ? 'targets' : showScansPage ? 'scans' : showVulnPage ? 'vulnerabilities' : showSettingsPage ? 'settings' : activeMenuItem
       }
-      onMenuItemClick={(item) => {
-        setActiveMenuItem(item);
-        setShowDashboard(item === 'dashboard');
-        setShowTargetsPage(item === 'targets');
-        setShowScansPage(item === 'scans');
-        setShowVulnPage(item === 'vulnerabilities');
-        setShowSettingsPage(item === 'settings');
-      }}
+      onMenuItemClick={handleMenuItemClick}
     >
       {showDashboard ? (
         <DashboardPage />
       ) : showTargetsPage ? (
-        <TargetsPage />
+        <TargetsPage onNavigate={handleMenuItemClick} />
       ) : showScansPage ? (
         <ScansPage />
       ) : showVulnPage ? (

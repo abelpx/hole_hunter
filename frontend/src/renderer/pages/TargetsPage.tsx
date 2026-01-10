@@ -14,10 +14,16 @@ import {
 } from 'lucide-react';
 import { TargetCard, TargetWithVulns } from '../components/special/TargetCard';
 import { Button, Input, Modal, Select, Badge, Tag } from '../components/ui';
+import { ScanConfigModal } from '../components/special/ScanConfigModal';
 import { useTargetStore, selectFilteredTargets, selectAllTags } from '../store/targetStore';
+import { useScanStore } from '../store/scanStore';
 import clsx from 'clsx';
 
-export const TargetsPage: React.FC = () => {
+interface TargetsPageProps {
+  onNavigate?: (page: string) => void;
+}
+
+export const TargetsPage: React.FC<TargetsPageProps> = ({ onNavigate }) => {
   const {
     targets,
     selectedIds,
@@ -26,6 +32,7 @@ export const TargetsPage: React.FC = () => {
     error,
     fetchTargets,
     addTarget,
+    updateTarget,
     deleteTarget,
     batchDeleteTargets,
     toggleSelect,
@@ -35,12 +42,18 @@ export const TargetsPage: React.FC = () => {
     clearFilters,
   } = useTargetStore();
 
+  const { createScan } = useScanStore();
+
   const filteredTargets = selectFilteredTargets(useTargetStore());
   const allTags = selectAllTags(useTargetStore());
 
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showScanModal, setShowScanModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  const [editingTargetId, setEditingTargetId] = useState<number | null>(null);
+  const [scanningTargetId, setScanningTargetId] = useState<number | null>(null);
 
   // 表单状态
   const [formData, setFormData] = useState({
@@ -92,6 +105,65 @@ export const TargetsPage: React.FC = () => {
   // 刷新
   const handleRefresh = () => {
     fetchTargets();
+  };
+
+  // 编辑目标
+  const handleEditTarget = (id: number) => {
+    const target = targets.find((t) => t.id === id);
+    if (target) {
+      setFormData({
+        name: target.name,
+        url: target.url,
+        tags: target.tags || [],
+      });
+      setEditingTargetId(id);
+      setShowEditModal(true);
+    }
+  };
+
+  // 更新目标
+  const handleUpdateTarget = async () => {
+    if (!editingTargetId) return;
+    try {
+      await updateTarget(editingTargetId, formData);
+      setShowEditModal(false);
+      setEditingTargetId(null);
+      setFormData({ name: '', url: '', tags: [] });
+    } catch (error) {
+      console.error('Failed to update target:', error);
+    }
+  };
+
+  // 快速扫描
+  const handleQuickScan = (targetId: number) => {
+    const target = targets.find((t) => t.id === targetId);
+    if (target) {
+      setScanningTargetId(targetId);
+      setShowScanModal(true);
+    }
+  };
+
+  // 创建扫描任务
+  const handleCreateScan = async (config: any) => {
+    if (!scanningTargetId) return;
+
+    const target = targets.find((t) => t.id === scanningTargetId);
+    if (!target) return;
+
+    try {
+      const scanId = await createScan({
+        target_id: scanningTargetId,
+        config,
+      });
+      setShowScanModal(false);
+      setScanningTargetId(null);
+      // 跳转到扫描页面
+      if (onNavigate) {
+        onNavigate('scans');
+      }
+    } catch (error) {
+      console.error('Failed to create scan:', error);
+    }
   };
 
   return (
@@ -334,8 +406,8 @@ export const TargetsPage: React.FC = () => {
                   target={target as TargetWithVulns}
                   selected={selectedIds.includes(target.id)}
                   onToggleSelect={toggleSelect}
-                  onScan={(id) => console.log('Scan target:', id)}
-                  onEdit={(id) => console.log('Edit target:', id)}
+                  onScan={handleQuickScan}
+                  onEdit={handleEditTarget}
                   onDelete={handleDeleteTarget}
                   onUrlClick={(url) => window.open(url, '_blank')}
                 />
@@ -403,6 +475,82 @@ export const TargetsPage: React.FC = () => {
           </div>
         </div>
       </Modal>
+
+      {/* 编辑目标模态框 */}
+      <Modal
+        visible={showEditModal}
+        title="编辑目标"
+        onClose={() => {
+          setShowEditModal(false);
+          setEditingTargetId(null);
+          setFormData({ name: '', url: '', tags: [] });
+        }}
+        onConfirm={handleUpdateTarget}
+      >
+        <div className="space-y-4">
+          <Input
+            label="目标名称"
+            placeholder="例如：Production Server"
+            value={formData.name}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            required
+          />
+          <Input
+            label="目标 URL"
+            placeholder="https://example.com"
+            value={formData.url}
+            onChange={(e) => setFormData({ ...formData, url: e.target.value })}
+            required
+          />
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              标签（可选）
+            </label>
+            <Input
+              placeholder="输入标签后按回车添加"
+              value={formData.tags.join(', ')}
+              onChange={(e) => {
+                const tags = e.target.value
+                  .split(',')
+                  .map((t) => t.trim())
+                  .filter(Boolean);
+                setFormData({ ...formData, tags });
+              }}
+            />
+            {formData.tags.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-2">
+                {formData.tags.map((tag) => (
+                  <Tag
+                    key={tag}
+                    color="sky"
+                    onClose={() =>
+                      setFormData({
+                        ...formData,
+                        tags: formData.tags.filter((t) => t !== tag),
+                      })
+                    }
+                  >
+                    {tag}
+                  </Tag>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </Modal>
+
+      {/* 快速扫描配置模态框 */}
+      {scanningTargetId && (
+        <ScanConfigModal
+          visible={showScanModal}
+          targetName={targets.find((t) => t.id === scanningTargetId)?.name}
+          onClose={() => {
+            setShowScanModal(false);
+            setScanningTargetId(null);
+          }}
+          onConfirm={handleCreateScan}
+        />
+      )}
 
       {/* 批量删除确认 */}
       <Modal
