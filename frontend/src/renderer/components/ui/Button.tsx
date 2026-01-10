@@ -15,7 +15,7 @@ export type ButtonType = 'primary' | 'secondary' | 'ghost' | 'danger';
 export type ButtonSize = 'sm' | 'md' | 'lg';
 
 // Button Props
-export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+export interface ButtonProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'type'> {
   type?: ButtonType;
   size?: ButtonSize;
   loading?: boolean;
@@ -110,7 +110,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         whileHover={disabled || loading ? {} : { scale: 1.02 }}
         whileTap={disabled || loading ? {} : { scale: 0.98 }}
         transition={{ duration: 0.1 }}
-        {...props}
+        {...(props as any)}
       >
         {loading && <Loader2 size={iconSz} className="animate-spin" />}
 

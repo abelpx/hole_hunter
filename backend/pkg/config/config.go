@@ -91,6 +91,21 @@ func Load() (*Config, error) {
 		}
 	}
 
+	// 支持环境变量覆盖配置文件
+	// 优先级: 环境变量 > 配置文件 > 默认值
+	if port := os.Getenv("SERVER_PORT"); port != "" {
+		viper.Set("server.port", port)
+	}
+	if dbPath := os.Getenv("DATABASE_PATH"); dbPath != "" {
+		viper.Set("database.path", dbPath)
+	}
+	if nucleiPath := os.Getenv("NUCLEI_BINARY_PATH"); nucleiPath != "" {
+		viper.Set("nuclei.binary_path", nucleiPath)
+	}
+	if templatesDir := os.Getenv("NUCLEI_TEMPLATES_DIR"); templatesDir != "" {
+		viper.Set("nuclei.templates_dir", templatesDir)
+	}
+
 	var config Config
 	if err := viper.Unmarshal(&config); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)

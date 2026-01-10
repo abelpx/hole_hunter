@@ -130,7 +130,7 @@ export const ScanConfigModal: React.FC<ScanConfigModalProps> = ({
       title={targetName ? `扫描目标: ${targetName}` : '配置扫描参数'}
       onClose={onClose}
       onConfirm={handleConfirm}
-      width="600px"
+      width={600}
     >
       <div className="space-y-6">
         {/* 预设选择 */}

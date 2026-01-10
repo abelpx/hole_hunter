@@ -55,9 +55,10 @@ export const DashboardPage: React.FC = () => {
         }
 
         // 获取漏洞数据用于图表
-        const vulnResult = await window.electronAPI.vulnerability.getAll({});
+        const vulnResult = await window.electronAPI.vulnerability.getAll();
+        let vulns: any[] = [];
         if (vulnResult.success) {
-          const vulns = vulnResult.data;
+          vulns = vulnResult.data;
 
           // 按严重等级分组
           const severityCounts = vulns.reduce((acc: any, vuln: any) => {
@@ -82,8 +83,9 @@ export const DashboardPage: React.FC = () => {
 
         // 获取扫描数据用于趋势图
         const scanResult = await window.electronAPI.scan.getAll();
+        let scans: any[] = [];
         if (scanResult.success) {
-          const scans = scanResult.data;
+          scans = scanResult.data;
 
           // 按日期分组（最近7天）
           const scanGroups = scans.reduce((acc: any, scan: any) => {

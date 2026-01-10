@@ -1,0 +1,8 @@
+# 项目规则引用
+# 详见: ~/.claude/rules.md
+
+核心规则：
+- 禁止创建低价值文档（*_FIX.*, *_REPORT.*, diagnose_*, check_*, verify_*）
+- 代码简单直接，避免过度抽象
+- Git commit 使用中文，格式: <type>: <subject>
+- 终端输出优先，不生成冗余文档文件

@@ -8,7 +8,6 @@ import { motion } from 'framer-motion';
 import {
   Play,
   X,
-  Trash2,
   Clock,
   Target,
   AlertCircle,
@@ -16,12 +15,14 @@ import {
   Loader2,
   FileText,
 } from 'lucide-react';
-import { Button, Badge, Input } from '../components/ui';
-import { ScanProgressBar, ScanProgressData } from '../components/special/ScanProgressBar';
+import { Button, Badge } from '../components/ui';
+import { ScanProgressBar } from '../components/special/ScanProgressBar';
 import { ScanLogViewer, LogEntry } from '../components/special/ScanLogViewer';
 import { ScanConfigModal, ScanConfigOptions } from '../components/special/ScanConfigModal';
 import { useTargetStore } from '../store/targetStore';
-import clsx from 'clsx';
+
+// 导入 IPC 类型
+import { ScanConfig as IPCScanConfig } from '../../main/ipc/types';
 
 // 扫描任务详情（简化版）
 interface ScanTask {
@@ -32,9 +33,9 @@ interface ScanTask {
   status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
   progress: number;
   current_template?: string;
-  total_templates: number;
-  completed_templates: number;
-  findings_count: number;
+  total_templates?: number;
+  completed_templates?: number;
+  findings_count?: number;
   started_at?: string;
   completed_at?: string;
   duration?: number;
@@ -42,7 +43,6 @@ interface ScanTask {
 
 export const ScansPage: React.FC = () => {
   const [scans, setScans] = useState<ScanTask[]>([]);
-  const [selectedScan, setSelectedScan] = useState<ScanTask | null>(null);
   const [logs, setLogs] = useState<Map<number, LogEntry[]>>(new Map());
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -120,7 +120,18 @@ export const ScansPage: React.FC = () => {
       if (typeof window !== 'undefined' && window.electronAPI) {
         const result = await window.electronAPI.scan.getAll();
         if (result.success) {
-          setScans(result.data);
+          // 转换 IPC ScanTask 到本地 ScanTask
+          const convertedScans: ScanTask[] = result.data.map((ipcScan) => ({
+            id: ipcScan.id,
+            target_id: ipcScan.target_id,
+            target_name: ipcScan.target_name,
+            status: ipcScan.status,
+            progress: ipcScan.progress,
+            current_template: ipcScan.current_template,
+            started_at: ipcScan.started_at,
+            completed_at: ipcScan.completed_at,
+          }));
+          setScans(convertedScans);
         }
       }
     } catch (error) {
@@ -155,18 +166,27 @@ export const ScansPage: React.FC = () => {
         throw new Error('Target not found');
       }
 
+      // 转换 ScanConfigOptions 到 IPC ScanConfig
+      const ipcConfig: IPCScanConfig = {
+        templates: [], // 模板将由后端根据 severity/tags 选择
+        severity: config.severity || [],
+        rate_limit: config.rateLimit || 150,
+        concurrency: config.concurrency || 25,
+        timeout: config.timeout || 5,
+        retries: config.retries || 1,
+      };
+
       const result = await window.electronAPI.scan.create({
-        target_id: target.id,
-        target_name: target.name,
-        config,
+        target_ids: [target.id],
+        config: ipcConfig,
       });
 
       if (result.success) {
         setShowConfigModal(false);
-        addLog(result.data, 'info', `Scan created for target: ${target.name}`);
+        addLog(result.data.id, 'info', `Scan created for target: ${target.name}`);
         loadScans();
       } else {
-        throw new Error(result.error);
+        throw new Error('Failed to create scan');
       }
     } catch (error: any) {
       console.error('Failed to start scan:', error);
@@ -183,26 +203,6 @@ export const ScansPage: React.FC = () => {
       }
     } catch (error) {
       console.error('Failed to cancel scan:', error);
-    }
-  };
-
-  const handleDeleteScan = async (scanId: number) => {
-    if (!confirm('确定要删除此扫描任务吗？相关漏洞记录也会被删除。')) {
-      return;
-    }
-
-    try {
-      if (typeof window !== 'undefined' && window.electronAPI) {
-        await window.electronAPI.scan.delete(scanId);
-        setLogs((prev) => {
-          const newLogs = new Map(prev);
-          newLogs.delete(scanId);
-          return newLogs;
-        });
-        loadScans();
-      }
-    } catch (error) {
-      console.error('Failed to delete scan:', error);
     }
   };
 
@@ -241,7 +241,12 @@ export const ScansPage: React.FC = () => {
         <Button
           type="primary"
           icon={<Play size={16} />}
-          onClick={() => setSelectedTargetId(targets[0]?.id || null) || setShowConfigModal(true)}
+          onClick={() => {
+            if (targets.length > 0) {
+              setSelectedTargetId(targets[0].id);
+              setShowConfigModal(true);
+            }
+          }}
           disabled={targets.length === 0}
         >
           新建扫描
@@ -324,15 +329,6 @@ export const ScansPage: React.FC = () => {
                       取消
                     </Button>
                   )}
-
-                  <Button
-                    type="ghost"
-                    size="sm"
-                    icon={<Trash2 size={14} />}
-                    onClick={() => handleDeleteScan(scan.id)}
-                  >
-                    删除
-                  </Button>
                 </div>
               </div>
 
@@ -343,9 +339,9 @@ export const ScansPage: React.FC = () => {
                     status: scan.status,
                     progress: scan.progress,
                     currentTemplate: scan.current_template,
-                    totalTemplates: scan.total_templates,
-                    completedTemplates: scan.completed_templates,
-                    findings: scan.findings_count,
+                    totalTemplates: scan.total_templates || 0,
+                    completedTemplates: scan.completed_templates || 0,
+                    findings: scan.findings_count || 0,
                   }}
                   showDetails
                 />
@@ -356,7 +352,7 @@ export const ScansPage: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <FileText size={16} className="text-slate-500" />
                   <span className="text-slate-400">漏洞:</span>
-                  <span className="text-amber-400 font-medium">{scan.findings_count}</span>
+                  <span className="text-amber-400 font-medium">{scan.findings_count || 0}</span>
                 </div>
 
                 {scan.duration !== undefined && (

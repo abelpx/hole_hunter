@@ -6,7 +6,7 @@ import (
 	"github.com/holehunter/backend/pkg/config"
 )
 
-func SetupRouter(cfg *config.Config, targetService *services.TargetService, scanService *services.ScanService, vulnService *services.VulnerabilityService, reportService *services.ReportService) *gin.Engine {
+func SetupRouter(cfg *config.Config, targetService *services.TargetService, scanService *services.ScanService, vulnService *services.VulnerabilityService, reportService *services.ReportService, replayService *services.ReplayService, bruteService *services.BruteService) *gin.Engine {
 	router := gin.Default()
 
 	// CORS middleware
@@ -70,6 +70,36 @@ func SetupRouter(cfg *config.Config, targetService *services.TargetService, scan
 			reports.POST("/export", reportService.ExportReport)
 		}
 
+		// HTTP Replay
+		replay := v1.Group("/replay")
+		{
+			replay.GET("", replayService.ListRequests)
+			replay.POST("", replayService.CreateRequest)
+			replay.GET("/:id", replayService.GetRequest)
+			replay.PUT("/:id", replayService.UpdateRequest)
+			replay.DELETE("/:id", replayService.DeleteRequest)
+			replay.POST("/:id/send", replayService.SendRequest)
+			replay.GET("/:id/responses", replayService.GetResponseHistory)
+			replay.GET("/responses/:id", replayService.GetResponse)
+			replay.POST("/import", replayService.ImportRequest)
+		}
+
+		// Brute Force
+		brute := v1.Group("/brute")
+		{
+			brute.GET("/tasks", bruteService.ListBruteTasks)
+			brute.POST("/tasks", bruteService.CreateBruteTask)
+			brute.GET("/tasks/:id", bruteService.GetBruteTask)
+			brute.DELETE("/tasks/:id", bruteService.DeleteBruteTask)
+			brute.POST("/tasks/:id/start", bruteService.StartBruteTask)
+			brute.POST("/tasks/:id/cancel", bruteService.CancelBruteTask)
+			brute.GET("/tasks/:id/results", bruteService.GetBruteResults)
+			brute.POST("/tasks/:id/analyze", bruteService.AnalyzeResults)
+			brute.GET("/payload-sets", bruteService.ListPayloadSets)
+			brute.POST("/payload-sets", bruteService.CreatePayloadSet)
+			brute.POST("/payload-sets/import", bruteService.ImportPayloads)
+		}
+
 		// Health check
 		v1.GET("/health", HealthCheck)
 
@@ -100,7 +130,9 @@ func CORSMiddleware() gin.HandlerFunc {
 
 func HealthCheck(c *gin.Context) {
 	c.JSON(200, gin.H{
-		"status": "ok",
+		"status":  "ok",
+		"service": "holehunter-backend",
+		"version": "1.0.0-alpha",
 		"message": "HoleHunter backend is running",
 	})
 }

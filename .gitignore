@@ -107,3 +107,11 @@ backend/holehunter.db
 # Build artifacts and releases
 releases/
 artifacts/
+frontend/release/
+frontend/*.sh
+frontend/test*.sh
+frontend/verify*.sh
+frontend/test.html
+frontend/tsconfig.node.tsbuildinfo
+frontend/vite.config.d.ts
+frontend/vite.config.js

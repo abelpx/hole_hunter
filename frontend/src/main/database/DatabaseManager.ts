@@ -11,14 +11,10 @@ import { Target, CreateTargetRequest, UpdateTargetRequest } from '../ipc/types';
 export class DatabaseManager {
   private static instance: DatabaseManager;
   private db: Database.Database | null = null;
-  private dbPath: string;
+  private dbPath: string | null = null;
 
   private constructor() {
-    // 设置数据库路径
-    const userDataPath = app.getPath('userData');
-    const dataDir = path.join(userDataPath, 'data');
-
-    this.dbPath = path.join(dataDir, 'holehunter.db');
+    // 路径将在 initialize() 中设置
   }
 
   static getInstance(): DatabaseManager {
@@ -29,9 +25,13 @@ export class DatabaseManager {
   }
 
   async initialize(): Promise<void> {
+    // 设置数据库路径（必须在 app ready 后调用）
+    const userDataPath = app.getPath('userData');
+    const dataDir = path.join(userDataPath, 'data');
+    this.dbPath = path.join(dataDir, 'holehunter.db');
+
     // 确保数据目录存在
     const fs = require('fs');
-    const dataDir = path.dirname(this.dbPath);
     if (!fs.existsSync(dataDir)) {
       fs.mkdirSync(dataDir, { recursive: true });
     }

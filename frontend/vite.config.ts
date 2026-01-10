@@ -6,6 +6,7 @@ export default defineConfig({
   plugins: [
     react()
   ],
+  base: './', // 使用相对路径，适配 Electron 的 loadFile
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src/renderer')

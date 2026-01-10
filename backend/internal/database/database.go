@@ -65,6 +65,87 @@ CREATE TABLE IF NOT EXISTS custom_templates (
     enabled BOOLEAN DEFAULT 1,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+-- HTTP Requests for replay
+CREATE TABLE IF NOT EXISTS http_requests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    method TEXT NOT NULL,
+    url TEXT NOT NULL,
+    headers TEXT,
+    body TEXT,
+    content_type TEXT,
+    tags TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- HTTP Responses history
+CREATE TABLE IF NOT EXISTS http_responses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    request_id INTEGER REFERENCES http_requests(id),
+    status_code INTEGER,
+    status_text TEXT,
+    headers TEXT,
+    body TEXT,
+    body_size INTEGER,
+    header_size INTEGER,
+    duration INTEGER,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Brute force tasks
+CREATE TABLE IF NOT EXISTS brute_tasks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    request_id INTEGER REFERENCES http_requests(id),
+    type TEXT NOT NULL,
+    status TEXT DEFAULT 'pending',
+    total_payloads INTEGER DEFAULT 0,
+    sent_payloads INTEGER DEFAULT 0,
+    success_count INTEGER DEFAULT 0,
+    failure_count INTEGER DEFAULT 0,
+    started_at DATETIME,
+    completed_at DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Brute force parameters
+CREATE TABLE IF NOT EXISTS brute_parameters (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    task_id INTEGER REFERENCES brute_tasks(id),
+    name TEXT NOT NULL,
+    type TEXT NOT NULL,
+    location TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Brute force payload sets
+CREATE TABLE IF NOT EXISTS brute_payloads (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    task_id INTEGER REFERENCES brute_tasks(id),
+    param_id INTEGER REFERENCES brute_parameters(id),
+    type TEXT NOT NULL,
+    source TEXT,
+    config TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Brute force results
+CREATE TABLE IF NOT EXISTS brute_results (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    task_id INTEGER REFERENCES brute_tasks(id),
+    request_id INTEGER REFERENCES http_requests(id),
+    payload TEXT,
+    status_code INTEGER,
+    body_length INTEGER,
+    response TEXT,
+    success BOOLEAN DEFAULT 0,
+    notes TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
 `
 
 func Initialize(dbPath string) (*sql.DB, error) {

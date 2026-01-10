@@ -6,14 +6,22 @@ import { ipcMain } from 'electron';
 import { IPC_CHANNELS, IPCResponse } from './types';
 import { DatabaseManager } from '../database/DatabaseManager';
 import { ScanManager } from '../scanner/ScanManager';
+import { BackendService } from '../backend/BackendService';
 
 export class IPCHandlers {
   private db: DatabaseManager;
   private scanManager: ScanManager;
+  private backendService: BackendService;
 
-  constructor() {
-    this.db = DatabaseManager.getInstance();
-    this.scanManager = ScanManager.getInstance();
+  constructor(
+    databaseManager?: DatabaseManager,
+    scanManager?: ScanManager,
+    backendService?: BackendService
+  ) {
+    // 支持依赖注入，如果没有提供则使用单例
+    this.db = databaseManager || DatabaseManager.getInstance();
+    this.scanManager = scanManager || ScanManager.getInstance();
+    this.backendService = backendService || BackendService.getInstance();
     this.registerHandlers();
   }
 

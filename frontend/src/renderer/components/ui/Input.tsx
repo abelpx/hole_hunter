@@ -9,7 +9,7 @@ import { Eye, EyeOff, AlertCircle } from 'lucide-react';
 import clsx from 'clsx';
 
 // Input Props
-export interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'size'> {
+export interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'size' | 'prefix'> {
   label?: string;
   error?: string;
   prefix?: React.ReactNode;
@@ -105,7 +105,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
               borderColor: error ? '#EF4444' : isFocused ? '#0EA5E9' : '#475569',
             }}
             transition={{ duration: 0.15 }}
-            {...props}
+            {...(props as any)}
           />
 
           {suffix && !isPassword && (

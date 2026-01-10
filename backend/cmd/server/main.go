@@ -34,7 +34,7 @@ func main() {
 	zap.ReplaceGlobals(logger)
 
 	zap.L().Info("Starting HoleHunter backend server",
-		zap.String("version", "1.0.0"),
+		zap.String("version", "1.0.0-alpha"),
 		zap.String("port", cfg.Server.Port),
 	)
 
@@ -50,12 +50,14 @@ func main() {
 	scanService := services.NewScanService(db, &cfg.Nuclei, &cfg.Scan)
 	vulnService := services.NewVulnerabilityService(db)
 	reportService := services.NewReportService(db, cfg)
+	replayService := services.NewReplayService(db)
+	bruteService := services.NewBruteService(db)
 
 	// Start WebSocket hub
 	scanService.StartWebSocketHub()
 
 	// Setup router
-	router := api.SetupRouter(cfg, targetService, scanService, vulnService, reportService)
+	router := api.SetupRouter(cfg, targetService, scanService, vulnService, reportService, replayService, bruteService)
 
 	// Create HTTP server
 	srv := &http.Server{

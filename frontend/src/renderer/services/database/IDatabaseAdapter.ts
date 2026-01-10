@@ -2,14 +2,52 @@
  * IDatabaseAdapter - 数据库适配器接口
  *
  * 统一不同数据库的访问接口
+ *
+ * 注意：此接口目前未被使用，所有数据库操作通过主进程的 DatabaseManager 完成
+ * 保留此文件用于未来可能的扩展
  */
 
-import { Target as ImportTarget, ScanTask as ImportScanTask, Vulnerability as ImportVulnerability } from '../../types';
+// 直接定义类型，避免依赖循环
+export interface Target {
+  id: number;
+  name: string;
+  url: string;
+  tags: string[];
+  status: 'active' | 'inactive' | 'error';
+  last_checked?: string;
+  created_at: string;
+  updated_at: string;
+}
 
-// 重新导出类型供适配器使用
-export type Target = ImportTarget;
-export type ScanTask = ImportScanTask;
-export type Vulnerability = ImportVulnerability;
+export interface ScanTask {
+  id: number;
+  target_id: number;
+  target_name: string;
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+  progress: number;
+  current_template?: string;
+  started_at?: string;
+  completed_at?: string;
+  error_message?: string;
+  created_at?: string;
+}
+
+export interface Vulnerability {
+  id: string;  // 使用 string 类型与主进程保持一致
+  name: string;
+  severity: 'critical' | 'high' | 'medium' | 'low' | 'info';
+  url: string;
+  template_id: string;
+  cve?: string[];
+  cvss?: number;
+  description: string;
+  reference?: string[];
+  tags: string[];
+  discovered_at: string;
+  is_false_positive: boolean;
+  target_id: number;
+  scan_id: number;
+}
 
 export interface IDatabaseAdapter {
   /**

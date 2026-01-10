@@ -5,9 +5,6 @@ appId: com.holehunter.app
 productName: HoleHunter
 copyright: Copyright © 2025 HoleHunter Team
 
-# 深色主题支持
-darkModeSupport: true
-
 # 目录配置
 directories:
   buildResources: build
@@ -15,28 +12,22 @@ directories:
 
 # 文件配置
 files:
-  - dist/**/*/*
-  - dist/main/**/*
+  - dist/**/*  # 包含 dist 下所有文件
+  - build/backend/**/*  # 包含 Go 后端二进制文件
   - package.json
 
 # macOS 配置
 mac:
   category: public.app-category.developer-tools
-  icon: build/icon.icns
   target:
     - target: dmg
       arch:
         - x64
         - arm64
     - target: zip
-  entitlements: build/entitlements.mac.plist
-  entitlementsInherit: build/entitlements.mac.plist
-  gatekeeperAssess: false
-  hardenedRuntime: true
 
 # Windows 配置
 win:
-  icon: build/icon.ico
   target:
     - target: nsis
       arch:
@@ -69,8 +60,6 @@ linux:
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
-  installerIcon: build/icon.ico
-  uninstallerIcon: build/icon.ico
   createDesktopShortcut: true
   createStartMenuShortcut: true
   perMachine: false
@@ -94,32 +83,12 @@ publish:
   owner: holehunter
   repo: holehunter
 
-# 额外元数据
-metadata:
-  version: 1.0.0
-  author: HoleHunter Team
-  license: MIT
-  homepage: https://github.com/holehunter/holehunter
-
-# 依赖配置
-dependencies:
-  extras:
-    - better-sqlite3
-
-# Node.js 版本
-nodeVersion: 18.17.0
-
-# 资源配置
-extraResources:
-  - from: build/resources
-    to: .
-    filter: ["**/*"]
-
 # asi 配置 (Application Security Interface)
 asarUnpack:
   - resources/**/*
   - node_modules/better-sqlite3/**/*
   - node_modules/@serialport/**/*
+  - build/backend/**/*  # Go 后端二进制不打包进 asar
 
 # 协议关联
 protocols:
@@ -131,7 +100,5 @@ protocols:
 fileAssociations:
   - ext: json
     role: Editor
-    icon: build/icon.ico
   - ext: hh
     role: Editor
-    icon: build/icon.ico

@@ -54,13 +54,6 @@ const statusIcons = {
   error: <AlertCircle size={16} className="text-red-400" />,
 };
 
-// 状态文本映射
-const statusText = {
-  active: '活跃',
-  inactive: '离线',
-  error: '错误',
-};
-
 // 严重等级颜色
 const severityColors = {
   critical: 'bg-red-500',
@@ -185,7 +178,7 @@ export const TargetCard: React.FC<TargetCardProps> = ({
       {target.tags && target.tags.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-4">
           {target.tags.map((tag) => (
-            <Tag key={tag} size="sm">
+            <Tag key={tag} color="sky">
               {tag}
             </Tag>
           ))}

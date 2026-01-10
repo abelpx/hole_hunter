@@ -69,18 +69,52 @@ cd frontend && npm run dev:electron
 
 ### 构建
 
+#### 使用 Makefile（推荐）
+
+```bash
+# 查看所有可用命令
+make help
+
+# 构建前端
+make frontend
+
+# 构建后端
+make backend
+
+# 运行后端服务
+make backend-run
+
+# 构建桌面应用（当前平台）
+make desktop
+
+# 构建所有平台的桌面应用
+make desktop-build-all
+
+# 构建特定平台桌面应用
+make desktop-build-win     # Windows
+make desktop-build-mac     # macOS
+make desktop-build-linux   # Linux
+
+# 完整构建（前端 + 后端）
+make build
+
+# 清理构建产物
+make clean
+```
+
+#### 手动构建
+
 ```bash
 # 构建前端
 cd frontend && npm run build
 
-# 编译后端
-cd backend && go build -o bin/holehunter-server cmd/server/main.go
+# 编译后端（当前平台）
+cd backend && go build -o bin/server cmd/server/main.go
 
-# 交叉编译所有平台
-make cross-compile-all
-
-# 打包桌面版
-npm run dist:mac
+# 打包桌面应用
+cd frontend && npm run dist:mac  # macOS
+cd frontend && npm run dist:win   # Windows
+cd frontend && npm run dist       # Linux
 ```
 
 ## 技术架构
@@ -89,10 +123,12 @@ npm run dist:mac
 |------|--------|
 | 前端 | React 18 + TypeScript + Tailwind CSS |
 | 状态管理 | Zustand |
-| 桌面框架 | Electron |
+| 桌面框架 | Electron 28+ |
 | 后端 | Go 1.21+ + Gin |
 | 数据库 | SQLite |
 | 扫描引擎 | Nuclei CLI |
+
+**桌面版架构**：Electron 应用内嵌 Go 后端服务，不占用宿主机端口，所有服务在应用内部运行。
 
 ## 项目结构
 
@@ -100,16 +136,28 @@ npm run dist:mac
 hole_hunter/
 ├── frontend/           # React 前端 + Electron
 │   ├── src/
-│   │   ├── main/      # Electron 主进程
+│   │   ├── main/      # Electron 主进程（内嵌后端管理）
+│   │   │   ├── backend/     # Go 后端服务管理器
+│   │   │   ├── window/      # 窗口管理
+│   │   │   ├── ipc/         # IPC 通信
+│   │   │   └── database/    # 数据库管理
 │   │   └── renderer/  # React 渲染进程
+│   ├── build/          # 构建资源
+│   │   └── backend/    # Go 后端二进制文件（打包）
 │   ├── package.json
 │   └── electron-builder.yml
 ├── backend/            # Go 后端
 │   ├── cmd/server/    # 服务器入口
 │   ├── internal/      # 内部模块
+│   │   ├── api/       # API 路由
+│   │   ├── services/  # 业务逻辑
+│   │   ├── models/    # 数据模型
+│   │   └── database/  # 数据库
+│   ├── pkg/           # 公共包
 │   └── go.mod
-├── build/              # 构建脚本和输出
-└── docs/               # 项目文档
+├── docs/               # 项目文档
+├── Makefile            # 构建脚本
+└── README.md
 ```
 
 ## 配置
@@ -139,8 +187,11 @@ scan:
 ## 文档
 
 - [完整产品需求文档 (PRD)](./docs/COMPLETE_PRD.md)
-- [构建和部署指南](./docs/BUILD_AND_DEPLOYMENT.md)
+- [构建指南](./docs/BUILD_GUIDE.md)
+- [桌面应用打包指南](./docs/DESKTOP_PACKAGING.md)
+- [桌面版开发规范](./docs/DESKTOP_DEV_STANDARD.md) ⭐ **必读**
 - [API 文档](./docs/API.md)
+- [项目进度](./docs/PROGRESS.md)
 - [UI 功能测试指南](./docs/UI_FUNCTIONALITY_TEST.md)
 
 ## 贡献

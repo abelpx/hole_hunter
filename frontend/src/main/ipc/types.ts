@@ -92,6 +92,7 @@ export const IPC_CHANNELS = {
   // 扫描管理
   SCAN_CREATE: 'scan:create',
   SCAN_CANCEL: 'scan:cancel',
+  SCAN_DELETE: 'scan:delete',
   SCAN_GET_ALL: 'scan:getAll',
   SCAN_GET_BY_ID: 'scan:getById',
   SCAN_GET_PROGRESS: 'scan:getProgress',

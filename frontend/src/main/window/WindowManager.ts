@@ -9,8 +9,15 @@ export class WindowManager {
   private mainWindow: BrowserWindow | null = null;
 
   createMainWindow(): BrowserWindow {
+    console.log('[WindowManager] Creating main window...');
+
     // 获取屏幕尺寸
     const { width, height } = screen.getPrimaryDisplay().workAreaSize;
+
+    // 计算 preload 路径
+    // __dirname 在构建后指向 dist/main/
+    const preloadPath = path.join(__dirname, '..', 'preload', 'index.js');
+    console.log('[WindowManager] Preload path:', preloadPath);
 
     // 创建窗口
     this.mainWindow = new BrowserWindow({
@@ -21,7 +28,7 @@ export class WindowManager {
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
-        preload: path.join(__dirname, '../../preload/index.js'),
+        preload: preloadPath,
         // 安全配置
         sandbox: true,
         webSecurity: true,
@@ -30,19 +37,42 @@ export class WindowManager {
 
     // 窗口事件
     this.mainWindow.once('ready-to-show', () => {
+      console.log('[WindowManager] Window ready to show');
       this.mainWindow?.show();
     });
 
     this.mainWindow.on('closed', () => {
+      console.log('[WindowManager] Window closed');
       this.mainWindow = null;
     });
 
+    // 添加错误处理
+    this.mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+      console.error('[WindowManager] Failed to load page:', errorCode, errorDescription);
+    });
+
+    // 监听 preload 脚本加载
+    this.mainWindow.webContents.on('did-finish-load', () => {
+      console.log('[WindowManager] Page loaded successfully');
+    });
+
     // 加载页面
-    if (process.env.NODE_ENV === 'development') {
+    // 注意：开发模式下也使用构建后的文件，以便加载 preload 脚本
+    // 如果需要热重载，请使用 vite 的 HMR 功能配合构建后的文件
+    if (process.env.NODE_ENV === 'development' && process.env.VITE_DEV === 'true') {
+      // 只有在明确设置 VITE_DEV=true 时才使用 Vite 开发服务器
+      // 这种模式下 preload 脚本不会加载
+      console.log('[WindowManager] Loading from Vite dev server (preload will NOT work)');
       this.mainWindow.loadURL('http://localhost:3000');
       this.mainWindow.webContents.openDevTools();
     } else {
-      this.mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
+      // 默认使用构建后的文件（包含 preload 脚本）
+      const htmlPath = path.join(__dirname, '..', 'index.html');
+      console.log('[WindowManager] Loading from dist:', htmlPath);
+      this.mainWindow.loadFile(htmlPath);
+      if (process.env.NODE_ENV === 'development') {
+        this.mainWindow.webContents.openDevTools();
+      }
     }
 
     return this.mainWindow;

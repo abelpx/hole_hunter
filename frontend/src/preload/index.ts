@@ -1,6 +1,10 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { IPC_CHANNELS, IPCEvents } from '../main/ipc/types';
 
+// 日志：preload 脚本已加载
+console.log('[Preload] Preload script loaded');
+console.log('[Preload] Exposing electronAPI to renderer...');
+
 /**
  * 暴露给渲染进程的 Electron API
  */
@@ -66,3 +70,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.removeListener(channel, callback as any);
   },
 });
+
+console.log('[Preload] electronAPI exposed successfully');

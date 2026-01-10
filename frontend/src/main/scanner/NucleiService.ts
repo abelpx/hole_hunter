@@ -297,7 +297,7 @@ export class NucleiService extends EventEmitter {
     process.stdout.on('data', (data) => {
       const lines = data.toString().split('\n').filter(Boolean);
 
-      lines.forEach((line) => {
+      lines.forEach((line: string) => {
         try {
           const finding: NucleiOutput = JSON.parse(line);
           findings++;

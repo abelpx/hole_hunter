@@ -4,9 +4,8 @@
  */
 
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import {
-  X,
   ExternalLink,
   Copy,
   Check,
@@ -78,7 +77,7 @@ export const VulnDetailModal: React.FC<VulnDetailModalProps> = ({
       title=""
       onClose={onClose}
       onConfirm={onClose}
-      width="800px"
+      width={800}
     >
       <div className="space-y-6">
         {/* 头部 */}

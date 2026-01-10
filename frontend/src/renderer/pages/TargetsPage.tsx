@@ -12,7 +12,6 @@ import {
   ChevronDown,
   RefreshCw,
 } from 'lucide-react';
-import { ContentLayout } from '../components/layout';
 import { TargetCard, TargetWithVulns } from '../components/special/TargetCard';
 import { Button, Input, Modal, Select, Badge, Tag } from '../components/ui';
 import { useTargetStore, selectFilteredTargets, selectAllTags } from '../store/targetStore';
@@ -96,7 +95,7 @@ export const TargetsPage: React.FC = () => {
   };
 
   return (
-    <ContentLayout activeMenuItem="targets">
+    <div className="p-6 space-y-6">
       {/* 页面标题和操作栏 */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
@@ -423,6 +422,6 @@ export const TargetsPage: React.FC = () => {
           </p>
         </div>
       </Modal>
-    </ContentLayout>
+    </div>
   );
 };
