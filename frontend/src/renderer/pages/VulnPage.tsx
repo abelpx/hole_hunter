@@ -18,7 +18,7 @@ import { Button } from '../components/ui';
 import { VulnCard } from '../components/special/VulnCard';
 import { VulnDetailModal } from '../components/special/VulnDetailModal';
 import { VulnFiltersPanel, VulnFilters } from '../components/special/VulnFiltersPanel';
-import { useVulnStore, selectVulnStats, selectAllTags } from '../store/vulnStore';
+import { useVulnStore } from '../store/vulnStore';
 import { useTargetStore } from '../store/targetStore';
 import { Vulnerability } from '../types';
 
@@ -44,8 +44,43 @@ export const VulnPage: React.FC = () => {
   const { targets } = useTargetStore();
   const [showFilters, setShowFilters] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
-  const stats = selectVulnStats(useVulnStore.getState());
-  const allTags = selectAllTags(useVulnStore.getState());
+
+  // 计算统计数据（直接从 vulnerabilities 计算，而不是使用 selector）
+  const stats = React.useMemo(() => {
+    const stats = {
+      critical: 0,
+      high: 0,
+      medium: 0,
+      low: 0,
+      info: 0,
+      total: vulnerabilities.length,
+      falsePositive: 0,
+    };
+
+    vulnerabilities.forEach((vuln) => {
+      const severity = vuln.severity || 'info';
+      if (severity === 'critical') stats.critical++;
+      else if (severity === 'high') stats.high++;
+      else if (severity === 'medium') stats.medium++;
+      else if (severity === 'low') stats.low++;
+      else stats.info++;
+
+      if (vuln.false_positive || vuln.is_false_positive) {
+        stats.falsePositive++;
+      }
+    });
+
+    return stats;
+  }, [vulnerabilities]);
+
+  // 计算所有标签
+  const allTags = React.useMemo(() => {
+    const tags = new Set<string>();
+    vulnerabilities.forEach((vuln) => {
+      vuln.tags.forEach((tag) => tags.add(tag));
+    });
+    return Array.from(tags).sort();
+  }, [vulnerabilities]);
 
   useEffect(() => {
     loadVulnerabilities();

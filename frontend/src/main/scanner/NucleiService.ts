@@ -110,25 +110,41 @@ export class NucleiService extends EventEmitter {
    * 查找 Nuclei 可执行文件
    */
   private findNucleiExecutable(): string {
-    const possiblePaths = [
-      // 开发环境路径
-      path.join(__dirname, '../../../bin/nuclei'),
-      path.join(__dirname, '../../../bin/nuclei.exe'),
-      // 生产环境路径
-      path.join(process.resourcesPath, 'bin/nuclei'),
-      path.join(process.resourcesPath, 'bin/nuclei.exe'),
-      // 系统路径
-      'nuclei',
-    ];
+    const isDev = process.env.NODE_ENV === 'development';
+    const executableName = process.platform === 'win32' ? 'nuclei.exe' : 'nuclei';
+
+    const possiblePaths = [];
+
+    if (isDev) {
+      // 开发环境：从项目根目录查找
+      const projectRoot = path.join(__dirname, '../../..');
+      possiblePaths.push(
+        path.join(projectRoot, 'bin', executableName),
+        path.join(projectRoot, 'tools', 'nuclei', executableName),
+        // 或者从根目录的 bin 文件夹
+        path.join(process.cwd(), 'bin', executableName)
+      );
+    } else {
+      // 生产环境：从 app.asar.unpacked 或 resources 目录查找
+      possiblePaths.push(
+        path.join(process.resourcesPath, 'bin', executableName),
+        path.join(process.resourcesPath, 'app.asar.unpacked', 'bin', executableName)
+      );
+    }
+
+    // 系统路径
+    possiblePaths.push(executableName);
 
     for (const p of possiblePaths) {
       if (fs.existsSync(p)) {
+        console.log(`Nuclei found at: ${p}`);
         return p;
       }
     }
 
     // 默认返回 nuclei，假设在 PATH 中
-    return 'nuclei';
+    console.warn(`Nuclei executable not found in expected paths, using system PATH`);
+    return executableName;
   }
 
   /**

@@ -7,6 +7,9 @@ import { spawn, ChildProcess } from 'child_process';
 import { app } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as https from 'https';
+import * as http from 'http';
+import { URL } from 'url';
 
 export class BackendService {
   private static instance: BackendService;
@@ -231,5 +234,94 @@ export class BackendService {
 
     // 生成 10000-20000 之间的随机端口
     return Math.floor(Math.random() * 10000 + 10000).toString();
+  }
+
+  /**
+   * 发送 GET 请求到后端 API
+   */
+  async get(endpoint: string): Promise<any> {
+    return new Promise((resolve, reject) => {
+      const url = `${this.getBackendURL()}${endpoint}`;
+      const urlObj = new URL(url);
+
+      const options = {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      };
+
+      const req = (urlObj.protocol === 'https:' ? https : http).request(url, options, (res) => {
+        let data = '';
+
+        res.on('data', (chunk) => {
+          data += chunk;
+        });
+
+        res.on('end', () => {
+          if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
+            try {
+              resolve(JSON.parse(data));
+            } catch (e) {
+              resolve(data);
+            }
+          } else {
+            reject(new Error(`HTTP ${res.statusCode}: ${res.statusMessage}`));
+          }
+        });
+      });
+
+      req.on('error', (error) => {
+        reject(error);
+      });
+
+      req.end();
+    });
+  }
+
+  /**
+   * 发送 POST 请求到后端 API
+   */
+  async post(endpoint: string, data: any): Promise<any> {
+    return new Promise((resolve, reject) => {
+      const url = `${this.getBackendURL()}${endpoint}`;
+      const urlObj = new URL(url);
+      const postData = JSON.stringify(data);
+
+      const options = {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(postData),
+        },
+      };
+
+      const req = (urlObj.protocol === 'https:' ? https : http).request(url, options, (res) => {
+        let responseData = '';
+
+        res.on('data', (chunk) => {
+          responseData += chunk;
+        });
+
+        res.on('end', () => {
+          if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
+            try {
+              resolve(JSON.parse(responseData));
+            } catch (e) {
+              resolve(responseData);
+            }
+          } else {
+            reject(new Error(`HTTP ${res.statusCode}: ${res.statusMessage}`));
+          }
+        });
+      });
+
+      req.on('error', (error) => {
+        reject(error);
+      });
+
+      req.write(postData);
+      req.end();
+    });
   }
 }

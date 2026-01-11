@@ -57,6 +57,44 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getStats: () => ipcRenderer.invoke(IPC_CHANNELS.DB_GET_STATS),
   },
 
+  // HTTP 重放
+  replay: {
+    getAll: () => ipcRenderer.invoke(IPC_CHANNELS.REPLAY_GET_ALL),
+    getById: (id: number) => ipcRenderer.invoke(IPC_CHANNELS.REPLAY_GET_BY_ID, id),
+    create: (data: any) => ipcRenderer.invoke(IPC_CHANNELS.REPLAY_CREATE, data),
+    update: (id: number, data: any) => ipcRenderer.invoke(IPC_CHANNELS.REPLAY_UPDATE, id, data),
+    delete: (id: number) => ipcRenderer.invoke(IPC_CHANNELS.REPLAY_DELETE, id),
+    send: (id: number) => ipcRenderer.invoke(IPC_CHANNELS.REPLAY_SEND, id),
+    getResponses: (requestId: number) => ipcRenderer.invoke(IPC_CHANNELS.REPLAY_GET_RESPONSES, requestId),
+    import: (data: { data: string; type: 'curl' | 'http' }) => ipcRenderer.invoke(IPC_CHANNELS.REPLAY_IMPORT, data),
+  },
+
+  // 暴力破解
+  brute: {
+    getAll: () => ipcRenderer.invoke(IPC_CHANNELS.BRUTE_GET_ALL),
+    getById: (id: number) => ipcRenderer.invoke(IPC_CHANNELS.BRUTE_GET_BY_ID, id),
+    create: (data: any) => ipcRenderer.invoke(IPC_CHANNELS.BRUTE_CREATE, data),
+    start: (id: number) => ipcRenderer.invoke(IPC_CHANNELS.BRUTE_START, id),
+    cancel: (id: number) => ipcRenderer.invoke(IPC_CHANNELS.BRUTE_CANCEL, id),
+    delete: (id: number) => ipcRenderer.invoke(IPC_CHANNELS.BRUTE_DELETE, id),
+    getResults: (id: number) => ipcRenderer.invoke(IPC_CHANNELS.BRUTE_GET_RESULTS, id),
+    getAllPayloadSets: () => ipcRenderer.invoke(IPC_CHANNELS.BRUTE_GET_ALL_PAYLOAD_SETS),
+    createPayloadSet: (data: any) => ipcRenderer.invoke(IPC_CHANNELS.BRUTE_CREATE_PAYLOAD_SET, data),
+    importPayloads: (data: { set_id: number; file: string }) => ipcRenderer.invoke(IPC_CHANNELS.BRUTE_IMPORT_PAYLOADS, data),
+  },
+
+  // 工具箱
+  tools: {
+    portScan: (options: { target: string; ports?: number[]; timeout?: number; batch_size?: number }) =>
+      ipcRenderer.invoke(IPC_CHANNELS.TOOLS_PORTSCAN, options),
+    getCommonPorts: () => ipcRenderer.invoke(IPC_CHANNELS.TOOLS_GET_COMMON_PORTS),
+    domainBrute: (options: { domain: string; wordlist?: string[]; timeout?: number; batch_size?: number }) =>
+      ipcRenderer.invoke(IPC_CHANNELS.TOOLS_DOMAINBRUTE, options),
+    getDomainWordlist: () => ipcRenderer.invoke(IPC_CHANNELS.TOOLS_GET_DOMAIN_WORDLIST),
+    getDomainRecords: (domain: string, type: 'mx' | 'ns' | 'txt') =>
+      ipcRenderer.invoke(IPC_CHANNELS.TOOLS_GET_DOMAIN_RECORDS, { domain, type }),
+  },
+
   // 事件监听
   on: (channel: keyof IPCEvents, callback: (data: any) => void) => {
     const validChannels = Object.keys(IPC_CHANNELS);

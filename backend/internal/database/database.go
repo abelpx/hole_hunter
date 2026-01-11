@@ -122,14 +122,25 @@ CREATE TABLE IF NOT EXISTS brute_parameters (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- Brute force payload sets
+-- Brute force payload sets (collections of payloads)
+CREATE TABLE IF NOT EXISTS brute_payload_sets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    type TEXT NOT NULL,
+    config TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Brute force payloads (individual payload values)
 CREATE TABLE IF NOT EXISTS brute_payloads (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    set_id INTEGER REFERENCES brute_payload_sets(id),
     task_id INTEGER REFERENCES brute_tasks(id),
     param_id INTEGER REFERENCES brute_parameters(id),
     type TEXT NOT NULL,
     source TEXT,
     config TEXT,
+    value TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -145,6 +156,21 @@ CREATE TABLE IF NOT EXISTS brute_results (
     success BOOLEAN DEFAULT 0,
     notes TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Scan reports
+CREATE TABLE IF NOT EXISTS scan_reports (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    scan_id INTEGER REFERENCES scan_tasks(id),
+    target_name TEXT,
+    target_url TEXT,
+    status TEXT DEFAULT 'pending',
+    format TEXT NOT NULL,
+    file_path TEXT,
+    vulnerabilities_count INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 `
 

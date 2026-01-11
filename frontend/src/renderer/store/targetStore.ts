@@ -6,7 +6,7 @@
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 import { Target, CreateTargetRequest, UpdateTargetRequest } from '../types';
-import { ipcService } from '../services/IPCService';
+import { getService } from '../services/WailsService';
 
 // 过滤器类型
 export interface TargetFilters {
@@ -69,7 +69,8 @@ export const useTargetStore = create<TargetState>()(
         fetchTargets: async () => {
           set({ loading: true, error: null });
           try {
-            const targets = await ipcService.getAllTargets();
+            const service = getService();
+            const targets = await service.getAllTargets();
             set({ targets, loading: false });
           } catch (error: any) {
             set({ error: error.message, loading: false });
@@ -80,9 +81,10 @@ export const useTargetStore = create<TargetState>()(
         addTarget: async (data: CreateTargetRequest) => {
           set({ loading: true, error: null });
           try {
-            await ipcService.createTarget(data);
+            const service = getService();
+            await service.createTarget(data);
             // 重新获取列表
-            const targets = await ipcService.getAllTargets();
+            const targets = await service.getAllTargets();
             set({ targets, loading: false });
           } catch (error: any) {
             set({ error: error.message, loading: false });
@@ -94,7 +96,8 @@ export const useTargetStore = create<TargetState>()(
         updateTarget: async (id: number, data: UpdateTargetRequest) => {
           set({ loading: true, error: null });
           try {
-            await ipcService.updateTarget(id, data);
+            const service = getService();
+            await service.updateTarget(id, data);
             // 更新本地状态
             const { targets } = get();
             const updatedTargets = targets.map((t) =>
@@ -111,7 +114,8 @@ export const useTargetStore = create<TargetState>()(
         deleteTarget: async (id: number) => {
           set({ loading: true, error: null });
           try {
-            await ipcService.deleteTarget(id);
+            const service = getService();
+            await service.deleteTarget(id);
             // 从本地状态移除
             const { targets, selectedIds } = get();
             set({
@@ -129,7 +133,8 @@ export const useTargetStore = create<TargetState>()(
         batchDeleteTargets: async (ids: number[]) => {
           set({ loading: true, error: null });
           try {
-            await ipcService.batchDeleteTargets(ids);
+            const service = getService();
+            await service.batchDeleteTargets(ids);
             // 从本地状态移除
             const { targets, selectedIds } = get();
             const idsSet = new Set(ids);

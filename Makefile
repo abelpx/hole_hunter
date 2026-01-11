@@ -1,4 +1,4 @@
-.PHONY: help backend frontend desktop clean install deps list-artifacts verify verify-frontend test-desktop
+.PHONY: help backend frontend desktop clean install deps list-artifacts verify verify-frontend test-desktop wails-dev wails-build wails-clean
 
 # 默认目标
 .DEFAULT_GOAL := help
@@ -13,25 +13,54 @@ NC     := \033[0m # No Color
 help:
 	@echo "$(BLUE)HoleHunter 项目构建工具$(NC)"
 	@echo ""
-	@echo "$(GREEN)可用命令:$(NC)"
+	@echo "$(GREEN)Wails v2 (Go Desktop) 命令:$(NC)"
+	@echo "  $(YELLOW)make wails-dev$(NC)        - Wails 开发模式"
+	@echo "  $(YELLOW)make wails-build$(NC)      - Wails 构建桌面应用"
+	@echo "  $(YELLOW)make wails-clean$(NC)      - Wails 清理"
+	@echo ""
+	@echo "$(GREEN)Electron (旧版) 命令:$(NC)"
+	@echo "  $(YELLOW)make desktop$(NC)          - 构建桌面应用 (Electron)"
+	@echo "  $(YELLOW)make desktop-dev$(NC)      - 开发模式运行桌面应用 (Electron)"
+	@echo ""
+	@echo "$(GREEN)其他命令:$(NC)"
 	@echo "  $(YELLOW)make deps$(NC)             - 安装所有依赖（前端 + 后端）"
 	@echo "  $(YELLOW)make backend$(NC)          - 构建后端服务"
-	@echo "  $(YELLOW)make backend-run$(NC)      - 运行后端服务"
 	@echo "  $(YELLOW)make frontend$(NC)         - 构建前端"
-	@echo "  $(YELLOW)make frontend-dev$(NC)     - 开发模式运行前端"
-	@echo "  $(YELLOW)make desktop$(NC)          - 构建桌面应用"
-	@echo "  $(YELLOW)make desktop-dev$(NC)      - 开发模式运行桌面应用"
-	@echo "  $(YELLOW)make verify$(NC)           - 验证构建产物"
-	@echo "  $(YELLOW)make test-desktop$(NC)     - 测试桌面应用"
-	@echo "  $(YELLOW)make list-artifacts$(NC)   - 查看构建产物"
 	@echo "  $(YELLOW)make clean$(NC)            - 清理构建产物"
-	@echo "  $(YELLOW)make install$(NC)          - 安装项目依赖"
+	@echo "  $(YELLOW)make list-artifacts$(NC)   - 查看构建产物"
 	@echo ""
 	@echo "$(GREEN)构建产物位置:$(NC)"
-	@echo "  后端二进制: backend/bin/server"
+	@echo "  Wails 应用: build/bin/"
 	@echo "  前端构建:   frontend/dist/"
-	@echo "  安装包:     frontend/release/"
 	@echo ""
+
+# Wails CLI 路径
+WAILS ?= $(shell which wails 2>/dev/null || echo "$$HOME/.gvm/pkgsets/go1.25.0/global/bin/darwin_amd64/wails")
+
+## wails-dev: Wails 开发模式
+wails-dev:
+	@echo "$(GREEN)启动 Wails 开发模式...$(NC)"
+	@"$(WAILS)" dev
+
+## wails-build: Wails 构建桌面应用
+wails-build:
+	@echo "$(GREEN)构建 Wails 桌面应用...$(NC)"
+	@"$(WAILS)" build -s
+	@echo "$(GREEN)✓ Wails 桌面应用构建完成$(NC)"
+	@echo "$(BLUE)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"
+	@echo "$(BLUE)  应用位置: build/bin/$(NC)"
+	@if [ -d "build/bin" ]; then \
+		ls -lh build/bin/* 2>/dev/null | awk '{printf "  ✓ %s (%s)\n", $$9, $$5}'; \
+	fi
+	@echo "$(BLUE)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"
+
+## wails-clean: Wails 清理
+wails-clean:
+	@echo "$(GREEN)清理 Wails 构建产物...$(NC)"
+	@rm -rf build/bin
+	@rm -rf frontend/wailsjs
+	@rm -rf frontend/dist
+	@echo "$(GREEN)清理完成$(NC)"
 
 ## deps: 安装所有依赖
 deps:

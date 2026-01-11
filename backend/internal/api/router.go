@@ -9,6 +9,10 @@ import (
 func SetupRouter(cfg *config.Config, targetService *services.TargetService, scanService *services.ScanService, vulnService *services.VulnerabilityService, reportService *services.ReportService, replayService *services.ReplayService, bruteService *services.BruteService) *gin.Engine {
 	router := gin.Default()
 
+	// Initialize additional services
+	portScanner := services.NewPortScanner()
+	domainBrute := services.NewDomainBruteService()
+
 	// CORS middleware
 	router.Use(CORSMiddleware())
 
@@ -98,6 +102,95 @@ func SetupRouter(cfg *config.Config, targetService *services.TargetService, scan
 			brute.GET("/payload-sets", bruteService.ListPayloadSets)
 			brute.POST("/payload-sets", bruteService.CreatePayloadSet)
 			brute.POST("/payload-sets/import", bruteService.ImportPayloads)
+		}
+
+		// Tools
+		tools := v1.Group("/tools")
+		{
+			// Port Scanner
+			tools.POST("/portscan", func(c *gin.Context) {
+				var options services.PortScanOptions
+				if err := c.ShouldBindJSON(&options); err != nil {
+					c.JSON(400, gin.H{"error": err.Error()})
+					return
+				}
+
+				results, err := portScanner.ScanPorts(options)
+				if err != nil {
+					c.JSON(500, gin.H{"error": err.Error()})
+					return
+				}
+
+				c.JSON(200, gin.H{
+					"success": true,
+					"data":    results,
+				})
+			})
+
+			tools.GET("/portscan/common-ports", func(c *gin.Context) {
+				c.JSON(200, gin.H{
+					"success": true,
+					"data":    services.CommonPorts(),
+				})
+			})
+
+			// Domain Brute
+			tools.POST("/domainbrute", func(c *gin.Context) {
+				var options services.DomainBruteOptions
+				if err := c.ShouldBindJSON(&options); err != nil {
+					c.JSON(400, gin.H{"error": err.Error()})
+					return
+				}
+
+				results, err := domainBrute.BruteSubdomains(options)
+				if err != nil {
+					c.JSON(500, gin.H{"error": err.Error()})
+					return
+				}
+
+				c.JSON(200, gin.H{
+					"success": true,
+					"data":    results,
+				})
+			})
+
+			tools.GET("/domainbrute/wordlist", func(c *gin.Context) {
+				c.JSON(200, gin.H{
+					"success": true,
+					"data":    services.DefaultWordlist(),
+				})
+			})
+
+			tools.GET("/domainbrute/:domain/records", func(c *gin.Context) {
+				domain := c.Param("domain")
+				recordType := c.Query("type")
+
+				switch recordType {
+				case "mx":
+					records, err := domainBrute.CheckMXRecords(domain)
+					if err != nil {
+						c.JSON(500, gin.H{"error": err.Error()})
+						return
+					}
+					c.JSON(200, gin.H{"success": true, "data": records})
+				case "ns":
+					records, err := domainBrute.CheckNSRecords(domain)
+					if err != nil {
+						c.JSON(500, gin.H{"error": err.Error()})
+						return
+					}
+					c.JSON(200, gin.H{"success": true, "data": records})
+				case "txt":
+					records, err := domainBrute.CheckTXTRecords(domain)
+					if err != nil {
+						c.JSON(500, gin.H{"error": err.Error()})
+						return
+					}
+					c.JSON(200, gin.H{"success": true, "data": records})
+				default:
+					c.JSON(400, gin.H{"error": "invalid record type"})
+				}
+			})
 		}
 
 		// Health check

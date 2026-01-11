@@ -21,6 +21,7 @@ import { StatCard } from '../components/special/StatCard';
 import { VulnChart, VulnChartData } from '../components/special/VulnChart';
 import { ScanChart, ScanChartData } from '../components/special/ScanChart';
 import { RecentActivity, ActivityItem } from '../components/special/RecentActivity';
+import { getService } from '../services/WailsService';
 
 export const DashboardPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -39,122 +40,114 @@ export const DashboardPage: React.FC = () => {
   const loadDashboardData = useCallback(async () => {
     setLoading(true);
     try {
-      if (typeof window !== 'undefined' && window.electronAPI) {
-        // 获取统计信息
-        const statsResult = await window.electronAPI.database.getStats();
-        if (statsResult.success) {
-          const data = statsResult.data;
-          setStats({
-            totalTargets: data.targets || 0,
-            totalScans: data.scans || 0,
-            totalVulns: data.vulnerabilities || 0,
-            activeScans: 0, // 需要单独计算
-            criticalVulns: 0,
-            highVulns: 0,
-          });
-        }
+      const service = getService();
 
-        // 获取漏洞数据用于图表
-        const vulnResult = await window.electronAPI.vulnerability.getAll();
-        let vulns: any[] = [];
-        if (vulnResult.success) {
-          vulns = vulnResult.data;
+      // 获取统计信息
+      const statsData = await service.getDatabaseStats();
+      setStats({
+        totalTargets: statsData.total_targets || 0,
+        totalScans: statsData.total_scans || 0,
+        totalVulns: statsData.total_vulnerabilities || 0,
+        activeScans: statsData.running_scans || 0,
+        criticalVulns: statsData.critical_vulns || 0,
+        highVulns: statsData.high_vulns || 0,
+      });
 
-          // 按严重等级分组
-          const severityCounts = vulns.reduce((acc: any, vuln: any) => {
-            acc[vuln.severity] = (acc[vuln.severity] || 0) + 1;
-            return acc;
-          }, {});
+      // 获取漏洞数据用于图表
+      const vulns = await service.getAllVulnerabilities();
 
-          setVulnData([
-            { severity: 'critical', count: severityCounts.critical || 0, label: '严重' },
-            { severity: 'high', count: severityCounts.high || 0, label: '高危' },
-            { severity: 'medium', count: severityCounts.medium || 0, label: '中危' },
-            { severity: 'low', count: severityCounts.low || 0, label: '低危' },
-            { severity: 'info', count: severityCounts.info || 0, label: '信息' },
-          ]);
+      // 按严重等级分组
+      const severityCounts = vulns.reduce((acc: any, vuln: any) => {
+        const severity = vuln.severity || 'info';
+        acc[severity] = (acc[severity] || 0) + 1;
+        return acc;
+      }, {});
 
-          setStats((prev) => ({
-            ...prev,
-            criticalVulns: severityCounts.critical || 0,
-            highVulns: severityCounts.high || 0,
-          }));
-        }
+      setVulnData([
+        { severity: 'critical', count: severityCounts.critical || 0, label: '严重' },
+        { severity: 'high', count: severityCounts.high || 0, label: '高危' },
+        { severity: 'medium', count: severityCounts.medium || 0, label: '中危' },
+        { severity: 'low', count: severityCounts.low || 0, label: '低危' },
+        { severity: 'info', count: severityCounts.info || 0, label: '信息' },
+      ]);
 
-        // 获取扫描数据用于趋势图
-        const scanResult = await window.electronAPI.scan.getAll();
-        let scans: any[] = [];
-        if (scanResult.success) {
-          scans = scanResult.data;
+      // 获取扫描数据用于趋势图
+      const scans = await service.getAllScans();
 
-          // 按日期分组（最近7天）
-          const scanGroups = scans.reduce((acc: any, scan: any) => {
-            if (scan.started_at) {
-              const date = new Date(scan.started_at).toISOString().split('T')[0];
-              if (!acc[date]) {
-                acc[date] = { count: 0, vulnerabilities: 0 };
-              }
-              acc[date].count++;
-            }
-            return acc;
-          }, {});
-
-          // 生成最近7天的数据
-          const last7Days = Array.from({ length: 7 }, (_, i) => {
-            const date = new Date();
-            date.setDate(date.getDate() - (6 - i));
-            return date.toISOString().split('T')[0];
-          });
-
-          const trendData = last7Days.map((date) => ({
-            date,
-            count: scanGroups[date]?.count || 0,
-            vulnerabilities: Math.floor(Math.random() * 20), // 模拟数据，实际应从漏洞表统计
-          }));
-
-          setScanData(trendData);
-
-          // 计算运行中的扫描
-          const activeScans = scans.filter((s: any) => s.status === 'running').length;
-          setStats((prev) => ({ ...prev, activeScans }));
-        }
-
-        // 生成活动数据
-        const allActivities: ActivityItem[] = [];
-
-        // 添加扫描活动
-        scans.slice(0, 5).forEach((scan: any) => {
-          if (scan.started_at) {
-            allActivities.push({
-              id: `scan-${scan.id}`,
-              type: 'scan',
-              action: scan.status === 'completed' ? 'completed' : scan.status === 'failed' ? 'failed' : 'created',
-              title: `扫描任务: ${scan.target_name}`,
-              description: scan.status === 'running' ? '正在运行' : scan.status,
-              timestamp: scan.started_at,
-            });
+      // 按日期分组（最近7天）
+      const scanGroups = scans.reduce((acc: any, scan: any) => {
+        if (scan.started_at) {
+          const date = new Date(scan.started_at).toISOString().split('T')[0];
+          if (!acc[date]) {
+            acc[date] = { count: 0, vulnerabilities: 0 };
           }
-        });
+          acc[date].count++;
+        }
+        return acc;
+      }, {});
 
-        // 添加漏洞活动
-        vulns.slice(0, 5).forEach((vuln: any) => {
+      // 统计每天发现的漏洞数
+      const vulnByDate = vulns.reduce((acc: any, vuln: any) => {
+        if (vuln.discovered_at) {
+          const date = new Date(vuln.discovered_at).toISOString().split('T')[0];
+          if (!acc[date]) {
+            acc[date] = 0;
+          }
+          acc[date]++;
+        }
+        return acc;
+      }, {});
+
+      // 生成最近7天的数据
+      const last7Days = Array.from({ length: 7 }, (_, i) => {
+        const date = new Date();
+        date.setDate(date.getDate() - (6 - i));
+        return date.toISOString().split('T')[0];
+      });
+
+      const trendData = last7Days.map((date) => ({
+        date,
+        count: scanGroups[date]?.count || 0,
+        vulnerabilities: vulnByDate[date] || 0,
+      }));
+
+      setScanData(trendData);
+
+      // 生成活动数据
+      const allActivities: ActivityItem[] = [];
+
+      // 添加扫描活动
+      scans.slice(0, 5).forEach((scan: any) => {
+        if (scan.started_at) {
           allActivities.push({
-            id: `vuln-${vuln.id}`,
-            type: 'vuln',
-            action: 'created',
-            title: vuln.name,
-            description: `${vuln.severity} - ${vuln.url}`,
-            timestamp: vuln.discovered_at,
+            id: `scan-${scan.id}`,
+            type: 'scan',
+            action: scan.status === 'completed' ? 'completed' : scan.status === 'failed' ? 'failed' : 'created',
+            title: `扫描任务: ${scan.target_name}`,
+            description: scan.status === 'running' ? '正在运行' : scan.status,
+            timestamp: scan.started_at,
           });
+        }
+      });
+
+      // 添加漏洞活动
+      vulns.slice(0, 5).forEach((vuln: any) => {
+        allActivities.push({
+          id: `vuln-${vuln.id}`,
+          type: 'vuln',
+          action: 'created',
+          title: vuln.name,
+          description: `${vuln.severity} - ${vuln.url}`,
+          timestamp: vuln.discovered_at,
         });
+      });
 
-        // 按时间排序
-        allActivities.sort((a, b) =>
-          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-        );
+      // 按时间排序
+      allActivities.sort((a, b) =>
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
 
-        setActivities(allActivities.slice(0, 10));
-      }
+      setActivities(allActivities.slice(0, 10));
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
     } finally {

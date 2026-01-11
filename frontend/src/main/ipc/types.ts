@@ -105,6 +105,28 @@ export const IPC_CHANNELS = {
   VULN_MARK_FALSE_POSITIVE: 'vuln:markFalsePositive',
   VULN_DELETE: 'vuln:delete',
 
+  // HTTP 重放
+  REPLAY_GET_ALL: 'replay:getAll',
+  REPLAY_GET_BY_ID: 'replay:getById',
+  REPLAY_CREATE: 'replay:create',
+  REPLAY_UPDATE: 'replay:update',
+  REPLAY_DELETE: 'replay:delete',
+  REPLAY_SEND: 'replay:send',
+  REPLAY_GET_RESPONSES: 'replay:getResponses',
+  REPLAY_IMPORT: 'replay:import',
+
+  // 暴力破解
+  BRUTE_GET_ALL: 'brute:getAll',
+  BRUTE_GET_BY_ID: 'brute:getById',
+  BRUTE_CREATE: 'brute:create',
+  BRUTE_START: 'brute:start',
+  BRUTE_CANCEL: 'brute:cancel',
+  BRUTE_DELETE: 'brute:delete',
+  BRUTE_GET_RESULTS: 'brute:getResults',
+  BRUTE_GET_ALL_PAYLOAD_SETS: 'brute:getAllPayloadSets',
+  BRUTE_CREATE_PAYLOAD_SET: 'brute:createPayloadSet',
+  BRUTE_IMPORT_PAYLOADS: 'brute:importPayloads',
+
   // 数据库
   DB_HEALTH_CHECK: 'db:healthCheck',
   DB_GET_STATS: 'db:getStats',
@@ -112,6 +134,13 @@ export const IPC_CHANNELS = {
   // 应用
   APP_GET_VERSION: 'app:getVersion',
   APP_GET_PLATFORM: 'app:getPlatform',
+
+  // 工具箱
+  TOOLS_PORTSCAN: 'tools:portScan',
+  TOOLS_GET_COMMON_PORTS: 'tools:getCommonPorts',
+  TOOLS_DOMAINBRUTE: 'tools:domainBrute',
+  TOOLS_GET_DOMAIN_WORDLIST: 'tools:getDomainWordlist',
+  TOOLS_GET_DOMAIN_RECORDS: 'tools:getDomainRecords',
 } as const;
 
 // IPC 请求/响应类型

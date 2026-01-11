@@ -20,9 +20,7 @@ import { ScanProgressBar } from '../components/special/ScanProgressBar';
 import { ScanLogViewer, LogEntry } from '../components/special/ScanLogViewer';
 import { ScanConfigModal, ScanConfigOptions } from '../components/special/ScanConfigModal';
 import { useTargetStore } from '../store/targetStore';
-
-// 导入 IPC 类型
-import { ScanConfig as IPCScanConfig } from '../../main/ipc/types';
+import { getService } from '../services/WailsService';
 
 // 扫描任务详情（简化版）
 interface ScanTask {
@@ -97,8 +95,14 @@ export const ScansPage: React.FC = () => {
       addLog(scanId, level as any, message, timestamp);
     };
 
-    // 注册事件监听器（仅在 Electron 环境）
-    if (typeof window !== 'undefined' && window.electronAPI) {
+    // 注册事件监听器（Wails 或 Electron 环境）
+    const service = getService();
+    const isWails = typeof window !== 'undefined' && (window as any).go !== undefined;
+
+    if (isWails) {
+      // Wails 事件监听
+      service.onScanProgress(handleScanProgress);
+    } else if (typeof window !== 'undefined' && window.electronAPI) {
       window.electronAPI.on('scan-started', handleScanStarted);
       window.electronAPI.on('scan-progress', handleScanProgress);
       window.electronAPI.on('scan-finding', handleScanFinding);
@@ -109,31 +113,33 @@ export const ScansPage: React.FC = () => {
 
     return () => {
       // 清理事件监听器
-      if (typeof window !== 'undefined' && window.electronAPI) {
-        // 注意：需要实现 off 方法来移除监听器
+      if (isWails) {
+        service.offScanProgress();
       }
+      // TODO: 添加 Electron 的清理逻辑
     };
   }, []);
 
   const loadScans = async () => {
     try {
-      if (typeof window !== 'undefined' && window.electronAPI) {
-        const result = await window.electronAPI.scan.getAll();
-        if (result.success) {
-          // 转换 IPC ScanTask 到本地 ScanTask
-          const convertedScans: ScanTask[] = result.data.map((ipcScan) => ({
-            id: ipcScan.id,
-            target_id: ipcScan.target_id,
-            target_name: ipcScan.target_name,
-            status: ipcScan.status,
-            progress: ipcScan.progress,
-            current_template: ipcScan.current_template,
-            started_at: ipcScan.started_at,
-            completed_at: ipcScan.completed_at,
-          }));
-          setScans(convertedScans);
-        }
-      }
+      const service = getService();
+      const scansData = await service.getAllScans();
+
+      // 转换数据格式
+      const convertedScans: ScanTask[] = scansData.map((scan) => ({
+        id: scan.id,
+        target_id: scan.target_id,
+        target_name: `Target ${scan.target_id}`, // 需要从 target 表获取
+        status: scan.status as any,
+        progress: scan.progress || 0,
+        current_template: scan.current_template,
+        total_templates: scan.total_templates,
+        completed_templates: scan.executed_templates,
+        started_at: scan.started_at,
+        completed_at: scan.completed_at,
+      }));
+
+      setScans(convertedScans);
     } catch (error) {
       console.error('Failed to load scans:', error);
     } finally {
@@ -166,28 +172,16 @@ export const ScansPage: React.FC = () => {
         throw new Error('Target not found');
       }
 
-      // 转换 ScanConfigOptions 到 IPC ScanConfig
-      const ipcConfig: IPCScanConfig = {
-        templates: [], // 模板将由后端根据 severity/tags 选择
-        severity: config.severity || [],
-        rate_limit: config.rateLimit || 150,
-        concurrency: config.concurrency || 25,
-        timeout: config.timeout || 5,
-        retries: config.retries || 1,
-      };
-
-      const result = await window.electronAPI.scan.create({
-        target_ids: [target.id],
-        config: ipcConfig,
+      const service = getService();
+      const scan = await service.createScan({
+        target_id: target.id,
+        strategy: config.severity?.join(',') || 'default',
+        templates: config.templates || [],
       });
 
-      if (result.success) {
-        setShowConfigModal(false);
-        addLog(result.data.id, 'info', `Scan created for target: ${target.name}`);
-        loadScans();
-      } else {
-        throw new Error('Failed to create scan');
-      }
+      setShowConfigModal(false);
+      addLog(scan.id, 'info', `Scan created for target: ${target.name}`);
+      loadScans();
     } catch (error: any) {
       console.error('Failed to start scan:', error);
       alert(`启动扫描失败: ${error.message}`);
@@ -196,11 +190,10 @@ export const ScansPage: React.FC = () => {
 
   const handleCancelScan = async (scanId: number) => {
     try {
-      if (typeof window !== 'undefined' && window.electronAPI) {
-        await window.electronAPI.scan.cancel(scanId);
-        addLog(scanId, 'warning', 'Scan cancelled by user');
-        loadScans();
-      }
+      const service = getService();
+      await service.cancelScan(scanId);
+      addLog(scanId, 'warning', 'Scan cancelled by user');
+      loadScans();
     } catch (error) {
       console.error('Failed to cancel scan:', error);
     }

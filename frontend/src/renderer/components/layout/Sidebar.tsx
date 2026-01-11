@@ -16,6 +16,8 @@ import {
   Wrench,
   Settings,
   HelpCircle,
+  RotateCcw,
+  Zap,
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -38,9 +40,12 @@ export interface SidebarProps {
 
 // 默认菜单项
 const defaultMenuItems: MenuItem[] = [
+  { id: 'dashboard', label: '仪表板', icon: <Target size={18} /> },
   { id: 'targets', label: '目标管理', icon: <Target size={18} /> },
   { id: 'tasks', label: '扫描任务', icon: <ClipboardList size={18} /> },
   { id: 'vulnerabilities', label: '漏洞列表', icon: <AlertTriangle size={18} />, badge: 5 },
+  { id: 'replay', label: 'HTTP 重放', icon: <RotateCcw size={18} /> },
+  { id: 'brute', label: '暴力破解', icon: <Zap size={18} /> },
   { id: 'reports', label: '扫描报告', icon: <FileText size={18} /> },
   { id: 'templates', label: '模板管理', icon: <Layers size={18} /> },
   { id: 'tools', label: '工具箱', icon: <Wrench size={18} /> },

@@ -102,12 +102,200 @@ export class DatabaseManager {
       )
     `);
 
+    // HTTP 重放请求表
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS http_requests (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        method TEXT NOT NULL,
+        url TEXT NOT NULL,
+        headers TEXT,
+        body TEXT,
+        content_type TEXT,
+        tags TEXT DEFAULT '[]',
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `);
+
+    // HTTP 重放响应历史表
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS http_responses (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        request_id INTEGER NOT NULL,
+        status_code INTEGER,
+        status_text TEXT,
+        headers TEXT,
+        body TEXT,
+        body_size INTEGER DEFAULT 0,
+        header_size INTEGER DEFAULT 0,
+        duration INTEGER DEFAULT 0,
+        timestamp TEXT NOT NULL DEFAULT (datetime('now')),
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (request_id) REFERENCES http_requests(id) ON DELETE CASCADE
+      )
+    `);
+
+    // 暴力破解任务表
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS brute_tasks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        request_id INTEGER,
+        type TEXT NOT NULL DEFAULT 'single',
+        status TEXT NOT NULL DEFAULT 'pending',
+        total_payloads INTEGER DEFAULT 0,
+        sent_payloads INTEGER DEFAULT 0,
+        success_count INTEGER DEFAULT 0,
+        failure_count INTEGER DEFAULT 0,
+        started_at TEXT,
+        completed_at TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (request_id) REFERENCES http_requests(id) ON DELETE SET NULL
+      )
+    `);
+
+    // 暴力破解载荷集表
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS brute_payload_sets (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        type TEXT NOT NULL DEFAULT 'custom',
+        config TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `);
+
+    // 暴力破解载荷表
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS brute_payloads (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        set_id INTEGER NOT NULL,
+        payload TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (set_id) REFERENCES brute_payload_sets(id) ON DELETE CASCADE
+      )
+    `);
+
+    // 暴力破解结果表
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS brute_results (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        task_id INTEGER NOT NULL,
+        param_name TEXT NOT NULL,
+        payload TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending',
+        status_code INTEGER,
+        response_length INTEGER DEFAULT 0,
+        response_time INTEGER DEFAULT 0,
+        body TEXT,
+        error TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (task_id) REFERENCES brute_tasks(id) ON DELETE CASCADE
+      )
+    `);
+
+    // 端口扫描任务表
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS port_scan_tasks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        target TEXT NOT NULL,
+        ports TEXT NOT NULL,
+        timeout INTEGER DEFAULT 2000,
+        batch_size INTEGER DEFAULT 50,
+        status TEXT NOT NULL DEFAULT 'pending',
+        started_at TEXT,
+        completed_at TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `);
+
+    // 端口扫描结果表
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS port_scan_results (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        task_id INTEGER NOT NULL,
+        port INTEGER NOT NULL,
+        status TEXT NOT NULL DEFAULT 'closed',
+        service TEXT,
+        banner TEXT,
+        latency INTEGER DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (task_id) REFERENCES port_scan_tasks(id) ON DELETE CASCADE
+      )
+    `);
+
+    // 域名爆破任务表
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS domain_brute_tasks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        domain TEXT NOT NULL,
+        wordlist TEXT,
+        timeout INTEGER DEFAULT 2000,
+        batch_size INTEGER DEFAULT 50,
+        status TEXT NOT NULL DEFAULT 'pending',
+        started_at TEXT,
+        completed_at TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `);
+
+    // 域名爆破结果表
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS domain_brute_results (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        task_id INTEGER NOT NULL,
+        subdomain TEXT NOT NULL,
+        resolved INTEGER DEFAULT 0,
+        ips TEXT DEFAULT '[]',
+        latency INTEGER DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (task_id) REFERENCES domain_brute_tasks(id) ON DELETE CASCADE
+      )
+    `);
+
+    // DNS 记录查询历史表
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS dns_records (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        domain TEXT NOT NULL,
+        type TEXT NOT NULL,
+        records TEXT DEFAULT '[]',
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `);
+
+    // 扫描报告表
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS scan_reports (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        type TEXT NOT NULL,
+        target_ids TEXT,
+        date_range TEXT,
+        format TEXT DEFAULT 'json',
+        file_path TEXT,
+        status TEXT NOT NULL DEFAULT 'pending',
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `);
+
     // 创建索引
     this.db.exec(`
       CREATE INDEX IF NOT EXISTS idx_targets_status ON targets(status);
       CREATE INDEX IF NOT EXISTS idx_scan_tasks_status ON scan_tasks(status);
       CREATE INDEX IF NOT EXISTS idx_vulnerabilities_severity ON vulnerabilities(severity);
       CREATE INDEX IF NOT EXISTS idx_vulnerabilities_target_id ON vulnerabilities(target_id);
+
+      CREATE INDEX IF NOT EXISTS idx_http_requests_created_at ON http_requests(created_at);
+      CREATE INDEX IF NOT EXISTS idx_http_responses_request_id ON http_responses(request_id);
+      CREATE INDEX IF NOT EXISTS idx_brute_tasks_status ON brute_tasks(status);
+      CREATE INDEX IF NOT EXISTS idx_brute_results_task_id ON brute_results(task_id);
+      CREATE INDEX IF NOT EXISTS idx_port_scan_results_task_id ON port_scan_results(task_id);
+      CREATE INDEX IF NOT EXISTS idx_domain_brute_results_task_id ON domain_brute_results(task_id);
+      CREATE INDEX IF NOT EXISTS idx_domain_brute_results_subdomain ON domain_brute_results(subdomain);
     `);
   }
 
@@ -683,5 +871,867 @@ export class DatabaseManager {
       scanTasks,
       vulnerabilities,
     };
+  }
+
+  // ==================== HTTP 重放请求管理 ====================
+
+  async getAllHttpRequests(): Promise<any[]> {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    const rows = this.db.prepare(`
+      SELECT * FROM http_requests ORDER BY created_at DESC
+    `).all();
+
+    return rows.map((row: any) => ({
+      ...row,
+      headers: row.headers ? JSON.parse(row.headers) : {},
+      tags: row.tags ? JSON.parse(row.tags) : [],
+    }));
+  }
+
+  async getHttpRequestById(id: number): Promise<any | null> {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    const row = this.db.prepare('SELECT * FROM http_requests WHERE id = ?').get(id) as any;
+    if (!row) return null;
+
+    return {
+      ...row,
+      headers: row.headers ? JSON.parse(row.headers) : {},
+      tags: row.tags ? JSON.parse(row.tags) : [],
+    };
+  }
+
+  async createHttpRequest(data: {
+    name: string;
+    method: string;
+    url: string;
+    headers?: Record<string, string>;
+    body?: string;
+    content_type?: string;
+    tags?: string[];
+  }): Promise<number> {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    const result = this.db.prepare(`
+      INSERT INTO http_requests (name, method, url, headers, body, content_type, tags)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      data.name,
+      data.method,
+      data.url,
+      JSON.stringify(data.headers || {}),
+      data.body || '',
+      data.content_type || 'application/json',
+      JSON.stringify(data.tags || [])
+    );
+
+    return result.lastInsertRowid as number;
+  }
+
+  async updateHttpRequest(id: number, data: {
+    name?: string;
+    method?: string;
+    url?: string;
+    headers?: Record<string, string>;
+    body?: string;
+    content_type?: string;
+    tags?: string[];
+  }): Promise<void> {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    const updates: string[] = ['updated_at = datetime("now")'];
+    const values: any[] = [];
+
+    if (data.name !== undefined) {
+      updates.push('name = ?');
+      values.push(data.name);
+    }
+    if (data.method !== undefined) {
+      updates.push('method = ?');
+      values.push(data.method);
+    }
+    if (data.url !== undefined) {
+      updates.push('url = ?');
+      values.push(data.url);
+    }
+    if (data.headers !== undefined) {
+      updates.push('headers = ?');
+      values.push(JSON.stringify(data.headers));
+    }
+    if (data.body !== undefined) {
+      updates.push('body = ?');
+      values.push(data.body);
+    }
+    if (data.content_type !== undefined) {
+      updates.push('content_type = ?');
+      values.push(data.content_type);
+    }
+    if (data.tags !== undefined) {
+      updates.push('tags = ?');
+      values.push(JSON.stringify(data.tags));
+    }
+
+    values.push(id);
+    this.db.prepare(`
+      UPDATE http_requests SET ${updates.join(', ')} WHERE id = ?
+    `).run(...values);
+  }
+
+  async deleteHttpRequest(id: number): Promise<void> {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    this.db.prepare('DELETE FROM http_requests WHERE id = ?').run(id);
+  }
+
+  // ==================== HTTP 响应历史管理 ====================
+
+  async getHttpResponseHistory(requestId: number): Promise<any[]> {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    const rows = this.db.prepare(`
+      SELECT * FROM http_responses WHERE request_id = ? ORDER BY created_at DESC
+    `).all(requestId);
+
+    return rows.map((row: any) => ({
+      ...row,
+      headers: row.headers ? JSON.parse(row.headers) : {},
+    }));
+  }
+
+  async createHttpResponse(data: {
+    request_id: number;
+    status_code: number;
+    status_text: string;
+    headers?: Record<string, string>;
+    body?: string;
+    body_size?: number;
+    header_size?: number;
+    duration?: number;
+  }): Promise<number> {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    const result = this.db.prepare(`
+      INSERT INTO http_responses (request_id, status_code, status_text, headers, body, body_size, header_size, duration)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      data.request_id,
+      data.status_code,
+      data.status_text,
+      JSON.stringify(data.headers || {}),
+      data.body || '',
+      data.body_size || 0,
+      data.header_size || 0,
+      data.duration || 0
+    );
+
+    return result.lastInsertRowid as number;
+  }
+
+  // ==================== 暴力破解任务管理 ====================
+
+  async getAllBruteTasks(): Promise<any[]> {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    const rows = this.db.prepare(`
+      SELECT * FROM brute_tasks ORDER BY created_at DESC
+    `).all();
+
+    return rows;
+  }
+
+  async getBruteTask(id: number): Promise<any | null> {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    const row = this.db.prepare('SELECT * FROM brute_tasks WHERE id = ?').get(id);
+    return row || null;
+  }
+
+  async createBruteTask(data: {
+    name: string;
+    request_id?: number;
+    type?: string;
+    total_payloads?: number;
+  }): Promise<number> {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    const result = this.db.prepare(`
+      INSERT INTO brute_tasks (name, request_id, type, total_payloads)
+      VALUES (?, ?, ?, ?)
+    `).run(
+      data.name,
+      data.request_id || null,
+      data.type || 'single',
+      data.total_payloads || 0
+    );
+
+    return result.lastInsertRowid as number;
+  }
+
+  async updateBruteTask(id: number, data: {
+    status?: string;
+    sent_payloads?: number;
+    success_count?: number;
+    failure_count?: number;
+    started_at?: string;
+    completed_at?: string;
+  }): Promise<void> {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    const updates: string[] = ['updated_at = datetime("now")'];
+    const values: any[] = [];
+
+    if (data.status !== undefined) {
+      updates.push('status = ?');
+      values.push(data.status);
+    }
+    if (data.sent_payloads !== undefined) {
+      updates.push('sent_payloads = ?');
+      values.push(data.sent_payloads);
+    }
+    if (data.success_count !== undefined) {
+      updates.push('success_count = ?');
+      values.push(data.success_count);
+    }
+    if (data.failure_count !== undefined) {
+      updates.push('failure_count = ?');
+      values.push(data.failure_count);
+    }
+    if (data.started_at !== undefined) {
+      updates.push('started_at = ?');
+      values.push(data.started_at);
+    }
+    if (data.completed_at !== undefined) {
+      updates.push('completed_at = ?');
+      values.push(data.completed_at);
+    }
+
+    values.push(id);
+    this.db.prepare(`
+      UPDATE brute_tasks SET ${updates.join(', ')} WHERE id = ?
+    `).run(...values);
+  }
+
+  async deleteBruteTask(id: number): Promise<void> {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    this.db.prepare('DELETE FROM brute_tasks WHERE id = ?').run(id);
+  }
+
+  async getBruteTaskResults(taskId: number): Promise<any[]> {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    const rows = this.db.prepare(`
+      SELECT * FROM brute_results WHERE task_id = ? ORDER BY created_at ASC
+    `).all(taskId);
+
+    return rows;
+  }
+
+  async createBruteResult(data: {
+    task_id: number;
+    param_name: string;
+    payload: string;
+    status: string;
+    status_code?: number;
+    response_length?: number;
+    response_time?: number;
+    body?: string;
+    error?: string;
+  }): Promise<number> {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    const result = this.db.prepare(`
+      INSERT INTO brute_results (task_id, param_name, payload, status, status_code, response_length, response_time, body, error)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      data.task_id,
+      data.param_name,
+      data.payload,
+      data.status,
+      data.status_code || null,
+      data.response_length || 0,
+      data.response_time || 0,
+      data.body || null,
+      data.error || null
+    );
+
+    return result.lastInsertRowid as number;
+  }
+
+  async batchCreateBruteResults(results: Array<{
+    task_id: number;
+    param_name: string;
+    payload: string;
+    status: string;
+    status_code?: number;
+    response_length?: number;
+    response_time?: number;
+    body?: string;
+    error?: string;
+  }>): Promise<void> {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    const insert = this.db.prepare(`
+      INSERT INTO brute_results (task_id, param_name, payload, status, status_code, response_length, response_time, body, error)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    const insertMany = this.db.transaction((results) => {
+      for (const result of results) {
+        insert.run(
+          result.task_id,
+          result.param_name,
+          result.payload,
+          result.status,
+          result.status_code || null,
+          result.response_length || 0,
+          result.response_time || 0,
+          result.body || null,
+          result.error || null
+        );
+      }
+    });
+
+    insertMany(results);
+  }
+
+  // ==================== 暴力破解载荷集管理 ====================
+
+  async getAllBrutePayloadSets(): Promise<any[]> {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    const rows = this.db.prepare(`
+      SELECT * FROM brute_payload_sets ORDER BY created_at DESC
+    `).all();
+
+    return rows.map((row: any) => ({
+      ...row,
+      config: row.config ? JSON.parse(row.config) : {},
+    }));
+  }
+
+  async createBrutePayloadSet(data: {
+    name: string;
+    type?: string;
+    config?: Record<string, any>;
+  }): Promise<number> {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    const result = this.db.prepare(`
+      INSERT INTO brute_payload_sets (name, type, config)
+      VALUES (?, ?, ?)
+    `).run(
+      data.name,
+      data.type || 'custom',
+      JSON.stringify(data.config || {})
+    );
+
+    return result.lastInsertRowid as number;
+  }
+
+  async deleteBrutePayloadSet(id: number): Promise<void> {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    this.db.prepare('DELETE FROM brute_payload_sets WHERE id = ?').run(id);
+  }
+
+  async getPayloadsBySet(setId: number): Promise<string[]> {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    const rows = this.db.prepare(`
+      SELECT payload FROM brute_payloads WHERE set_id = ? ORDER BY created_at ASC
+    `).all(setId);
+
+    return rows.map((row: any) => row.payload);
+  }
+
+  async addPayloadsToSet(setId: number, payloads: string[]): Promise<void> {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    const insert = this.db.prepare(`
+      INSERT INTO brute_payloads (set_id, payload) VALUES (?, ?)
+    `);
+
+    const insertMany = this.db.transaction((payloads) => {
+      for (const payload of payloads) {
+        insert.run(setId, payload);
+      }
+    });
+
+    insertMany(payloads);
+  }
+
+  // ==================== 端口扫描任务管理 ====================
+
+  async createPortScanTask(data: {
+    target: string;
+    ports: number[];
+    timeout?: number;
+    batch_size?: number;
+  }): Promise<number> {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    const result = this.db.prepare(`
+      INSERT INTO port_scan_tasks (target, ports, timeout, batch_size, status)
+      VALUES (?, ?, ?, ?, 'running')
+    `).run(
+      data.target,
+      JSON.stringify(data.ports),
+      data.timeout || 2000,
+      data.batch_size || 50
+    );
+
+    return result.lastInsertRowid as number;
+  }
+
+  async updatePortScanTask(id: number, data: {
+    status?: string;
+    started_at?: string;
+    completed_at?: string;
+  }): Promise<void> {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    const updates: string[] = [];
+    const values: any[] = [];
+
+    if (data.status !== undefined) {
+      updates.push('status = ?');
+      values.push(data.status);
+    }
+    if (data.started_at !== undefined) {
+      updates.push('started_at = ?');
+      values.push(data.started_at);
+    }
+    if (data.completed_at !== undefined) {
+      updates.push('completed_at = ?');
+      values.push(data.completed_at);
+    }
+
+    if (updates.length === 0) return;
+
+    values.push(id);
+    this.db.prepare(`
+      UPDATE port_scan_tasks SET ${updates.join(', ')} WHERE id = ?
+    `).run(...values);
+  }
+
+  async getPortScanTask(id: number): Promise<any | null> {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    const row = this.db.prepare('SELECT * FROM port_scan_tasks WHERE id = ?').get(id) as any;
+    if (!row) return null;
+
+    return {
+      ...row,
+      ports: row.ports ? JSON.parse(row.ports) : [],
+    };
+  }
+
+  async getAllPortScanTasks(): Promise<any[]> {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    const rows = this.db.prepare(`
+      SELECT * FROM port_scan_tasks ORDER BY created_at DESC
+    `).all();
+
+    return rows.map((row: any) => ({
+      ...row,
+      ports: row.ports ? JSON.parse(row.ports) : [],
+    }));
+  }
+
+  async createPortScanResult(data: {
+    task_id: number;
+    port: number;
+    status: string;
+    service?: string;
+    banner?: string;
+    latency?: number;
+  }): Promise<number> {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    const result = this.db.prepare(`
+      INSERT INTO port_scan_results (task_id, port, status, service, banner, latency)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(
+      data.task_id,
+      data.port,
+      data.status,
+      data.service || null,
+      data.banner || null,
+      data.latency || 0
+    );
+
+    return result.lastInsertRowid as number;
+  }
+
+  async batchCreatePortScanResults(results: Array<{
+    task_id: number;
+    port: number;
+    status: string;
+    service?: string;
+    banner?: string;
+    latency?: number;
+  }>): Promise<void> {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    const insert = this.db.prepare(`
+      INSERT INTO port_scan_results (task_id, port, status, service, banner, latency)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+
+    const insertMany = this.db.transaction((results) => {
+      for (const result of results) {
+        insert.run(
+          result.task_id,
+          result.port,
+          result.status,
+          result.service || null,
+          result.banner || null,
+          result.latency || 0
+        );
+      }
+    });
+
+    insertMany(results);
+  }
+
+  async getPortScanResults(taskId: number): Promise<any[]> {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    const rows = this.db.prepare(`
+      SELECT * FROM port_scan_results WHERE task_id = ? ORDER BY port ASC
+    `).all(taskId);
+
+    return rows;
+  }
+
+  // ==================== 域名爆破任务管理 ====================
+
+  async createDomainBruteTask(data: {
+    domain: string;
+    wordlist?: string[];
+    timeout?: number;
+    batch_size?: number;
+  }): Promise<number> {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    const result = this.db.prepare(`
+      INSERT INTO domain_brute_tasks (domain, wordlist, timeout, batch_size, status)
+      VALUES (?, ?, ?, ?, 'running')
+    `).run(
+      data.domain,
+      JSON.stringify(data.wordlist || []),
+      data.timeout || 2000,
+      data.batch_size || 50
+    );
+
+    return result.lastInsertRowid as number;
+  }
+
+  async updateDomainBruteTask(id: number, data: {
+    status?: string;
+    started_at?: string;
+    completed_at?: string;
+  }): Promise<void> {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    const updates: string[] = [];
+    const values: any[] = [];
+
+    if (data.status !== undefined) {
+      updates.push('status = ?');
+      values.push(data.status);
+    }
+    if (data.started_at !== undefined) {
+      updates.push('started_at = ?');
+      values.push(data.started_at);
+    }
+    if (data.completed_at !== undefined) {
+      updates.push('completed_at = ?');
+      values.push(data.completed_at);
+    }
+
+    if (updates.length === 0) return;
+
+    values.push(id);
+    this.db.prepare(`
+      UPDATE domain_brute_tasks SET ${updates.join(', ')} WHERE id = ?
+    `).run(...values);
+  }
+
+  async getDomainBruteTask(id: number): Promise<any | null> {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    const row = this.db.prepare('SELECT * FROM domain_brute_tasks WHERE id = ?').get(id) as any;
+    if (!row) return null;
+
+    return {
+      ...row,
+      wordlist: row.wordlist ? JSON.parse(row.wordlist) : [],
+    };
+  }
+
+  async getAllDomainBruteTasks(): Promise<any[]> {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    const rows = this.db.prepare(`
+      SELECT * FROM domain_brute_tasks ORDER BY created_at DESC
+    `).all();
+
+    return rows.map((row: any) => ({
+      ...row,
+      wordlist: row.wordlist ? JSON.parse(row.wordlist) : [],
+    }));
+  }
+
+  async createDomainBruteResult(data: {
+    task_id: number;
+    subdomain: string;
+    resolved: boolean;
+    ips: string[];
+    latency?: number;
+  }): Promise<number> {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    const result = this.db.prepare(`
+      INSERT INTO domain_brute_results (task_id, subdomain, resolved, ips, latency)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(
+      data.task_id,
+      data.subdomain,
+      data.resolved ? 1 : 0,
+      JSON.stringify(data.ips || []),
+      data.latency || 0
+    );
+
+    return result.lastInsertRowid as number;
+  }
+
+  async batchCreateDomainBruteResults(results: Array<{
+    task_id: number;
+    subdomain: string;
+    resolved: boolean;
+    ips: string[];
+    latency?: number;
+  }>): Promise<void> {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    const insert = this.db.prepare(`
+      INSERT INTO domain_brute_results (task_id, subdomain, resolved, ips, latency)
+      VALUES (?, ?, ?, ?, ?)
+    `);
+
+    const insertMany = this.db.transaction((results) => {
+      for (const result of results) {
+        insert.run(
+          result.task_id,
+          result.subdomain,
+          result.resolved ? 1 : 0,
+          JSON.stringify(result.ips || []),
+          result.latency || 0
+        );
+      }
+    });
+
+    insertMany(results);
+  }
+
+  async getDomainBruteResults(taskId: number): Promise<any[]> {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    const rows = this.db.prepare(`
+      SELECT * FROM domain_brute_results WHERE task_id = ? ORDER BY created_at ASC
+    `).all(taskId);
+
+    return rows.map((row: any) => ({
+      ...row,
+      resolved: row.resolved === 1,
+      ips: row.ips ? JSON.parse(row.ips) : [],
+    }));
+  }
+
+  // ==================== DNS 记录查询管理 ====================
+
+  async createDNSRecord(data: {
+    domain: string;
+    type: string;
+    records: string[];
+  }): Promise<number> {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    const result = this.db.prepare(`
+      INSERT INTO dns_records (domain, type, records)
+      VALUES (?, ?, ?)
+    `).run(
+      data.domain,
+      data.type,
+      JSON.stringify(data.records || [])
+    );
+
+    return result.lastInsertRowid as number;
+  }
+
+  async getDNSRecords(domain: string, type: string): Promise<string[]> {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    const row = this.db.prepare(`
+      SELECT records FROM dns_records WHERE domain = ? AND type = ? ORDER BY created_at DESC LIMIT 1
+    `).get(domain, type) as any;
+
+    if (!row) return [];
+
+    return row.records ? JSON.parse(row.records) : [];
+  }
+
+  // ==================== 扫描报告管理 ====================
+
+  async createScanReport(data: {
+    name: string;
+    type: string;
+    target_ids?: number[];
+    date_range?: string;
+    format?: string;
+  }): Promise<number> {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    const result = this.db.prepare(`
+      INSERT INTO scan_reports (name, type, target_ids, date_range, format, status)
+      VALUES (?, ?, ?, ?, ?, 'pending')
+    `).run(
+      data.name,
+      data.type,
+      JSON.stringify(data.target_ids || []),
+      data.date_range || null,
+      data.format || 'json'
+    );
+
+    return result.lastInsertRowid as number;
+  }
+
+  async updateScanReport(id: number, data: {
+    status?: string;
+    file_path?: string;
+  }): Promise<void> {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    const updates: string[] = ['updated_at = datetime("now")'];
+    const values: any[] = [];
+
+    if (data.status !== undefined) {
+      updates.push('status = ?');
+      values.push(data.status);
+    }
+    if (data.file_path !== undefined) {
+      updates.push('file_path = ?');
+      values.push(data.file_path);
+    }
+
+    if (updates.length === 1) return;
+
+    values.push(id);
+    this.db.prepare(`
+      UPDATE scan_reports SET ${updates.join(', ')} WHERE id = ?
+    `).run(...values);
+  }
+
+  async getAllScanReports(): Promise<any[]> {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    const rows = this.db.prepare(`
+      SELECT * FROM scan_reports ORDER BY created_at DESC
+    `).all();
+
+    return rows.map((row: any) => ({
+      ...row,
+      target_ids: row.target_ids ? JSON.parse(row.target_ids) : [],
+    }));
+  }
+
+  async deleteScanReport(id: number): Promise<void> {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    this.db.prepare('DELETE FROM scan_reports WHERE id = ?').run(id);
   }
 }

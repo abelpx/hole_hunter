@@ -6,6 +6,7 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { Vulnerability } from '../types';
+import { getService } from '../services/WailsService';
 
 // 过滤器类型
 export interface VulnFilters {
@@ -70,45 +71,41 @@ export const useVulnStore = create<VulnState>()(
       fetchVulnerabilities: async (newFilters) => {
         set({ loading: true, error: null });
         try {
-          if (typeof window !== 'undefined' && window.electronAPI) {
-            const result = await window.electronAPI.vulnerability.getAll();
-            if (result.success) {
-              let vulns = result.data as Vulnerability[];
+          const service = getService();
+          let vulns = await service.getAllVulnerabilities();
 
-              // 客户端过滤
-              if (newFilters?.target_id) {
-                vulns = vulns.filter((v) => v.target_id === newFilters.target_id);
-              }
-              if (newFilters?.scan_id) {
-                vulns = vulns.filter((v) => v.scan_id === newFilters.scan_id);
-              }
-              if (newFilters?.is_false_positive !== undefined) {
-                vulns = vulns.filter((v) => v.is_false_positive === newFilters.is_false_positive);
-              }
-              if (newFilters?.search) {
-                const searchLower = newFilters.search.toLowerCase();
-                vulns = vulns.filter((v: Vulnerability) =>
-                  v.name.toLowerCase().includes(searchLower) ||
-                  v.url.toLowerCase().includes(searchLower) ||
-                  v.description.toLowerCase().includes(searchLower)
-                );
-              }
-              if (newFilters?.tags && newFilters.tags.length > 0) {
-                vulns = vulns.filter((v: Vulnerability) =>
-                  newFilters.tags!.some((tag) => v.tags.includes(tag))
-                );
-              }
-              if (newFilters?.severity && newFilters.severity.length > 0) {
-                vulns = vulns.filter((v: Vulnerability) =>
-                  newFilters.severity!.includes(v.severity)
-                );
-              }
-
-              set({ vulnerabilities: vulns, loading: false });
-            } else {
-              set({ error: 'Failed to fetch vulnerabilities', loading: false });
-            }
+          // 客户端过滤
+          if (newFilters?.target_id) {
+            vulns = vulns.filter((v) => v.target_id === newFilters.target_id || v.scan_id === newFilters.target_id);
           }
+          if (newFilters?.scan_id) {
+            vulns = vulns.filter((v) => v.scan_id === newFilters.scan_id || v.target_id === newFilters.scan_id);
+          }
+          if (newFilters?.is_false_positive !== undefined) {
+            vulns = vulns.filter((v) =>
+              (v.false_positive || v.is_false_positive) === newFilters.is_false_positive
+            );
+          }
+          if (newFilters?.search) {
+            const searchLower = newFilters.search.toLowerCase();
+            vulns = vulns.filter((v: Vulnerability) =>
+              v.name.toLowerCase().includes(searchLower) ||
+              v.url.toLowerCase().includes(searchLower) ||
+              v.description.toLowerCase().includes(searchLower)
+            );
+          }
+          if (newFilters?.tags && newFilters.tags.length > 0) {
+            vulns = vulns.filter((v: Vulnerability) =>
+              newFilters.tags!.some((tag) => v.tags.includes(tag))
+            );
+          }
+          if (newFilters?.severity && newFilters.severity.length > 0) {
+            vulns = vulns.filter((v: Vulnerability) =>
+              newFilters.severity!.includes(v.severity)
+            );
+          }
+
+          set({ vulnerabilities: vulns, loading: false });
         } catch (error: any) {
           set({ error: error.message, loading: false });
         }
@@ -118,12 +115,11 @@ export const useVulnStore = create<VulnState>()(
       updateVulnerability: async (id, data) => {
         set({ loading: true, error: null });
         try {
-          if (typeof window !== 'undefined' && window.electronAPI) {
-            await window.electronAPI.vulnerability.update(id, data);
-            // 重新获取列表
-            const { fetchVulnerabilities, filters } = get();
-            await fetchVulnerabilities(filters);
-          }
+          const service = getService();
+          await service.updateVulnerability(id, data);
+          // 重新获取列表
+          const { fetchVulnerabilities, filters } = get();
+          await fetchVulnerabilities(filters);
         } catch (error: any) {
           set({ error: error.message, loading: false });
           throw error;
@@ -134,17 +130,16 @@ export const useVulnStore = create<VulnState>()(
       markFalsePositive: async (id, isFalsePositive) => {
         set({ loading: true, error: null });
         try {
-          if (typeof window !== 'undefined' && window.electronAPI) {
-            await window.electronAPI.vulnerability.markFalsePositive(id, isFalsePositive);
-            // 更新本地状态
-            const { vulnerabilities } = get();
-            set({
-              vulnerabilities: vulnerabilities.map((v) =>
-                v.id === id ? { ...v, is_false_positive: isFalsePositive } : v
-              ),
-              loading: false,
-            });
-          }
+          const service = getService();
+          await service.markVulnerabilityAsFalsePositive(id, isFalsePositive);
+          // 更新本地状态
+          const { vulnerabilities } = get();
+          set({
+            vulnerabilities: vulnerabilities.map((v) =>
+              v.id === id ? { ...v, false_positive: isFalsePositive } : v
+            ),
+            loading: false,
+          });
         } catch (error: any) {
           set({ error: error.message, loading: false });
           throw error;
@@ -155,20 +150,19 @@ export const useVulnStore = create<VulnState>()(
       batchMarkFalsePositive: async (ids, isFalsePositive) => {
         set({ loading: true, error: null });
         try {
-          if (typeof window !== 'undefined' && window.electronAPI) {
-            await Promise.all(
-              ids.map((id) => window.electronAPI.vulnerability.markFalsePositive(id, isFalsePositive))
-            );
-            // 更新本地状态
-            const { vulnerabilities } = get();
-            const idsSet = new Set(ids);
-            set({
-              vulnerabilities: vulnerabilities.map((v) =>
-                idsSet.has(v.id) ? { ...v, is_false_positive: isFalsePositive } : v
-              ),
-              loading: false,
-            });
-          }
+          const service = getService();
+          await Promise.all(
+            ids.map((id) => service.markVulnerabilityAsFalsePositive(id, isFalsePositive))
+          );
+          // 更新本地状态
+          const { vulnerabilities } = get();
+          const idsSet = new Set(ids);
+          set({
+            vulnerabilities: vulnerabilities.map((v) =>
+              idsSet.has(v.id) ? { ...v, false_positive: isFalsePositive } : v
+            ),
+            loading: false,
+          });
         } catch (error: any) {
           set({ error: error.message, loading: false });
           throw error;
@@ -256,8 +250,15 @@ export const selectVulnStats = (state: VulnState) => {
   };
 
   state.vulnerabilities.forEach((vuln) => {
-    stats[vuln.severity]++;
-    if (vuln.is_false_positive) {
+    // 处理 severity 可能是 undefined 的情况
+    const severity = vuln.severity || 'info';
+    if (severity === 'critical') stats.critical++;
+    else if (severity === 'high') stats.high++;
+    else if (severity === 'medium') stats.medium++;
+    else if (severity === 'low') stats.low++;
+    else stats.info++;
+
+    if (vuln.false_positive || vuln.is_false_positive) {
       stats.falsePositive++;
     }
   });

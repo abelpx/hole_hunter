@@ -1,0 +1,22 @@
+{
+  "name": "HoleHunter",
+  "outputfilename": "HoleHunter",
+  "frontend:install": "npm install",
+  "frontend:build": "npm run build:renderer",
+  "frontend:dev:watcher": "npm run dev",
+  "frontend:dev:serverUrl": "auto",
+  "author": {
+    "name": "HoleHunter",
+    "email": "noreply@holehunter.local"
+  },
+  "info": {
+    "companyName": "HoleHunter",
+    "productName": "HoleHunter",
+    "productVersion": "2.0.0",
+    "copyright": "Copyright...",
+    "comments": "Security testing tool"
+  },
+  "wailsjsdir": "./frontend/wailsjs",
+  "version": "2",
+  "outputType": "desktop"
+}

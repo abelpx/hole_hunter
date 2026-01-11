@@ -6,7 +6,7 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { ScanTask, CreateScanRequest, ScanConfigOptions } from '../types';
-import { ipcService } from '../services/IPCService';
+import { getService } from '../services/WailsService';
 
 // Store 状态
 interface ScanState {
@@ -43,7 +43,8 @@ export const useScanStore = create<ScanState>()(
       fetchScans: async () => {
         set({ loading: true, error: null });
         try {
-          const scans = await ipcService.getAllScans();
+          const service = getService();
+          const scans = await service.getAllScans();
           set({ scans, loading: false });
         } catch (error: any) {
           set({ error: error.message, loading: false });
@@ -54,8 +55,9 @@ export const useScanStore = create<ScanState>()(
       createScan: async (data) => {
         set({ loading: true, error: null });
         try {
+          const service = getService();
           // 获取目标名称
-          const targets = await ipcService.getAllTargets();
+          const targets = await service.getAllTargets();
           const target = targets.find((t) => t.id === data.target_id);
           if (!target) {
             throw new Error(`Target with id ${data.target_id} not found`);
@@ -67,11 +69,11 @@ export const useScanStore = create<ScanState>()(
             config: data.config,
           };
 
-          const scan = await ipcService.createScan(createRequest);
+          const scan = await service.createScan(createRequest);
           set({ activeScanId: scan.id, loading: false });
 
           // 重新获取扫描列表
-          const scans = await ipcService.getAllScans();
+          const scans = await service.getAllScans();
           set({ scans });
 
           return scan.id;
@@ -85,7 +87,8 @@ export const useScanStore = create<ScanState>()(
       cancelScan: async (id: number) => {
         set({ loading: true, error: null });
         try {
-          await ipcService.cancelScan(id);
+          const service = getService();
+          await service.cancelScan(id);
           // 更新本地状态
           const { scans } = get();
           const updatedScans = scans.map((s) =>
@@ -101,7 +104,8 @@ export const useScanStore = create<ScanState>()(
       // 获取单个扫描任务
       getScanById: async (id: number) => {
         try {
-          const scan = await ipcService.getScanById(id);
+          const service = getService();
+          const scan = await service.getScanById(id);
           return scan;
         } catch (error: any) {
           set({ error: error.message });

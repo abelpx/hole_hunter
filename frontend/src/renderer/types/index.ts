@@ -83,3 +83,125 @@ export interface LogEntry {
   level: 'info' | 'warning' | 'error' | 'debug';
   message: string;
 }
+
+// HTTP 重放相关
+export interface HttpHeader {
+  key: string;
+  value: string;
+}
+
+export interface HttpRequest {
+  id: number;
+  name: string;
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS';
+  url: string;
+  headers: string; // JSON string of HttpHeader[]
+  body: string;
+  content_type: string;
+  tags: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateHttpRequest {
+  name?: string;
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS';
+  url: string;
+  headers?: HttpHeader[];
+  body?: string;
+  content_type?: string;
+  tags?: string[];
+}
+
+export interface HttpResponse {
+  id: number;
+  request_id: number;
+  status_code: number;
+  status_text: string;
+  headers: string; // JSON string
+  body: string;
+  body_size: number;
+  header_size: number;
+  duration: number; // milliseconds
+  timestamp: string;
+  created_at: string;
+}
+
+// 暴力破解相关
+export interface BruteTask {
+  id: number;
+  name: string;
+  request_id: number;
+  request_name?: string;
+  type: 'single' | 'multi-pitchfork' | 'multi-cluster';
+  status: 'pending' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled';
+  total_payloads: number;
+  sent_payloads: number;
+  success_count: number;
+  failure_count: number;
+  started_at?: string;
+  completed_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BruteParameter {
+  id: number;
+  task_id: number;
+  name: string;
+  type: 'header' | 'query' | 'body' | 'path';
+  position: number;
+  payload_set_id: number;
+  created_at: string;
+}
+
+export interface BrutePayloadSet {
+  id: number;
+  name: string;
+  type: 'dictionary' | 'number' | 'charset' | 'date';
+  config?: string;
+  created_at: string;
+  payload_count?: number;
+}
+
+export interface BruteResult {
+  id: number;
+  task_id: number;
+  param_name: string;
+  payload: string;
+  status: 'success' | 'failed';
+  status_code?: number;
+  response_length?: number;
+  response_time: number;
+  body?: string;
+  error?: string;
+  created_at: string;
+}
+
+export interface CreateBruteTaskRequest {
+  name: string;
+  request_id: number;
+  type: 'single' | 'multi-pitchfork' | 'multi-cluster';
+  parameters: {
+    name: string;
+    type: 'header' | 'query' | 'body' | 'path';
+    position?: number;
+    payload_set_id: number;
+  }[];
+  concurrency?: number;
+  timeout?: number;
+  delay?: number;
+  retry_count?: number;
+  success_rules?: {
+    type: 'keyword' | 'status_code' | 'length' | 'regex';
+    value: string;
+    negate?: boolean;
+  }[];
+}
+
+export interface CreatePayloadSetRequest {
+  name: string;
+  type: 'dictionary' | 'number' | 'charset' | 'date';
+  config?: string;
+  payloads?: string[];
+}
