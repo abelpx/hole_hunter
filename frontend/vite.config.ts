@@ -16,7 +16,7 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
-      onwarn(warning, warn) => {
+      onwarn: (warning, warn) => {
         // 忽略动态 import 的警告
         if (warning.code === 'DYNAMIC_IMPORT_PREFIX_RESOLUTION') {
           return;
