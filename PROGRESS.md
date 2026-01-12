@@ -1,10 +1,10 @@
 # HoleHunter 开发进度
 
-> 项目迁移到 Wails v2，集成 Nuclei 离线扫描器
+> 基于 Wails v2 的跨平台安全扫描工具
 
 ## 整体进度
 
-**当前版本**: v0.2.0
+**当前版本**: v0.3.0
 
 | 模块 | 状态 | 进度 |
 |------|------|------|
@@ -12,18 +12,19 @@
 | Nuclei 集成 | ✅ 完成 | 100% |
 | 离线扫描器 | ✅ 完成 | 100% |
 | 跨平台构建 | ✅ 完成 | 100% |
-| 前端 UI | 🚧 进行中 | 60% |
-| 扫描功能 | 🚧 进行中 | 40% |
-| 数据管理 | 📝 待开始 | 0% |
+| 数据库 | ✅ 完成 | 100% |
+| 前端 UI | 🚧 进行中 | 75% |
+| 扫描功能 | ✅ 完成 | 100% |
+| 其他工具 | 🚧 进行中 | 50% |
 
 ## 功能模块
 
 ### ✅ 已完成
 
-#### 1. 桌面框架迁移 (Wails v2)
+#### 1. 桌面框架 (Wails v2)
 - [x] 从 Electron 迁移到 Wails v2
-- [x] 配置跨平台构建环境
-- [x] 设置开发模式热重载
+- [x] 跨平台构建配置
+- [x] 开发模式热重载
 
 #### 2. Nuclei 集成
 - [x] 交叉编译脚本 (5 平台)
@@ -31,7 +32,7 @@
   - Linux ARM64/AMD64
   - Windows AMD64
 - [x] 模板库集成 (12000+ 模板)
-- [x] SSH 方式克隆源码
+- [x] 离线运行支持
 
 #### 3. 离线扫描器
 - [x] 自动初始化逻辑
@@ -44,74 +45,118 @@
 - [x] 应用打包流程
 - [x] nuclei 自动复制到应用包
 
-### 🚧 进行中
-
-#### 5. 前端 UI
-- [x] 页面框架
-- [x] 目标管理页面
-- [x] 扫描配置模态框
-- [ ] 扫描结果展示
-- [ ] 实时进度更新
-- [ ] 漏洞详情页面
+#### 5. 数据库 (SQLite)
+- [x] 目标管理 (targets)
+- [x] 扫描任务 (scan_tasks)
+- [x] 漏洞记录 (vulnerabilities)
+- [x] 配置管理 (configurations)
+- [x] HTTP 请求/响应
+- [x] 暴力破解任务
+- [x] 端口扫描任务
+- [x] 子域名爆破任务
 
 #### 6. 扫描功能
 - [x] 扫描任务创建
-- [x] 扫描配置
-- [ ] 进度监控
-- [ ] 结果解析
-- [ ] 漏洞数据库存储
+- [x] 扫描配置 (快速/深度/自定义)
+- [x] 进度监控
+- [x] 结果解析和存储
+- [x] 实时状态更新
+
+### 🚧 进行中
+
+#### 7. 前端 UI
+- [x] 页面框架
+- [x] 仪表板 (DashboardPage)
+- [x] 目标管理 (TargetsPage)
+- [x] 扫描任务 (ScansPage)
+- [x] 漏洞列表 (VulnPage)
+- [x] 模板管理 (TemplatesPage)
+- [x] 工具集合 (ToolsPage)
+- [x] 设置页面 (SettingsPage)
+- [ ] 扫描结果详情展示
+- [ ] 实时进度可视化
+
+#### 8. 其他工具
+- [x] 暴力破解 (BrutePage)
+- [x] 重放攻击 (ReplayPage)
+- [ ] 端口扫描
+- [ ] 子域名爆破
 
 ### 📝 待开始
 
-#### 7. 数据管理
-- [ ] 目标 CRUD
-- [ ] 扫描历史
-- [ ] 漏洞管理
-- [ ] 标签过滤
-
-#### 8. 高级功能
+#### 9. 高级功能
 - [ ] 结果导出 (JSON/CSV/HTML)
-- [ ] 扫描报告
+- [ ] 扫描报告生成
 - [ ] 批量扫描
 - [ ] 定时扫描
+- [ ] 标签系统和过滤
 
-## 技术债务
-
-- [ ] 添加单元测试
-- [ ] 添加 E2E 测试
+#### 10. 优化
 - [ ] 性能优化
 - [ ] 错误处理完善
 - [ ] 日志系统
+- [ ] 单元测试
+- [ ] E2E 测试
+
+## API 列表
+
+### 目标管理
+- `GetAllTargets()` - 获取所有目标
+- `GetTargetByID(id)` - 获取单个目标
+- `CreateTarget(name, url, description, tags)` - 创建目标
+- `UpdateTarget(id, name, url, description, tags)` - 更新目标
+- `DeleteTarget(id)` - 删除目标
+
+### 扫描任务
+- `GetAllScanTasks()` - 获取所有扫描任务
+- `GetScanTaskByID(id)` - 获取单个任务
+- `CreateScanTask(name, targetID, strategy, templates)` - 创建任务
+- `UpdateScanTaskStatus(id, status)` - 更新状态
+- `UpdateScanTaskProgress(id, progress, total, executed)` - 更新进度
+- `StartScan(taskID)` - 启动扫描
+- `StopScan(taskID)` - 停止扫描
+- `GetScanProgress(taskID)` - 获取进度
+
+### 漏洞管理
+- `GetAllVulnerabilities()` - 获取所有漏洞
+- `GetVulnerabilitiesByTaskID(taskID)` - 获取任务的漏洞
+- `CreateVulnerability(...)` - 创建漏洞记录
+- `UpdateVulnerability(id, falsePositive, notes)` - 更新漏洞
+- `DeleteVulnerability(id)` - 删除漏洞
+
+### 工具类
+- HTTP 请求管理
+- 端口扫描
+- 子域名爆破
+- 暴力破解
+
+### 配置与系统
+- `GetConfig(key)` / `SetConfig(key, value)` - 配置管理
+- `GetDashboardStats()` - 仪表板统计
+- `GetNucleiStatus()` - Nuclei 状态
+- `HealthCheck()` - 健康检查
 
 ## 版本计划
 
-### v0.2.0 (当前)
-- 基础扫描功能
-- 目标管理
-- 扫描配置
+### v0.3.0 (当前)
+- 完整的扫描功能
+- 目标和漏洞管理
+- 基础工具集合
 
-### v0.3.0 (计划中)
-- 实时进度监控
-- 扫描结果展示
-- 漏洞数据库
+### v0.4.0 (计划中)
+- 实时进度可视化
+- 结果详情展示
+- 性能优化
 
-### v0.4.0 (未来)
+### v0.5.0 (未来)
 - 结果导出
 - 扫描报告
 - 批量操作
 
 ### v1.0.0 (长期)
 - 完整功能集
-- 性能优化
-- 文档完善
-
-## 最近更新
-
-### 2025-01-12
-- 完成 nuclei 交叉编译集成
-- 实现离线扫描器
-- 更新构建流程
-- 清理项目结构
+- 生产级稳定性
+- 完整文档
 
 ---
 
