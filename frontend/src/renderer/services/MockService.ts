@@ -246,6 +246,13 @@ class MockDataStore {
     }
   }
 
+  deleteScan(id: number): void {
+    const index = this.scans.findIndex(s => s.id === id);
+    if (index !== -1) {
+      this.scans.splice(index, 1);
+    }
+  }
+
   // HTTP 请求管理
   getAllHttpRequests(): HttpRequest[] {
     return [...this.httpRequests];
@@ -422,6 +429,10 @@ class MockService {
 
   async cancelScan(id: number): Promise<void> {
     this.mockData.cancelScan(id);
+  }
+
+  async deleteScan(id: number): Promise<void> {
+    this.mockData.deleteScan(id);
   }
 
   async getAllScans(): Promise<ScanTask[]> {

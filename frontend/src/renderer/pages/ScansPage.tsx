@@ -225,6 +225,21 @@ export const ScansPage: React.FC = () => {
     }
   };
 
+  const handleDeleteScan = async (scanId: number) => {
+    if (!confirm('确定要删除这个扫描任务吗？此操作不可撤销。')) {
+      return;
+    }
+    try {
+      const service = getService();
+      await service.deleteScan(scanId);
+      addLog(scanId, 'info', 'Scan deleted');
+      loadScans();
+    } catch (error) {
+      console.error('Failed to delete scan:', error);
+      alert('删除扫描任务失败');
+    }
+  };
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'running':
@@ -344,16 +359,29 @@ export const ScansPage: React.FC = () => {
                     {scan.status}
                   </Badge>
 
-                  {scan.status === 'running' && (
-                    <Button
-                      type="danger"
-                      size="sm"
-                      icon={<X size={14} />}
-                      onClick={() => handleCancelScan(scan.id)}
-                    >
-                      取消
-                    </Button>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {scan.status === 'running' && (
+                      <Button
+                        type="danger"
+                        size="sm"
+                        icon={<X size={14} />}
+                        onClick={() => handleCancelScan(scan.id)}
+                      >
+                        取消
+                      </Button>
+                    )}
+                    {scan.status !== 'running' && (
+                      <Button
+                        type="default"
+                        size="sm"
+                        icon={<X size={14} />}
+                        onClick={() => handleDeleteScan(scan.id)}
+                        className="text-slate-400 hover:text-red-400"
+                      >
+                        删除
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
 

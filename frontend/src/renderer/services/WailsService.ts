@@ -38,6 +38,7 @@ interface WailsBindings {
   GetScanTaskByID(id: number): Promise<any>;
   CreateScanTask(targetId: number, strategy: string, templates: string[]): Promise<number>;
   UpdateScanTaskStatus(id: number, status: string): Promise<void>;
+  DeleteScanTask(id: number): Promise<void>;
   GetAllVulnerabilities(): Promise<any[]>;
   GetVulnerabilityByID(id: number): Promise<any>;
   UpdateVulnerability(id: number, falsePositive: boolean, notes: string): Promise<void>;
@@ -241,6 +242,12 @@ class WailsServiceImpl {
     const App = this.getApp();
     if (!App) throw new Error('Wails bindings not available');
     await App.UpdateScanTaskStatus(id, 'cancelled');
+  }
+
+  async deleteScan(id: number): Promise<void> {
+    const App = this.getApp();
+    if (!App) throw new Error('Wails bindings not available');
+    await App.DeleteScanTask(id);
   }
 
   async getAllScans(): Promise<ScanTask[]> {
@@ -773,6 +780,10 @@ class UnifiedService {
 
   async cancelScan(id: number): Promise<void> {
     return this.isBrowserMode() ? mockService.cancelScan(id) : this.wailsService.cancelScan(id);
+  }
+
+  async deleteScan(id: number): Promise<void> {
+    return this.isBrowserMode() ? mockService.deleteScan(id) : this.wailsService.deleteScan(id);
   }
 
   async getAllScans(): Promise<ScanTask[]> {
