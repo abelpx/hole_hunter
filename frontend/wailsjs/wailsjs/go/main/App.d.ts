@@ -12,7 +12,7 @@ export function CreateHttpRequest(arg1:string,arg2:string,arg3:string,arg4:Recor
 
 export function CreatePortScanTask(arg1:string,arg2:Array<number>,arg3:number,arg4:number):Promise<number>;
 
-export function CreateScanTask(arg1:number,arg2:string,arg3:Array<string>):Promise<number>;
+export function CreateScanTask(arg1:string,arg2:number,arg3:string,arg4:Array<string>):Promise<number>;
 
 export function CreateTarget(arg1:string,arg2:string,arg3:string,arg4:Array<string>):Promise<number>;
 
@@ -56,7 +56,11 @@ export function GetHttpRequestByID(arg1:number):Promise<main.HttpRequest>;
 
 export function GetHttpResponseHistory(arg1:number):Promise<Array<main.HttpResponse>>;
 
+export function GetNucleiStatus():Promise<main.NucleiStatus>;
+
 export function GetPortScanResults(arg1:number):Promise<Array<main.PortScanResult>>;
+
+export function GetScanProgress(arg1:number):Promise<main.ScanProgress>;
 
 export function GetScanTaskByID(arg1:number):Promise<main.ScanTask>;
 
@@ -66,9 +70,15 @@ export function GetVulnerabilitiesByTaskID(arg1:number):Promise<Array<main.Vulne
 
 export function HealthCheck():Promise<Record<string, any>>;
 
+export function InstallNuclei():Promise<void>;
+
 export function LogFromFrontend(arg1:string,arg2:string):Promise<void>;
 
 export function SetConfig(arg1:string,arg2:string):Promise<void>;
+
+export function StartScan(arg1:number):Promise<void>;
+
+export function StopScan(arg1:number):Promise<void>;
 
 export function UpdateHttpRequest(arg1:number,arg2:string,arg3:string,arg4:string,arg5:Record<string, string>,arg6:string,arg7:string,arg8:Array<string>):Promise<void>;
 

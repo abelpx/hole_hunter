@@ -192,6 +192,36 @@ export namespace main {
 	        this.created_at = source["created_at"];
 	    }
 	}
+	export class NucleiStatus {
+	    available: boolean;
+	    version: string;
+	    path: string;
+	    embedded: boolean;
+	    platform: string;
+	    installed: boolean;
+	    templates_dir?: string;
+	    template_count?: number;
+	    offline_mode: boolean;
+	    ready: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new NucleiStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.available = source["available"];
+	        this.version = source["version"];
+	        this.path = source["path"];
+	        this.embedded = source["embedded"];
+	        this.platform = source["platform"];
+	        this.installed = source["installed"];
+	        this.templates_dir = source["templates_dir"];
+	        this.template_count = source["template_count"];
+	        this.offline_mode = source["offline_mode"];
+	        this.ready = source["ready"];
+	    }
+	}
 	export class PortScanResult {
 	    id: number;
 	    task_id: number;
@@ -244,8 +274,35 @@ export namespace main {
 	        this.created_at = source["created_at"];
 	    }
 	}
+	export class ScanProgress {
+	    task_id: number;
+	    status: string;
+	    total_templates: number;
+	    executed_templates: number;
+	    progress: number;
+	    current_template: string;
+	    vuln_count: number;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ScanProgress(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.task_id = source["task_id"];
+	        this.status = source["status"];
+	        this.total_templates = source["total_templates"];
+	        this.executed_templates = source["executed_templates"];
+	        this.progress = source["progress"];
+	        this.current_template = source["current_template"];
+	        this.vuln_count = source["vuln_count"];
+	        this.error = source["error"];
+	    }
+	}
 	export class ScanTask {
 	    id: number;
+	    name?: string;
 	    target_id: number;
 	    status: string;
 	    strategy: string;
@@ -266,6 +323,7 @@ export namespace main {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
+	        this.name = source["name"];
 	        this.target_id = source["target_id"];
 	        this.status = source["status"];
 	        this.strategy = source["strategy"];

@@ -49,21 +49,28 @@ export interface Vulnerability {
 // 扫描相关
 export interface ScanTask {
   id: number;
+  name?: string;
   target_id: number;
   target_name: string;
   status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+  strategy?: string;
+  templates_used?: string[];
   progress: number;
+  total_templates?: number;
+  executed_templates?: number;
   current_template?: string;
   started_at?: string;
   completed_at?: string;
   error?: string;
   config?: any;
+  created_at?: string;
 }
 
 export interface CreateScanRequest {
+  name?: string;
   target_id: number;
-  target_name: string;
-  config: ScanConfigOptions;
+  strategy: string;
+  templates?: string[];
 }
 
 export interface ScanConfigOptions {

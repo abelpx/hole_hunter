@@ -18,6 +18,7 @@ files:
 
 # macOS 配置
 mac:
+  icon: build/icons/icon.icns
   category: public.app-category.developer-tools
   target:
     - target: dmg
@@ -28,6 +29,7 @@ mac:
 
 # Windows 配置
 win:
+  icon: build/icons/icon.ico
   target:
     - target: nsis
       arch:
@@ -39,7 +41,7 @@ win:
 
 # Linux 配置
 linux:
-  icon: build/icons
+  icon: build/icons/linux
   category: Development
   maintainer: HoleHunter Team
   target:

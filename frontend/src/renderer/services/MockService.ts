@@ -212,6 +212,7 @@ class MockDataStore {
   createScan(data: CreateScanRequest): ScanTask {
     const newScan: ScanTask = {
       id: this.generateId(),
+      name: data.name,
       target_id: data.target_id,
       status: 'pending',
       progress: 0,

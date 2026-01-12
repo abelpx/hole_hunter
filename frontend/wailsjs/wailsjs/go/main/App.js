@@ -22,8 +22,8 @@ export function CreatePortScanTask(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['CreatePortScanTask'](arg1, arg2, arg3, arg4);
 }
 
-export function CreateScanTask(arg1, arg2, arg3) {
-  return window['go']['main']['App']['CreateScanTask'](arg1, arg2, arg3);
+export function CreateScanTask(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['CreateScanTask'](arg1, arg2, arg3, arg4);
 }
 
 export function CreateTarget(arg1, arg2, arg3, arg4) {
@@ -110,8 +110,16 @@ export function GetHttpResponseHistory(arg1) {
   return window['go']['main']['App']['GetHttpResponseHistory'](arg1);
 }
 
+export function GetNucleiStatus() {
+  return window['go']['main']['App']['GetNucleiStatus']();
+}
+
 export function GetPortScanResults(arg1) {
   return window['go']['main']['App']['GetPortScanResults'](arg1);
+}
+
+export function GetScanProgress(arg1) {
+  return window['go']['main']['App']['GetScanProgress'](arg1);
 }
 
 export function GetScanTaskByID(arg1) {
@@ -130,12 +138,24 @@ export function HealthCheck() {
   return window['go']['main']['App']['HealthCheck']();
 }
 
+export function InstallNuclei() {
+  return window['go']['main']['App']['InstallNuclei']();
+}
+
 export function LogFromFrontend(arg1, arg2) {
   return window['go']['main']['App']['LogFromFrontend'](arg1, arg2);
 }
 
 export function SetConfig(arg1, arg2) {
   return window['go']['main']['App']['SetConfig'](arg1, arg2);
+}
+
+export function StartScan(arg1) {
+  return window['go']['main']['App']['StartScan'](arg1);
+}
+
+export function StopScan(arg1) {
+  return window['go']['main']['App']['StopScan'](arg1);
 }
 
 export function UpdateHttpRequest(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) {

@@ -225,6 +225,7 @@ class WailsServiceImpl {
     }
     console.log('[WailsService] Calling App.CreateScanTask...');
     const id = await App.CreateScanTask(
+      data.name || null,
       data.target_id,
       data.strategy,
       data.templates || []

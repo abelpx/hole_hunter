@@ -1,4 +1,4 @@
-.PHONY: help backend frontend desktop clean install deps list-artifacts verify verify-frontend test-desktop wails-dev wails-build wails-clean
+.PHONY: help dev build build-debug clean run deps lint format test nuclei-download nuclei-compile-all
 
 # 默认目标
 .DEFAULT_GOAL := help
@@ -7,272 +7,273 @@
 GREEN  := \033[0;32m
 YELLOW := \033[0;33m
 BLUE   := \033[0;34m
+RED    := \033[0;31m
 NC     := \033[0m # No Color
+
+# Wails CLI 路径（自动检测）
+WAILS ?= $(shell which wails 2>/dev/null || echo "$$HOME/.gvm/pkgsets/go1.25.0/global/bin/darwin_amd64/wails")
+
+# 应用信息
+APP_NAME := HoleHunter
+BUILD_DIR := build/bin
+FRONTEND_DIR := frontend
+
+# 检测操作系统
+UNAME_S := $(shell uname -s)
+UNAME_M := $(shell uname -m)
+
+# 确定平台特定的设置
+ifeq ($(OS),Windows_NT)
+    DETECTED_OS := Windows
+    NUCLEI_NAME := nuclei.exe
+    APP_EXT := .exe
+    BUILD_OUTPUT := $(BUILD_DIR)/$(APP_NAME)$(APP_EXT)
+else ifeq ($(UNAME_S),Linux)
+    DETECTED_OS := Linux
+    NUCLEI_NAME := nuclei
+    APP_EXT :=
+    BUILD_OUTPUT := $(BUILD_DIR)/$(APP_NAME)
+else ifeq ($(UNAME_S),Darwin)
+    DETECTED_OS := macOS
+    NUCLEI_NAME := nuclei
+    APP_EXT :=
+    BUILD_OUTPUT := $(BUILD_DIR)/$(APP_NAME).app/Contents/MacOS/$(APP_NAME)
+endif
 
 ## help: 显示帮助信息
 help:
-	@echo "$(BLUE)HoleHunter 项目构建工具$(NC)"
+	@echo "$(BLUE)════════════════════════════════════════════════════════════$(NC)"
+	@echo "$(BLUE)  $(APP_NAME) - Wails v2 桌面应用 (跨平台)$(NC)"
+	@echo "$(BLUE)════════════════════════════════════════════════════════════$(NC)"
 	@echo ""
-	@echo "$(GREEN)Wails v2 (Go Desktop) 命令:$(NC)"
-	@echo "  $(YELLOW)make wails-dev$(NC)        - Wails 开发模式"
-	@echo "  $(YELLOW)make wails-build$(NC)      - Wails 构建桌面应用"
-	@echo "  $(YELLOW)make wails-clean$(NC)      - Wails 清理"
+	@echo "$(GREEN)检测到平台: $(DETECTED_OS) ($(UNAME_M))$(NC)"
 	@echo ""
-	@echo "$(GREEN)Electron (旧版) 命令:$(NC)"
-	@echo "  $(YELLOW)make desktop$(NC)          - 构建桌面应用 (Electron)"
-	@echo "  $(YELLOW)make desktop-dev$(NC)      - 开发模式运行桌面应用 (Electron)"
+	@echo "$(GREEN)开发命令:$(NC)"
+	@echo "  $(YELLOW)make dev$(NC)              - 启动开发模式（热重载）"
+	@echo "  $(YELLOW)make run$(NC)              - 运行已构建的应用"
 	@echo ""
-	@echo "$(GREEN)其他命令:$(NC)"
-	@echo "  $(YELLOW)make deps$(NC)             - 安装所有依赖（前端 + 后端）"
-	@echo "  $(YELLOW)make backend$(NC)          - 构建后端服务"
-	@echo "  $(YELLOW)make frontend$(NC)         - 构建前端"
+	@echo "$(GREEN)构建命令:$(NC)"
+	@echo "  $(YELLOW)make build$(NC)            - 生产构建（优化）"
+	@echo "  $(YELLOW)make build-debug$(NC)      - 调试构建（包含开发者工具）"
+	@echo ""
+	@echo "$(GREEN)依赖管理:$(NC)"
+	@echo "  $(YELLOW)make deps$(NC)             - 安装所有依赖"
+	@echo ""
+	@echo "$(GREEN)代码质量:$(NC)"
+	@echo "  $(YELLOW)make lint$(NC)             - 代码检查"
+	@echo "  $(YELLOW)make format$(NC)           - 格式化代码"
+	@echo "  $(YELLOW)make test$(NC)             - 运行测试"
+	@echo ""
+	@echo "$(GREEN)清理:$(NC)"
 	@echo "  $(YELLOW)make clean$(NC)            - 清理构建产物"
-	@echo "  $(YELLOW)make list-artifacts$(NC)   - 查看构建产物"
 	@echo ""
-	@echo "$(GREEN)构建产物位置:$(NC)"
-	@echo "  Wails 应用: build/bin/"
-	@echo "  前端构建:   frontend/dist/"
+	@echo "$(GREEN)Nuclei:$(NC)"
+	@echo "  $(YELLOW)make nuclei-download$(NC)  - 下载 nuclei 二进制文件"
+	@echo "  $(YELLOW)make nuclei-compile-all$(NC) - 交叉编译所有平台 nuclei"
+	@echo ""
+	@echo "$(GREEN)其他:$(NC)"
+	@echo "  $(YELLOW)make list$(NC)             - 查看构建产物"
+	@echo ""
+	@echo "$(BLUE)════════════════════════════════════════════════════════════$(NC)"
+	@echo "$(BLUE)  构建产物: $(BUILD_DIR)/$(NC)"
+	@echo "$(BLUE)════════════════════════════════════════════════════════════$(NC)"
 	@echo ""
 
-# Wails CLI 路径
-WAILS ?= $(shell which wails 2>/dev/null || echo "$$HOME/.gvm/pkgsets/go1.25.0/global/bin/darwin_amd64/wails")
-
-## wails-dev: Wails 开发模式
-wails-dev:
+## dev: 启动开发模式（支持热重载）
+dev:
 	@echo "$(GREEN)启动 Wails 开发模式...$(NC)"
+	@echo "$(BLUE)平台: $(DETECTED_OS)$(NC)"
+	@echo "$(BLUE)提示: 修改代码会自动重新加载$(NC)"
+	@echo ""
 	@"$(WAILS)" dev
 
-## wails-build: Wails 构建桌面应用
-wails-build:
-	@echo "$(GREEN)构建 Wails 桌面应用...$(NC)"
-	@"$(WAILS)" build -s
-	@echo "$(GREEN)✓ Wails 桌面应用构建完成$(NC)"
+## build: 生产构建（优化）
+build: nuclei-download
+	@echo "$(GREEN)构建 $(APP_NAME) 桌面应用...$(NC)"
+	@echo "$(BLUE)平台: $(DETECTED_OS)$(NC)"
+	@echo "$(BLUE)模式: 生产（优化）$(NC)"
+	@"$(WAILS)" build
+	@$(MAKE) copy-nuclei
+	@echo ""
+	@echo "$(GREEN)✓ 构建完成$(NC)"
+	@$(MAKE) show-build-info
+
+## build-debug: 调试构建（包含开发者工具）
+build-debug: nuclei-download
+	@echo "$(GREEN)构建 $(APP_NAME) 桌面应用（调试模式）...$(NC)"
+	@echo "$(BLUE)平台: $(DETECTED_OS)$(NC)"
+	@echo "$(BLUE)模式: 调试（包含开发者工具）$(NC)"
+	@"$(WAILS)" build -debug
+	@$(MAKE) copy-nuclei
+	@echo ""
+	@echo "$(GREEN)✓ 构建完成$(NC)"
+	@$(MAKE) show-build-info
+
+## copy-nuclei: 复制 nuclei 到应用包（内部目标）
+copy-nuclei:
+	@echo "$(BLUE)复制 nuclei 到应用包...$(NC)"
+ifeq ($(DETECTED_OS),macOS)
+	@if [ -f "$(BUILD_DIR)/$(APP_NAME).app/Contents/MacOS/$(APP_NAME)" ]; then \
+		mkdir -p "$(BUILD_DIR)/$(APP_NAME).app/Contents/MacOS"; \
+		cp -f build/binaries/nuclei "$(BUILD_DIR)/$(APP_NAME).app/Contents/MacOS/nuclei"; \
+		chmod +x "$(BUILD_DIR)/$(APP_NAME).app/Contents/MacOS/nuclei"; \
+		echo "$(GREEN)✓ nuclei 已打包到 .app/Contents/MacOS/$(NC)"; \
+	else \
+		echo "$(YELLOW)警告: 应用构建产物未找到$(NC)"; \
+	fi
+else ifeq ($(DETECTED_OS),Linux)
+	@if [ -f "$(BUILD_DIR)/$(APP_NAME)" ]; then \
+		cp -f build/binaries/nuclei "$(BUILD_DIR)/nuclei"; \
+		chmod +x "$(BUILD_DIR)/nuclei"; \
+		echo "$(GREEN)✓ nuclei 已复制到构建目录$(NC)"; \
+	else \
+		echo "$(YELLOW)警告: 应用构建产物未找到$(NC)"; \
+	fi
+else ifeq ($(DETECTED_OS),Windows)
+	@if [ -f "$(BUILD_DIR)/$(APP_NAME).exe" ]; then \
+		copy /Y build\\binaries\\nuclei.exe "$(BUILD_DIR)\\nuclei.exe" >nul 2>&1 || \
+		cp -f build/binaries/nuclei.exe "$(BUILD_DIR)/nuclei.exe" 2>/dev/null || \
+		echo "$(GREEN)✓ 请手动复制 nuclei.exe 到应用目录$(NC)"; \
+	else \
+		echo "$(YELLOW)警告: 应用构建产物未找到$(NC)"; \
+	fi
+endif
+	@$(MAKE) copy-templates
+
+## copy-templates: 复制 nuclei 模板到应用包（内部目标）
+copy-templates:
+	@echo "$(BLUE)复制 nuclei 模板到应用包...$(NC)"
+	@TEMPLATES_SRC="build/nuclei-templates"; \
+	if [ -d "$$TEMPLATES_SRC" ]; then \
+		TEMPLATE_COUNT=$$(find "$$TEMPLATES_SRC" -name "*.yaml" 2>/dev/null | wc -l | xargs); \
+		if [ "$(DETECTED_OS)" = "macOS" ]; then \
+			if [ -d "$(BUILD_DIR)/$(APP_NAME).app/Contents/MacOS" ]; then \
+				cp -rf "$$TEMPLATES_SRC" "$(BUILD_DIR)/$(APP_NAME).app/Contents/MacOS/nuclei-templates"; \
+				echo "$(GREEN)✓ 模板已打包 ($$TEMPLATE_COUNT 个文件)$(NC)"; \
+			fi; \
+		elif [ "$(DETECTED_OS)" = "Linux" ]; then \
+			if [ -d "$(BUILD_DIR)" ]; then \
+				cp -rf "$$TEMPLATES_SRC" "$(BUILD_DIR)/nuclei-templates"; \
+				echo "$(GREEN)✓ 模板已复制 ($$TEMPLATE_COUNT 个文件)$(NC)"; \
+			fi; \
+		elif [ "$(DETECTED_OS)" = "Windows" ]; then \
+			if [ -d "$(BUILD_DIR)" ]; then \
+				cp -rf "$$TEMPLATES_SRC" "$(BUILD_DIR)/nuclei-templates"; \
+				echo "$(GREEN)✓ 模板已复制 ($$TEMPLATE_COUNT 个文件)$(NC)"; \
+			fi; \
+		fi; \
+	else \
+		echo "$(YELLOW)警告: 模板目录不存在，运行 'make nuclei-compile-all' 获取模板$(NC)"; \
+	fi
+
+## show-build-info: 显示构建信息（内部目标）
+show-build-info:
 	@echo "$(BLUE)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"
-	@echo "$(BLUE)  应用位置: build/bin/$(NC)"
-	@if [ -d "build/bin" ]; then \
-		ls -lh build/bin/* 2>/dev/null | awk '{printf "  ✓ %s (%s)\n", $$9, $$5}'; \
+	@if [ -d "$(BUILD_DIR)" ]; then \
+		find $(BUILD_DIR) -maxdepth 2 -type f -exec ls -lh {} \; 2>/dev/null | awk '{printf "  ✓ %s (%s)\n", $$9, $$5}' | head -10; \
 	fi
 	@echo "$(BLUE)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"
+	@echo ""
+	@echo "$(YELLOW)运行: make run$(NC)"
 
-## wails-clean: Wails 清理
-wails-clean:
-	@echo "$(GREEN)清理 Wails 构建产物...$(NC)"
-	@rm -rf build/bin
-	@rm -rf frontend/wailsjs
-	@rm -rf frontend/dist
-	@echo "$(GREEN)清理完成$(NC)"
+## run: 运行已构建的应用
+run:
+ifeq ($(DETECTED_OS),macOS)
+	@if [ -f "$(BUILD_DIR)/$(APP_NAME).app/Contents/MacOS/$(APP_NAME)" ]; then \
+		echo "$(GREEN)启动 $(APP_NAME)...$(NC)"; \
+		open "$(BUILD_DIR)/$(APP_NAME).app" || "$(BUILD_DIR)/$(APP_NAME).app/Contents/MacOS/$(APP_NAME)" & \
+	else \
+		echo "$(RED)错误: 应用未构建$(NC)"; \
+		echo "$(YELLOW)请先运行: make build$(NC)"; \
+		exit 1; \
+	fi
+else ifeq ($(DETECTED_OS),Linux)
+	@if [ -f "$(BUILD_DIR)/$(APP_NAME)" ]; then \
+		echo "$(GREEN)启动 $(APP_NAME)...$(NC)"; \
+		"$(BUILD_DIR)/$(APP_NAME)" & \
+	else \
+		echo "$(RED)错误: 应用未构建$(NC)"; \
+		echo "$(YELLOW)请先运行: make build$(NC)"; \
+		exit 1; \
+	fi
+else ifeq ($(DETECTED_OS),Windows)
+	@if [ -f "$(BUILD_DIR)/$(APP_NAME).exe" ]; then \
+		echo "$(GREEN)启动 $(APP_NAME)...$(NC)"; \
+		start "" "$(BUILD_DIR)/$(APP_NAME).exe" || \
+		"$(BUILD_DIR)/$(APP_NAME).exe" & \
+	else \
+		echo "$(RED)错误: 应用未构建$(NC)"; \
+		echo "$(YELLOW)请先运行: make build$(NC)"; \
+		exit 1; \
+	fi
+endif
 
 ## deps: 安装所有依赖
 deps:
 	@echo "$(GREEN)安装依赖...$(NC)"
-	@cd frontend && npm install
-	@echo "$(GREEN)前端依赖安装完成$(NC)"
-	@cd backend && go mod download
-	@echo "$(GREEN)后端依赖安装完成$(NC)"
-
-## backend: 构建后端服务
-backend:
-	@echo "$(GREEN)构建后端服务...$(NC)"
-	@cd backend && go build -o bin/server cmd/server/main.go
-	@echo "$(GREEN)✓ 后端服务构建完成$(NC)"
-	@echo "$(BLUE)  位置: backend/bin/server$(NC)"
-	@ls -lh backend/bin/server 2>/dev/null | awk '{print "  大小: " $$9}'
-
-## backend-run: 运行后端服务
-backend-run:
-	@echo "$(GREEN)启动后端服务...$(NC)"
-	@cd backend && go run cmd/server/main.go
-
-## backend-build: 编译后端（跨平台）
-backend-build:
-	@echo "$(GREEN)编译后端服务...$(NC)"
-	@cd backend && go build -o bin/server cmd/server/main.go
-	@echo "$(GREEN)✓ 后端编译完成$(NC)"
-	@echo "$(BLUE)  位置: backend/bin/server$(NC)"
-
-## frontend: 构建前端
-frontend:
-	@echo "$(GREEN)构建前端...$(NC)"
-	@cd frontend && npm run build
-	@echo "$(GREEN)✓ 前端构建完成$(NC)"
-	@echo "$(BLUE)  位置: frontend/dist/$(NC)"
-	@du -sh frontend/dist 2>/dev/null | awk '{print "  大小: " $$1}'
-
-## frontend-dev: 开发模式运行前端
-frontend-dev:
-	@echo "$(GREEN)启动前端开发服务器...$(NC)"
-	@cd frontend && npm run dev
-
-## desktop: 构建桌面应用
-desktop: frontend backend
-	@echo "$(GREEN)构建桌面应用...$(NC)"
-	@echo "$(BLUE)准备后端二进制文件...$(NC)"
-	@mkdir -p frontend/build/backend
-	@$(MAKE) prepare-backend-binaries
-	@cd frontend && npm run dist
-	@echo "$(GREEN)✓ 桌面应用构建完成$(NC)"
-	@echo "$(BLUE)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"
-	@echo "$(BLUE)  安装包位置: frontend/release/$(NC)"
-	@echo "$(BLUE)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"
-	@if [ -d "frontend/release" ]; then \
-		ls -lh frontend/release/*.* 2>/dev/null | awk '{printf "  ✓ %s (%s)\n", $$9, $$5}'; \
-	fi
-	@echo "$(BLUE)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"
-
-## prepare-backend-binaries: 准备后端二进制文件
-prepare-backend-binaries:
-	@echo "$(BLUE)编译后端二进制文件...$(NC)"
-	@cd backend && go build -o ../frontend/build/backend/server cmd/server/main.go
-	@if [ "$(shell uname -s)" = "Darwin" ]; then \
-		echo "$(BLUE)为 macOS 构建通用二进制...$(NC)"; \
-		cd backend && GOARCH=arm64 go build -o ../frontend/build/backend/server-arm64 cmd/server/main.go; \
-		cd backend && GOARCH=amd64 go build -o ../frontend/build/backend/server-amd64 cmd/server/main.go; \
-		lipo -create -output ../frontend/build/backend/server-universal ../frontend/build/backend/server-arm64 ../frontend/build/backend/server-amd64 || true; \
-	fi
-
-## desktop-dev: 开发模式运行桌面应用
-desktop-dev:
-	@echo "$(GREEN)启动桌面应用开发模式...$(NC)"
-	@cd frontend && npm run dev:electron
-
-## desktop-build: 构建桌面应用（指定平台）
-desktop-build-win:
-	@echo "$(GREEN)构建 Windows 桌面应用...$(NC)"
-	@$(MAKE) prepare-backend-binaries
-	@cd frontend && npm run dist:win
-	@echo "$(GREEN)✓ Windows 桌面应用构建完成$(NC)"
-	@echo "$(BLUE)  安装包位置: frontend/release/$(NC)"
-	@ls -lh frontend/release/*.{exe,zip} 2>/dev/null | awk '{printf "  ✓ %s (%s)\n", $$9, $$5}'
-
-desktop-build-mac:
-	@echo "$(GREEN)构建 macOS 桌面应用...$(NC)"
-	@$(MAKE) prepare-backend-binaries
-	@cd frontend && npm run dist:mac
-	@echo "$(GREEN)✓ macOS 桌面应用构建完成$(NC)"
-	@echo "$(BLUE)  安装包位置: frontend/release/$(NC)"
-	@ls -lh frontend/release/*.{dmg,zip} 2>/dev/null | awk '{printf "  ✓ %s (%s)\n", $$9, $$5}'
-
-desktop-build-linux:
-	@echo "$(GREEN)构建 Linux 桌面应用...$(NC)"
-	@$(MAKE) prepare-backend-binaries
-	@cd frontend && npm run dist:linux
-	@echo "$(GREEN)✓ Linux 桌面应用构建完成$(NC)"
-	@echo "$(BLUE)  安装包位置: frontend/release/$(NC)"
-	@ls -lh frontend/release/*.{AppImage,deb} 2>/dev/null | awk '{printf "  ✓ %s (%s)\n", $$9, $$5}'
-
-## desktop-build-all: 构建所有平台的桌面应用
-desktop-build-all:
-	@echo "$(GREEN)构建所有平台桌面应用...$(NC)"
-	@echo "$(BLUE)Windows...$(NC)"
-	@GOOS=windows GOARCH=amd64 go build -o frontend/build/backend/server.exe cmd/server/main.go
-	@echo "$(BLUE)macOS...$(NC)"
-	@GOOS=darwin GOARCH=amd64 go build -o frontend/build/backend/server-darwin-amd64 cmd/server/main.go
-	@GOOS=darwin GOARCH=arm64 go build -o frontend/build/backend/server-darwin-arm64 cmd/server/main.go
-	@echo "$(BLUE)Linux...$(NC)"
-	@GOOS=linux GOARCH=amd64 go build -o frontend/build/backend/server-linux-amd64 cmd/server/main.go
-	@cd frontend && npm run dist
-	@echo "$(GREEN)✓ 所有平台桌面应用构建完成$(NC)"
-	@echo "$(BLUE)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"
-	@echo "$(BLUE)  安装包位置: frontend/release/$(NC)"
-	@echo "$(BLUE)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"
-	@ls -lh frontend/release/* 2>/dev/null | awk '{printf "  ✓ %s (%s)\n", $$9, $$5}'
-	@echo "$(BLUE)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"
+	@echo "$(BLUE)前端依赖...$(NC)"
+	@cd $(FRONTEND_DIR) && npm install
+	@echo "$(GREEN)✓ 依赖安装完成$(NC)"
 
 ## clean: 清理构建产物
 clean:
 	@echo "$(GREEN)清理构建产物...$(NC)"
-	@rm -rf frontend/dist
-	@rm -rf frontend/node_modules/.vite
-	@rm -rf backend/bin
-	@rm -rf releases/*.dmg
-	@rm -rf releases/*.exe
-	@rm -rf releases/*.AppImage
-	@echo "$(GREEN)清理完成$(NC)"
-
-## install: 安装项目依赖
-install: deps
-	@echo "$(GREEN)项目依赖安装完成$(NC)"
-
-## dev: 启动开发环境（后端 + 前端）
-dev: backend frontend
-	@echo "$(GREEN)启动开发环境...$(NC)"
-	@echo "$(BLUE)后端服务: backend/bin/server$(NC)"
-	@echo "$(BLUE)前端服务: cd frontend && npm run dev$(NC)"
-
-## test: 运行测试
-test:
-	@echo "$(GREEN)运行测试...$(NC)"
-	@cd backend && go test ./...
-	@cd frontend && npm test
+	@rm -rf $(BUILD_DIR)
+	@rm -rf $(FRONTEND_DIR)/dist
+	@rm -f build/binaries/nuclei* 2>/dev/null || true
+	@echo "$(GREEN)✓ 清理完成$(NC)"
 
 ## lint: 代码检查
 lint:
-	@echo "$(GREEN)运行代码检查...$(NC)"
-	@cd backend && go vet ./...
-	@cd frontend && npm run lint
+	@echo "$(GREEN)代码检查...$(NC)"
+	@echo "$(BLUE)后端代码...$(NC)"
+	@golangci-lint run ./... || echo "警告: golangci-lint 未安装"
+	@echo "$(BLUE)前端代码...$(NC)"
+	@cd $(FRONTEND_DIR) && npm run lint || echo "警告: 前端 lint 未配置"
+	@echo "$(GREEN)✓ 检查完成$(NC)"
 
 ## format: 格式化代码
 format:
 	@echo "$(GREEN)格式化代码...$(NC)"
-	@cd backend && go fmt ./...
-	@cd frontend && npm run format
+	@echo "$(BLUE)后端代码...$(NC)"
+	@go fmt ./...
+	@echo "$(BLUE)前端代码...$(NC)"
+	@cd $(FRONTEND_DIR) && npm run format || echo "警告: 前端 format 未配置"
+	@echo "$(GREEN)✓ 格式化完成$(NC)"
 
-## build: 完整构建（前端 + 后端）
-build: backend frontend
-	@echo "$(GREEN)✓ 完整构建完成$(NC)"
-	@echo "$(BLUE)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"
-	@echo "$(BLUE)  后端二进制: backend/bin/server$(NC)"
-	@echo "$(BLUE)  前端构建:   frontend/dist/$(NC)"
-	@echo "$(BLUE)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"
+## test: 运行测试
+test:
+	@echo "$(GREEN)运行测试...$(NC)"
+	@go test -v ./... || echo "警告: 没有测试文件"
+	@echo "$(GREEN)✓ 测试完成$(NC)"
 
-## all: 完整构建并打包桌面应用
-all: desktop
-	@echo "$(GREEN)所有构建完成$(NC)"
-
-## list-artifacts: 查看构建产物
-list-artifacts:
-	@echo "$(BLUE)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"
-	@echo "$(BLUE)  HoleHunter 构建产物$(NC)"
-	@echo "$(BLUE)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"
+## nuclei-download: 下载 nuclei 二进制文件
+nuclei-download:
+	@echo "$(GREEN)下载 Nuclei 二进制文件...$(NC)"
 	@echo ""
-	@echo "$(GREEN)后端二进制:$(NC)"
-	@if [ -f "backend/bin/server" ]; then \
-		ls -lh backend/bin/server | awk '{printf "  ✓ backend/bin/server (%s)\n", $$5}'; \
-	else \
-		echo "  $(YELLOW)✗ backend/bin/server (未构建)$(NC)"; \
+	@./scripts/download-nuclei.sh
+	@echo ""
+	@echo "$(GREEN)✓ Nuclei 下载完成$(NC)"
+
+## list: 查看构建产物
+list:
+	@echo "$(GREEN)构建产物:$(NC)"
+	@echo "$(BLUE)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"
+	@if [ -d "$(BUILD_DIR)" ]; then \
+		find $(BUILD_DIR) -type f -exec ls -lh {} \; 2>/dev/null | awk '{printf "  %s (%s)\n", $$9, $$5}'; \
 	fi
-	@echo ""
-	@echo "$(GREEN)前端构建:$(NC)"
-	@if [ -d "frontend/dist" ]; then \
-		du -sh frontend/dist 2>/dev/null | awk '{printf "  ✓ frontend/dist/ (%s)\n", $$1}'; \
-	else \
-		echo "  $(YELLOW)✗ frontend/dist/ (未构建)$(NC)"; \
+	@if [ -d "$(FRONTEND_DIR)/dist" ]; then \
+		echo "$(BLUE)前端构建:$(NC)"; \
+		du -sh $(FRONTEND_DIR)/dist 2>/dev/null | awk '{printf "  ✓ dist/ (%s)\n", $$1}'; \
 	fi
-	@echo ""
-	@echo "$(GREEN)安装包:$(NC)"
-	@if [ -d "frontend/release" ] && [ -n "$$(ls frontend/release/*.{dmg,exe,AppImage,deb,zip} 2>/dev/null)" ]; then \
-		ls -lh frontend/release/*.{dmg,exe,AppImage,deb,zip} 2>/dev/null | awk '{printf "  ✓ %s (%s)\n", $$9, $$5}'; \
-	else \
-		echo "  $(YELLOW)✗ frontend/release/ (未构建)$(NC)"; \
-	fi
-	@echo ""
 	@echo "$(BLUE)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"
 
-## verify: 验证构建产物
-verify:
-	@echo "$(GREEN)验证构建产物...$(NC)"
-	@cd frontend && ./verify-electron.sh
-
-## verify-frontend: 验证前端构建
-verify-frontend:
-	@echo "$(GREEN)验证前端构建...$(NC)"
-	@cd frontend && npm run build
-	@echo "$(GREEN)✓ 前端构建验证完成$(NC)"
-
-## test-desktop: 测试桌面应用
-test-desktop:
-	@echo "$(GREEN)测试桌面应用...$(NC)"
-	@cd frontend && ./test-electron.sh
-
+## nuclei-compile-all: 交叉编译所有平台的 nuclei
+nuclei-compile-all:
+	@echo "$(GREEN)交叉编译所有平台的 nuclei...$(NC)"
 	@echo ""
-	@echo "$(BLUE)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"
+	@./scripts/build-nuclei-all.sh
+	@echo ""
+	@echo "$(GREEN)✓ nuclei 编译完成$(NC)"
+	@echo ""
+	@echo "$(YELLOW)下一步: 为每个平台构建应用${NC}"

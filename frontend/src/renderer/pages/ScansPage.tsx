@@ -134,18 +134,23 @@ export const ScansPage: React.FC = () => {
       const service = getService();
       const scansData = await service.getAllScans();
 
-      // 转换数据格式
+      // 转换数据格式 - 优先使用任务名称，回退到目标名称
       const convertedScans: ScanTask[] = scansData.map((scan) => ({
         id: scan.id,
+        name: scan.name,
         target_id: scan.target_id,
-        target_name: `Target ${scan.target_id}`, // 需要从 target 表获取
+        target_name: scan.name || `Target ${scan.target_id}`, // 优先显示任务名称
         status: scan.status as any,
+        strategy: scan.strategy,
+        templates_used: scan.templates_used,
         progress: scan.progress || 0,
-        current_template: scan.current_template,
         total_templates: scan.total_templates,
-        completed_templates: scan.executed_templates,
+        executed_templates: scan.executed_templates,
+        current_template: scan.current_template,
         started_at: scan.started_at,
         completed_at: scan.completed_at,
+        error: scan.error,
+        created_at: scan.created_at,
       }));
 
       setScans(convertedScans);
@@ -170,7 +175,7 @@ export const ScansPage: React.FC = () => {
     });
   };
 
-  const handleStartScan = async (config: ScanConfigOptions) => {
+  const handleStartScan = async (config: ScanConfigOptions & { taskName?: string }) => {
     console.log('[ScansPage] handleStartScan called with config:', config);
     console.log('[ScansPage] selectedTargetId:', selectedTargetId);
     console.log('[ScansPage] available targets:', targets);
@@ -193,6 +198,7 @@ export const ScansPage: React.FC = () => {
       console.log('[ScansPage] Got service:', service);
 
       const scan = await service.createScan({
+        name: config.taskName,
         target_id: target.id,
         strategy: config.severity?.join(',') || 'default',
         templates: config.templates || [],

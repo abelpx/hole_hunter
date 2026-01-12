@@ -76,7 +76,7 @@ export interface ScanConfigOptions {
 export interface ScanConfigModalProps {
   visible: boolean;
   onClose: () => void;
-  onConfirm: (config: ScanConfigOptions) => void;
+  onConfirm: (config: ScanConfigOptions & { taskName?: string }) => void;
   targetName?: string;
 }
 
@@ -87,6 +87,7 @@ export const ScanConfigModal: React.FC<ScanConfigModalProps> = ({
   targetName = '',
 }) => {
   const [selectedPreset, setSelectedPreset] = useState<string>('quick');
+  const [taskName, setTaskName] = useState<string>('');
   const [customConfig, setCustomConfig] = useState<ScanConfigOptions>({
     severity: ['critical', 'high'],
     tags: [],
@@ -112,7 +113,7 @@ export const ScanConfigModal: React.FC<ScanConfigModalProps> = ({
 
   // 处理确认
   const handleConfirm = () => {
-    onConfirm(customConfig);
+    onConfirm({ ...customConfig, taskName: taskName.trim() || undefined });
     onClose();
   };
 
@@ -133,6 +134,17 @@ export const ScanConfigModal: React.FC<ScanConfigModalProps> = ({
       width={600}
     >
       <div className="space-y-6">
+        {/* 任务名称 */}
+        <div>
+          <Input
+            label="任务名称"
+            placeholder="为扫描任务设置一个名称（可选）"
+            value={taskName}
+            onChange={(e) => setTaskName(e.target.value)}
+          />
+          <p className="text-xs text-slate-500 mt-1">留空则自动生成</p>
+        </div>
+
         {/* 预设选择 */}
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-3">扫描预设</label>

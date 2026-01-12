@@ -1,28 +1,80 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"sync"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/holehunter/holehunter/internal/offline"
 )
 
 // App struct
 type App struct {
-	ctx      context.Context
-	db       *sql.DB
-	dbMutex  sync.RWMutex
-	dbPath   string
+	ctx               context.Context
+	db                *sql.DB
+	dbMutex           sync.RWMutex
+	dbPath            string
+	userDataDir       string
+	nucleiBinary      string
+	nucleiEmbedded    bool
+	nucleiVersion     string
+	offlineScanner    *offline.OfflineScanner
+	runningScans      map[int]*exec.Cmd
+	runningScansMu    sync.Mutex
+	scanProgress      map[int]ScanProgress
+	scanProgressMu    sync.RWMutex
+}
+
+// ScanProgress represents the progress of a scan
+type ScanProgress struct {
+	TaskID          int       `json:"task_id"`
+	Status          string    `json:"status"`
+	TotalTemplates  int       `json:"total_templates"`
+	Executed        int       `json:"executed_templates"`
+	Progress        int       `json:"progress"`
+	CurrentTemplate string    `json:"current_template"`
+	VulnCount       int       `json:"vuln_count"`
+	Error           string    `json:"error,omitempty"`
+}
+
+// NucleiOutput represents the JSON output from Nuclei scanner
+type NucleiOutput struct {
+	TemplateID   string                 `json:"template-id"`
+	TemplatePath string                 `json:"template-path"`
+	Info         map[string]interface{} `json:"info"`
+	Severity     string                 `json:"severity"`
+	Name         string                 `json:"name"`
+	MatcherName  string                 `json:"matcher-name,omitempty"`
+	Type         string                 `json:"type,omitempty"`
+	Host         string                 `json:"host,omitempty"`
+	Port         string                 `json:"port,omitempty"`
+	Scheme       string                 `json:"scheme,omitempty"`
+	URL          string                 `json:"url,omitempty"`
+	MatchedAt    string                 `json:"matched-at,omitempty"`
+	Extraction   []string               `json:"extraction,omitempty"`
+	Request      string                 `json:"request,omitempty"`
+	Response     string                 `json:"response,omitempty"`
+	CURLCommand  string                 `json:"curl-command,omitempty"`
+	Timestamp    time.Time              `json:"timestamp"`
 }
 
 // NewApp creates a new App application struct
 func NewApp() *App {
-	return &App{}
+	return &App{
+		runningScans: make(map[int]*exec.Cmd),
+		scanProgress: make(map[int]ScanProgress),
+	}
 }
 
 // startup is called when the app starts. The context is saved
@@ -44,6 +96,8 @@ func (a *App) startup(ctx context.Context) {
 		userDataDir = "."
 	}
 
+	a.userDataDir = userDataDir
+
 	// 设置数据库路径
 	a.dbPath = filepath.Join(userDataDir, "holehunter.db")
 
@@ -56,6 +110,44 @@ func (a *App) startup(ctx context.Context) {
 
 	// 尝试从旧位置迁移数据
 	a.migrateOldData(userDataDir)
+
+	// 初始化 Nuclei
+	a.initNuclei()
+}
+
+// initNuclei 初始化 nuclei 二进制文件（使用离线扫描器）
+func (a *App) initNuclei() {
+	// 初始化离线扫描器
+	a.offlineScanner = offline.NewOfflineScanner(a.userDataDir)
+
+	// 尝试设置离线扫描环境
+	if err := a.offlineScanner.Setup(); err != nil {
+		println("Warning: Failed to setup offline scanner:", err.Error())
+		println("Falling back to system nuclei...")
+
+		// 回退到系统 nuclei
+		a.nucleiBinary = a.findNucleiBinary()
+		if a.nucleiBinary != "" {
+			a.nucleiEmbedded = false
+			a.nucleiVersion = "system"
+			println("Using system nuclei at:", a.nucleiBinary)
+			return
+		}
+
+		println("Error: Nuclei binary not found. Scanning will be disabled.")
+		println("Platform:", runtime.GOOS+"_"+runtime.GOARCH)
+		return
+	}
+
+	// 使用离线扫描器提供的 nuclei
+	a.nucleiBinary = a.offlineScanner.GetNucleiBinary()
+	a.nucleiEmbedded = true
+	a.nucleiVersion = "v3.6.2"
+
+	println("Nuclei setup complete:")
+	println("  Binary:", a.nucleiBinary)
+	println("  Templates:", a.offlineScanner.GetTemplatesDir())
+	println("  Config:", a.offlineScanner.GetConfigPath())
 }
 
 // shutdown is called at application termination
@@ -222,6 +314,7 @@ func (a *App) initDatabase() error {
 
 	CREATE TABLE IF NOT EXISTS scan_tasks (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT,
 		target_id INTEGER REFERENCES targets(id),
 		status TEXT DEFAULT 'pending',
 		strategy TEXT,
@@ -416,6 +509,28 @@ func (a *App) initDatabase() error {
 		return fmt.Errorf("failed to create schema: %w", err)
 	}
 
+	// 运行数据库迁移
+	if err := a.runMigrations(); err != nil {
+		println("Migration warning:", err.Error())
+	}
+
+	return nil
+}
+
+// runMigrations 执行数据库结构迁移
+func (a *App) runMigrations() error {
+	// 检查 scan_tasks 表是否有 name 字段，如果没有则添加
+	var columnName string
+	err := a.db.QueryRow("SELECT name FROM pragma_table_info('scan_tasks') WHERE name = 'name'").Scan(&columnName)
+	if err == sql.ErrNoRows {
+		// name 字段不存在，添加它
+		println("Adding 'name' column to scan_tasks table...")
+		if _, err := a.db.Exec("ALTER TABLE scan_tasks ADD COLUMN name TEXT"); err != nil {
+			return fmt.Errorf("failed to add name column: %w", err)
+		}
+		println("Successfully added 'name' column to scan_tasks")
+	}
+
 	return nil
 }
 
@@ -564,6 +679,7 @@ func (a *App) HealthCheck() map[string]interface{} {
 // ScanTask represents a scan task
 type ScanTask struct {
 	ID                int       `json:"id"`
+	Name              *string   `json:"name,omitempty"`
 	TargetID          int       `json:"target_id"`
 	Status            string    `json:"status"`
 	Strategy          string    `json:"strategy"`
@@ -584,7 +700,7 @@ func (a *App) GetAllScanTasks() ([]ScanTask, error) {
 	defer a.dbMutex.RUnlock()
 
 	rows, err := a.db.Query(`
-		SELECT id, target_id, status, strategy, templates_used, started_at, completed_at,
+		SELECT id, name, target_id, status, strategy, templates_used, started_at, completed_at,
 		       total_templates, executed_templates, progress, current_template, error, created_at
 		FROM scan_tasks
 		ORDER BY created_at DESC
@@ -599,7 +715,7 @@ func (a *App) GetAllScanTasks() ([]ScanTask, error) {
 		var t ScanTask
 		var templatesStr string
 		if err := rows.Scan(
-			&t.ID, &t.TargetID, &t.Status, &t.Strategy, &templatesStr,
+			&t.ID, &t.Name, &t.TargetID, &t.Status, &t.Strategy, &templatesStr,
 			&t.StartedAt, &t.CompletedAt, &t.TotalTemplates,
 			&t.ExecutedTemplates, &t.Progress, &t.CurrentTemplate,
 			&t.Error, &t.CreatedAt,
@@ -627,12 +743,12 @@ func (a *App) GetScanTaskByID(id int) (ScanTask, error) {
 	var templatesStr string
 
 	err := a.db.QueryRow(`
-		SELECT id, target_id, status, strategy, templates_used, started_at, completed_at,
+		SELECT id, name, target_id, status, strategy, templates_used, started_at, completed_at,
 		       total_templates, executed_templates, progress, current_template, error, created_at
 		FROM scan_tasks
 		WHERE id = ?
 	`, id).Scan(
-		&t.ID, &t.TargetID, &t.Status, &t.Strategy, &templatesStr,
+		&t.ID, &t.Name, &t.TargetID, &t.Status, &t.Strategy, &templatesStr,
 		&t.StartedAt, &t.CompletedAt, &t.TotalTemplates,
 		&t.ExecutedTemplates, &t.Progress, &t.CurrentTemplate,
 		&t.Error, &t.CreatedAt,
@@ -651,21 +767,32 @@ func (a *App) GetScanTaskByID(id int) (ScanTask, error) {
 }
 
 // CreateScanTask creates a new scan task
-func (a *App) CreateScanTask(targetID int, strategy string, templates []string) (int64, error) {
+func (a *App) CreateScanTask(name string, targetID int, strategy string, templates []string) (int64, error) {
 	a.dbMutex.Lock()
 	defer a.dbMutex.Unlock()
 
 	templatesJSON, _ := json.Marshal(templates)
 	result, err := a.db.Exec(
-		"INSERT INTO scan_tasks (target_id, status, strategy, templates_used) VALUES (?, ?, ?, ?)",
-		targetID, "pending", strategy, string(templatesJSON),
+		"INSERT INTO scan_tasks (name, target_id, status, strategy, templates_used) VALUES (?, ?, ?, ?, ?)",
+		name, targetID, "pending", strategy, string(templatesJSON),
 	)
 
 	if err != nil {
 		return 0, err
 	}
 
-	return result.LastInsertId()
+	id, _ := result.LastInsertId()
+
+	// 异步启动扫描
+	go func() {
+		// 等待一小段时间确保数据库事务完成
+		time.Sleep(100 * time.Millisecond)
+		if err := a.StartScan(int(id)); err != nil {
+			println("Failed to start scan:", err.Error())
+		}
+	}()
+
+	return id, nil
 }
 
 // UpdateScanTaskStatus updates the status of a scan task
@@ -1489,3 +1616,360 @@ func (a *App) CreateBrutePayloadSet(name, setType string, config map[string]inte
 
 	return result.LastInsertId()
 }
+
+
+
+// ============ Nuclei Scanner ============
+
+// findNucleiBinary 查找 nuclei 可执行文件
+func (a *App) findNucleiBinary() string {
+	// 优先级：环境变量 > 用户本地安装 > 全局安装 > HOME 安装
+
+	// 1. 检查环境变量
+	if path := os.Getenv("NUCLEI_PATH"); path != "" {
+		if _, err := os.Stat(path); err == nil {
+			return path
+		}
+	}
+
+	// 2. 检查常见的本地路径
+	possiblePaths := []string{
+		"nuclei",
+		"./nuclei",
+		"/usr/local/bin/nuclei",
+		filepath.Join(os.Getenv("HOME"), "nuclei"),
+		filepath.Join(os.Getenv("HOME"), ".local", "bin", "nuclei"),
+		filepath.Join(os.Getenv("HOME"), "go", "bin", "nuclei"),
+		"/opt/homebrew/bin/nuclei",
+	}
+
+	for _, path := range possiblePaths {
+		if path == "" {
+			continue
+		}
+		if _, err := os.Stat(path); err == nil {
+			return path
+		}
+	}
+
+	return ""
+}
+
+// StartScan 启动扫描任务
+func (a *App) StartScan(taskID int) error {
+	if a.nucleiBinary == "" {
+		return fmt.Errorf("nuclei binary not found")
+	}
+
+	// 获取任务信息
+	var task ScanTask
+	var target Target
+	var templatesStr string
+
+	err := a.db.QueryRow(`
+		SELECT id, name, target_id, status, strategy, templates_used
+		FROM scan_tasks WHERE id = ?
+	`, taskID).Scan(&task.ID, &task.Name, &task.TargetID, &task.Status, &task.Strategy, &templatesStr)
+
+	if err != nil {
+		return fmt.Errorf("scan task not found: %w", err)
+	}
+
+	err = a.db.QueryRow(`
+		SELECT id, name, url FROM targets WHERE id = ?
+	`, task.TargetID).Scan(&target.ID, &target.Name, &target.URL)
+
+	if err != nil {
+		return fmt.Errorf("target not found: %w", err)
+	}
+
+	// 解析模板
+	var templates []string
+	if templatesStr != "" && templatesStr != "[]" {
+		json.Unmarshal([]byte(templatesStr), &templates)
+	}
+
+	// 检查是否已经在运行
+	a.runningScansMu.Lock()
+	if _, exists := a.runningScans[taskID]; exists {
+		a.runningScansMu.Unlock()
+		return fmt.Errorf("scan task %d is already running", taskID)
+	}
+	a.runningScansMu.Unlock()
+
+	// 更新任务状态为 running
+	a.UpdateScanTaskStatus(taskID, "running")
+
+	// 启动扫描
+	go a.runScan(task, target, templates)
+
+	return nil
+}
+
+// runScan 执行实际的扫描
+func (a *App) runScan(task ScanTask, target Target, templates []string) {
+	taskID := task.ID
+
+	// 构建命令参数
+	args := a.buildNucleiArgs(target.URL, task.Strategy, templates)
+	cmd := exec.Command(a.nucleiBinary, args...)
+
+	// 存储命令引用
+	a.runningScansMu.Lock()
+	a.runningScans[taskID] = cmd
+	a.runningScansMu.Unlock()
+
+	// 清理函数
+	defer func() {
+		a.runningScansMu.Lock()
+		delete(a.runningScans, taskID)
+		a.runningScansMu.Unlock()
+	}()
+
+	// 创建管道
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		a.handleScanError(taskID, fmt.Errorf("failed to create stdout pipe: %w", err))
+		return
+	}
+	_, err = cmd.StderrPipe()
+	if err != nil {
+		a.handleScanError(taskID, fmt.Errorf("failed to create stderr pipe: %w", err))
+		return
+	}
+
+	// 启动命令
+	if err := cmd.Start(); err != nil {
+		a.handleScanError(taskID, fmt.Errorf("failed to start nuclei: %w", err))
+		return
+	}
+
+	// 解析输出
+	go a.parseScanOutput(taskID, stdout)
+
+	// 等待命令完成
+	if err := cmd.Wait(); err != nil {
+		a.handleScanError(taskID, fmt.Errorf("scan failed: %w", err))
+		return
+	}
+
+	// 更新状态为完成
+	a.UpdateScanTaskStatus(taskID, "completed")
+}
+
+// buildNucleiArgs 构建 nuclei 命令参数
+func (a *App) buildNucleiArgs(targetURL, strategy string, templates []string) []string {
+	args := []string{
+		"-u", targetURL,
+		"-rate-limit", "150",
+		"-timeout", "10",
+		"-retries", "1",
+	}
+
+	// 根据策略设置严重性
+	if strategy != "" && strategy != "default" {
+		severities := strings.Split(strategy, ",")
+		for _, sev := range severities {
+			args = append(args, "-severity", strings.TrimSpace(sev))
+		}
+	}
+
+	// 添加指定模板
+	for _, tmpl := range templates {
+		args = append(args, "-id", tmpl)
+	}
+
+	return args
+}
+
+// parseScanOutput 解析扫描输出
+func (a *App) parseScanOutput(taskID int, pipe io.ReadCloser) {
+	defer pipe.Close()
+
+	scanner := bufio.NewScanner(pipe)
+	vulnCount := 0
+	executedTemplates := 0
+
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		// 尝试解析为 JSON
+		var output NucleiOutput
+		if err := json.Unmarshal([]byte(line), &output); err == nil {
+			// 这是一个漏洞发现
+			vulnCount++
+
+			// 保存漏洞到数据库
+			a.CreateVulnerability(
+				taskID,
+				output.TemplateID,
+				output.Severity,
+				output.Name,
+				"",
+				output.URL,
+				output.MatchedAt,
+				"",
+				0,
+			)
+
+			// 更新进度
+			a.updateScanProgress(taskID, ScanProgress{
+				TaskID:     taskID,
+				Status:     "running",
+				VulnCount:  vulnCount,
+			})
+		}
+	}
+
+	executedTemplates++
+	a.updateScanProgress(taskID, ScanProgress{
+		TaskID:   taskID,
+		Status:   "running",
+		Executed: executedTemplates,
+	})
+}
+
+// handleScanError 处理扫描错误
+func (a *App) handleScanError(taskID int, err error) {
+	a.UpdateScanTaskStatus(taskID, "failed")
+
+	a.scanProgressMu.Lock()
+	a.scanProgress[taskID] = ScanProgress{
+		TaskID: taskID,
+		Status: "failed",
+		Error:  err.Error(),
+	}
+	a.scanProgressMu.Unlock()
+}
+
+// updateScanProgress 更新扫描进度
+func (a *App) updateScanProgress(taskID int, progress ScanProgress) {
+	a.scanProgressMu.Lock()
+	defer a.scanProgressMu.Unlock()
+
+	// 合并现有进度
+	if existing, ok := a.scanProgress[taskID]; ok {
+		if progress.Status != "" {
+			existing.Status = progress.Status
+		}
+		if progress.VulnCount > 0 {
+			existing.VulnCount = progress.VulnCount
+		}
+		if progress.Executed > 0 {
+			existing.Executed = progress.Executed
+			if existing.TotalTemplates > 0 {
+				existing.Progress = int(float64(progress.Executed) / float64(existing.TotalTemplates) * 100)
+			}
+		}
+		a.scanProgress[taskID] = existing
+	} else {
+		a.scanProgress[taskID] = progress
+	}
+
+	// 更新数据库
+	if progress.TotalTemplates > 0 {
+		a.UpdateScanTaskProgress(taskID, progress.Executed, progress.TotalTemplates, progress.Progress)
+	}
+}
+
+// GetScanProgress 获取扫描进度
+func (a *App) GetScanProgress(taskID int) (ScanProgress, error) {
+	a.scanProgressMu.RLock()
+	defer a.scanProgressMu.RUnlock()
+
+	if progress, ok := a.scanProgress[taskID]; ok {
+		return progress, nil
+	}
+
+	return ScanProgress{}, fmt.Errorf("progress not found for task %d", taskID)
+}
+
+// StopScan 停止扫描
+func (a *App) StopScan(taskID int) error {
+	a.runningScansMu.Lock()
+	defer a.runningScansMu.Unlock()
+
+	if cmd, exists := a.runningScans[taskID]; exists {
+		if err := cmd.Process.Kill(); err != nil {
+			return fmt.Errorf("failed to stop scan: %w", err)
+		}
+		delete(a.runningScans, taskID)
+		a.UpdateScanTaskStatus(taskID, "cancelled")
+		return nil
+	}
+
+	return fmt.Errorf("scan task %d is not running", taskID)
+}
+
+// ============ Nuclei Status ============
+
+// NucleiStatus represents the status of nuclei binary
+type NucleiStatus struct {
+	Available    bool   `json:"available"`
+	Version      string `json:"version"`
+	Path         string `json:"path"`
+	Embedded     bool   `json:"embedded"`
+	Platform     string `json:"platform"`
+	Installed    bool   `json:"installed"`
+	TemplatesDir string `json:"templates_dir,omitempty"`
+	TemplateCount int   `json:"template_count,omitempty"`
+	OfflineMode  bool   `json:"offline_mode"`
+	Ready        bool   `json:"ready"`
+}
+
+// GetNucleiStatus 获取 nuclei 二进制文件状态
+func (a *App) GetNucleiStatus() NucleiStatus {
+	status := NucleiStatus{
+		Available:    a.nucleiBinary != "",
+		Version:      a.nucleiVersion,
+		Path:         a.nucleiBinary,
+		Embedded:     a.nucleiEmbedded,
+		Platform:     runtime.GOOS + "_" + runtime.GOARCH,
+		Installed:    false,
+		OfflineMode:  a.offlineScanner != nil,
+		Ready:        false,
+	}
+
+	// 检查文件是否存在
+	if a.nucleiBinary != "" {
+		if _, err := os.Stat(a.nucleiBinary); err == nil {
+			status.Installed = true
+		}
+	}
+
+	// 获取离线扫描器信息
+	if a.offlineScanner != nil {
+		status.TemplatesDir = a.offlineScanner.GetTemplatesDir()
+		status.Ready = a.offlineScanner.IsReady()
+
+		// 获取模板统计
+		if stats, err := a.offlineScanner.GetTemplateStats(); err == nil {
+			status.TemplateCount = stats["total"]
+		}
+	}
+
+	return status
+}
+
+// InstallNuclei 安装 nuclei 二进制文件到用户数据目录
+func (a *App) InstallNuclei() error {
+	// 使用离线扫描器设置
+	if a.offlineScanner == nil {
+		a.offlineScanner = offline.NewOfflineScanner(a.userDataDir)
+	}
+
+	if err := a.offlineScanner.Setup(); err != nil {
+		return fmt.Errorf("failed to setup offline scanner: %w", err)
+	}
+
+	a.nucleiBinary = a.offlineScanner.GetNucleiBinary()
+	a.nucleiEmbedded = true
+	a.nucleiVersion = "v3.6.2"
+
+	println("Nuclei installed successfully:")
+	println("  Binary:", a.nucleiBinary)
+	println("  Templates:", a.offlineScanner.GetTemplatesDir())
+
+	return nil
+}
+
