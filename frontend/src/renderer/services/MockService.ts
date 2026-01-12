@@ -253,6 +253,123 @@ class MockDataStore {
     }
   }
 
+  // Custom Templates 管理
+  private customTemplates: any[] = [
+    {
+      id: 1,
+      name: '示例 SQL 注入检测',
+      path: '/custom/sqli-example.yaml',
+      content: `id: custom-sqli-example
+info:
+  name: Custom SQL Injection Example
+  author: User
+  severity: high
+  description: Custom POC template for SQL injection testing
+  tags: sqli,custom
+
+http:
+  - method: GET
+    path:
+      - "{{BaseURL}}/api/user?id=1' OR '1'='1"
+
+    matchers:
+      - type: word
+        words:
+          - "syntax error"
+          - "mysql_fetch"
+        condition: or`,
+      enabled: true,
+      created_at: new Date().toISOString()
+    }
+  ];
+
+  getAllCustomTemplates(): any[] {
+    return [...this.customTemplates];
+  }
+
+  getCustomTemplateById(id: number): any {
+    const template = this.customTemplates.find(t => t.id === id);
+    if (!template) throw new Error(`Custom template with id ${id} not found`);
+    return template;
+  }
+
+  createCustomTemplate(name: string, content: string): number {
+    const newId = Math.max(0, ...this.customTemplates.map(t => t.id)) + 1;
+    const newTemplate = {
+      id: newId,
+      name,
+      path: `/custom/${name.toLowerCase().replace(/\s+/g, '-')}-${newId}.yaml`,
+      content,
+      enabled: true,
+      created_at: new Date().toISOString()
+    };
+    this.customTemplates.push(newTemplate);
+    return newId;
+  }
+
+  updateCustomTemplate(id: number, name: string, content: string): void {
+    const index = this.customTemplates.findIndex(t => t.id === id);
+    if (index === -1) throw new Error(`Custom template with id ${id} not found`);
+    this.customTemplates[index] = {
+      ...this.customTemplates[index],
+      ...(name && { name }),
+      content,
+    };
+  }
+
+  deleteCustomTemplate(id: number): void {
+    const index = this.customTemplates.findIndex(t => t.id === id);
+    if (index !== -1) {
+      this.customTemplates.splice(index, 1);
+    }
+  }
+
+  toggleCustomTemplate(id: number, enabled: boolean): void {
+    const template = this.customTemplates.find(t => t.id === id);
+    if (template) {
+      template.enabled = enabled;
+    }
+  }
+
+  validateCustomTemplate(content: string): any {
+    const result = { valid: true, message: '' };
+
+    if (!content || content.trim().length === 0) {
+      result.valid = false;
+      result.error = 'Template content is empty';
+      return result;
+    }
+
+    const requiredFields = ['id:', 'info:', 'name:', 'author:', 'severity:'];
+    const missingFields = requiredFields.filter(field => !content.includes(field));
+
+    if (missingFields.length > 0) {
+      result.valid = false;
+      result.error = `Missing required fields: ${missingFields.join(', ')}`;
+      return result;
+    }
+
+    const hasProtocol = /http:|dns:|file:|network:/.test(content);
+    if (!hasProtocol) {
+      result.valid = false;
+      result.error = 'Template must contain at least one protocol definition (http, dns, file, network)';
+      return result;
+    }
+
+    result.message = 'Template syntax appears valid';
+    return result;
+  }
+
+  getCustomTemplatesStats(): any {
+    const total = this.customTemplates.length;
+    const enabled = this.customTemplates.filter(t => t.enabled).length;
+    return {
+      total,
+      enabled,
+      disabled: total - enabled
+    };
+  }
+
   // HTTP 请求管理
   getAllHttpRequests(): HttpRequest[] {
     return [...this.httpRequests];
@@ -655,6 +772,39 @@ class MockService {
 
   async getDomainRecords(domain: string, type: string): Promise<string[]> {
     return [];
+  }
+
+  // Custom Templates
+  async getAllCustomTemplates(): Promise<any[]> {
+    return this.mockData.getAllCustomTemplates();
+  }
+
+  async getCustomTemplateById(id: number): Promise<any> {
+    return this.mockData.getCustomTemplateById(id);
+  }
+
+  async createCustomTemplate(name: string, content: string): Promise<number> {
+    return this.mockData.createCustomTemplate(name, content);
+  }
+
+  async updateCustomTemplate(id: number, name: string, content: string): Promise<void> {
+    this.mockData.updateCustomTemplate(id, name, content);
+  }
+
+  async deleteCustomTemplate(id: number): Promise<void> {
+    this.mockData.deleteCustomTemplate(id);
+  }
+
+  async toggleCustomTemplate(id: number, enabled: boolean): Promise<void> {
+    this.mockData.toggleCustomTemplate(id, enabled);
+  }
+
+  async validateCustomTemplate(content: string): Promise<any> {
+    return this.mockData.validateCustomTemplate(content);
+  }
+
+  async getCustomTemplatesStats(): Promise<any> {
+    return this.mockData.getCustomTemplatesStats();
   }
 }
 

@@ -212,3 +212,36 @@ export interface CreatePayloadSetRequest {
   config?: string;
   payloads?: string[];
 }
+
+// 自定义 POC 模板相关
+export interface CustomTemplate {
+  id: number;
+  name: string;
+  path: string;
+  content?: string;
+  enabled: boolean;
+  created_at: string;
+}
+
+export interface CreateCustomTemplateRequest {
+  name: string;
+  content: string;
+}
+
+export interface UpdateCustomTemplateRequest {
+  name?: string;
+  content: string;
+}
+
+export interface ValidateTemplateResult {
+  valid: boolean;
+  error?: string;
+  message?: string;
+}
+
+export interface CustomTemplateStats {
+  total: number;
+  enabled: number;
+  disabled: number;
+}
+

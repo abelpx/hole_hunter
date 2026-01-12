@@ -1791,6 +1791,17 @@ func (a *App) buildNucleiArgs(targetURL, strategy string, templates []string) []
 		"-retries", "1",
 	}
 
+	// 添加自定义模板目录（如果存在）
+	customDir := a.GetCustomTemplatesDir()
+	if _, err := os.Stat(customDir); err == nil {
+		// 检查是否有启用的自定义模板
+		var count int
+		a.db.QueryRow("SELECT COUNT(*) FROM custom_templates WHERE enabled = 1").Scan(&count)
+		if count > 0 {
+			args = append(args, "-t", customDir)
+		}
+	}
+
 	// 根据策略设置严重性
 	if strategy != "" && strategy != "default" {
 		severities := strings.Split(strategy, ",")
@@ -2088,4 +2099,267 @@ func (a *App) InstallNuclei() error {
 
 	return nil
 }
+
+// ============ Custom Template Management ============
+
+// CustomTemplate represents a custom POC template
+type CustomTemplate struct {
+	ID        int    `json:"id"`
+	Name      string `json:"name"`
+	Path      string `json:"path"`
+	Content   string `json:"content,omitempty"`
+	Enabled   bool   `json:"enabled"`
+	CreatedAt string `json:"created_at"`
+}
+
+// GetCustomTemplatesDir returns the directory for custom POC templates
+func (a *App) GetCustomTemplatesDir() string {
+	return filepath.Join(a.userDataDir, "custom-pocs")
+}
+
+// GetAllCustomTemplates returns all custom templates
+func (a *App) GetAllCustomTemplates() ([]CustomTemplate, error) {
+	a.dbMutex.RLock()
+	defer a.dbMutex.RUnlock()
+
+	rows, err := a.db.Query(`
+		SELECT id, name, path, enabled, created_at
+		FROM custom_templates
+		ORDER BY created_at DESC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var templates []CustomTemplate
+	for rows.Next() {
+		var t CustomTemplate
+		if err := rows.Scan(&t.ID, &t.Name, &t.Path, &t.Enabled, &t.CreatedAt); err != nil {
+			return nil, err
+		}
+		templates = append(templates, t)
+	}
+
+	return templates, nil
+}
+
+// GetCustomTemplateByID returns a single custom template with content
+func (a *App) GetCustomTemplateByID(id int) (CustomTemplate, error) {
+	a.dbMutex.RLock()
+	defer a.dbMutex.RUnlock()
+
+	var t CustomTemplate
+	err := a.db.QueryRow(`
+		SELECT id, name, path, content, enabled, created_at
+		FROM custom_templates
+		WHERE id = ?
+	`, id).Scan(&t.ID, &t.Name, &t.Path, &t.Content, &t.Enabled, &t.CreatedAt)
+
+	if err != nil {
+		return CustomTemplate{}, err
+	}
+
+	return t, nil
+}
+
+// CreateCustomTemplate creates a new custom POC template
+func (a *App) CreateCustomTemplate(name, content string) (int64, error) {
+	// 验证 YAML 格式（基本验证）
+	if content == "" {
+		return 0, fmt.Errorf("template content cannot be empty")
+	}
+
+	// 确保自定义模板目录存在
+	customDir := a.GetCustomTemplatesDir()
+	if err := os.MkdirAll(customDir, 0755); err != nil {
+		return 0, fmt.Errorf("failed to create custom templates directory: %w", err)
+	}
+
+	// 生成安全的文件名
+	safeName := strings.Map(func(r rune) rune {
+		if r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '-' || r == '_' {
+			return r
+		}
+		return '-'
+	}, name)
+	filename := fmt.Sprintf("%s_%d.yaml", safeName, time.Now().Unix())
+	filePath := filepath.Join(customDir, filename)
+
+	// 写入文件
+	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+		return 0, fmt.Errorf("failed to write template file: %w", err)
+	}
+
+	a.dbMutex.Lock()
+	defer a.dbMutex.Unlock()
+
+	// 保存到数据库
+	result, err := a.db.Exec(
+		"INSERT INTO custom_templates (name, path, content, enabled) VALUES (?, ?, ?, ?)",
+		name, filePath, content, true,
+	)
+
+	if err != nil {
+		// 回滚：删除已创建的文件
+		os.Remove(filePath)
+		return 0, err
+	}
+
+	return result.LastInsertId()
+}
+
+// UpdateCustomTemplate updates an existing custom template
+func (a *App) UpdateCustomTemplate(id int, name, content string) error {
+	// 验证输入
+	if content == "" {
+		return fmt.Errorf("template content cannot be empty")
+	}
+
+	a.dbMutex.Lock()
+	defer a.dbMutex.Unlock()
+
+	// 获取现有模板
+	var existingPath string
+	err := a.db.QueryRow("SELECT path FROM custom_templates WHERE id = ?", id).Scan(&existingPath)
+	if err != nil {
+		return fmt.Errorf("template not found: %w", err)
+	}
+
+	// 如果名称改变，需要重命名文件
+	if name != "" {
+		var existingName string
+		a.db.QueryRow("SELECT name FROM custom_templates WHERE id = ?", id).Scan(&existingName)
+
+		if name != existingName {
+			// 生成新文件名
+			safeName := strings.Map(func(r rune) rune {
+				if r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '-' || r == '_' {
+					return r
+				}
+				return '-'
+			}, name)
+			dir := filepath.Dir(existingPath)
+			newPath := filepath.Join(dir, fmt.Sprintf("%s_%d.yaml", safeName, time.Now().Unix()))
+
+			// 重命名文件
+			if err := os.Rename(existingPath, newPath); err != nil {
+				return fmt.Errorf("failed to rename template file: %w", err)
+			}
+			existingPath = newPath
+		}
+	}
+
+	// 更新文件内容
+	if err := os.WriteFile(existingPath, []byte(content), 0644); err != nil {
+		return fmt.Errorf("failed to write template file: %w", err)
+	}
+
+	// 更新数据库
+	_, err = a.db.Exec(
+		"UPDATE custom_templates SET name = ?, content = ? WHERE id = ?",
+		name, content, id,
+	)
+
+	return err
+}
+
+// DeleteCustomTemplate deletes a custom template
+func (a *App) DeleteCustomTemplate(id int) error {
+	a.dbMutex.Lock()
+	defer a.dbMutex.Unlock()
+
+	// 获取文件路径
+	var path string
+	err := a.db.QueryRow("SELECT path FROM custom_templates WHERE id = ?", id).Scan(&path)
+	if err != nil {
+		return err
+	}
+
+	// 删除文件
+	if err := os.Remove(path); err != nil {
+		// 文件删除失败不阻止数据库删除，只记录错误
+		println("Warning: failed to delete template file:", err.Error())
+	}
+
+	// 从数据库删除
+	_, err = a.db.Exec("DELETE FROM custom_templates WHERE id = ?", id)
+	return err
+}
+
+// ToggleCustomTemplate enables or disables a custom template
+func (a *App) ToggleCustomTemplate(id int, enabled bool) error {
+	a.dbMutex.Lock()
+	defer a.dbMutex.Unlock()
+
+	_, err := a.db.Exec("UPDATE custom_templates SET enabled = ? WHERE id = ?", enabled, id)
+	return err
+}
+
+// ValidateCustomTemplate validates a POC template YAML syntax
+func (a *App) ValidateCustomTemplate(content string) (map[string]interface{}, error) {
+	result := make(map[string]interface{})
+
+	// 基本验证
+	if content == "" {
+		result["valid"] = false
+		result["error"] = "Template content is empty"
+		return result, nil
+	}
+
+	// 检查必需字段
+	requiredFields := []string{"id:", "info:", "name:", "author:", "severity:"}
+	missingFields := []string{}
+	for _, field := range requiredFields {
+		if !strings.Contains(content, field) {
+			missingFields = append(missingFields, strings.TrimSuffix(field, ":"))
+		}
+	}
+
+	if len(missingFields) > 0 {
+		result["valid"] = false
+		result["error"] = fmt.Sprintf("Missing required fields: %s", strings.Join(missingFields, ", "))
+		return result, nil
+	}
+
+	// 检查是否有 HTTP 或其他协议定义
+	hasProtocol := strings.Contains(content, "http:") ||
+		strings.Contains(content, "dns:") ||
+		strings.Contains(content, "file:") ||
+		strings.Contains(content, "network:")
+
+	if !hasProtocol {
+		result["valid"] = false
+		result["error"] = "Template must contain at least one protocol definition (http, dns, file, network)"
+		return result, nil
+	}
+
+	result["valid"] = true
+	result["message"] = "Template syntax appears valid"
+	return result, nil
+}
+
+// GetCustomTemplatesStats returns statistics about custom templates
+func (a *App) GetCustomTemplatesStats() map[string]interface{} {
+	stats := make(map[string]interface{})
+
+	a.dbMutex.RLock()
+	defer a.dbMutex.RUnlock()
+
+	// 总数
+	var total int
+	a.db.QueryRow("SELECT COUNT(*) FROM custom_templates").Scan(&total)
+	stats["total"] = total
+
+	// 启用的数量
+	var enabled int
+	a.db.QueryRow("SELECT COUNT(*) FROM custom_templates WHERE enabled = 1").Scan(&enabled)
+	stats["enabled"] = enabled
+
+	// 禁用的数量
+	stats["disabled"] = total - enabled
+
+	return stats
+}
+
 

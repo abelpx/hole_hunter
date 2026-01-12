@@ -61,6 +61,15 @@ interface WailsBindings {
   GetPortScanResults(taskId: number): Promise<any[]>;
   CreateDomainBruteTask(domain: string, wordlist: string[], timeout: number, batchSize: number): Promise<number>;
   GetDomainBruteResults(taskId: number): Promise<any[]>;
+  // Custom Templates
+  GetAllCustomTemplates(): Promise<any[]>;
+  GetCustomTemplateByID(id: number): Promise<any>;
+  CreateCustomTemplate(name: string, content: string): Promise<number>;
+  UpdateCustomTemplate(id: number, name: string, content: string): Promise<void>;
+  DeleteCustomTemplate(id: number): Promise<void>;
+  ToggleCustomTemplate(id: number, enabled: boolean): Promise<void>;
+  ValidateCustomTemplate(content: string): Promise<any>;
+  GetCustomTemplatesStats(): Promise<any>;
 }
 
 interface WailsRuntime {
@@ -465,6 +474,56 @@ class WailsServiceImpl {
     return 'desktop';
   }
 
+  // ==================== 自定义 POC 模板 ====================
+
+  async getAllCustomTemplates(): Promise<any[]> {
+    const App = this.getApp();
+    if (!App) return [];
+    return await App.GetAllCustomTemplates() || [];
+  }
+
+  async getCustomTemplateById(id: number): Promise<any> {
+    const App = this.getApp();
+    if (!App) throw new Error('Wails bindings not available');
+    return await App.GetCustomTemplateByID(id);
+  }
+
+  async createCustomTemplate(name: string, content: string): Promise<number> {
+    const App = this.getApp();
+    if (!App) throw new Error('Wails bindings not available');
+    return await App.CreateCustomTemplate(name, content);
+  }
+
+  async updateCustomTemplate(id: number, name: string, content: string): Promise<void> {
+    const App = this.getApp();
+    if (!App) throw new Error('Wails bindings not available');
+    await App.UpdateCustomTemplate(id, name, content);
+  }
+
+  async deleteCustomTemplate(id: number): Promise<void> {
+    const App = this.getApp();
+    if (!App) throw new Error('Wails bindings not available');
+    await App.DeleteCustomTemplate(id);
+  }
+
+  async toggleCustomTemplate(id: number, enabled: boolean): Promise<void> {
+    const App = this.getApp();
+    if (!App) throw new Error('Wails bindings not available');
+    await App.ToggleCustomTemplate(id, enabled);
+  }
+
+  async validateCustomTemplate(content: string): Promise<any> {
+    const App = this.getApp();
+    if (!App) throw new Error('Wails bindings not available');
+    return await App.ValidateCustomTemplate(content);
+  }
+
+  async getCustomTemplatesStats(): Promise<any> {
+    const App = this.getApp();
+    if (!App) return { total: 0, enabled: 0, disabled: 0 };
+    return await App.GetCustomTemplatesStats();
+  }
+
   // ==================== 事件监听 ====================
 
   onScanProgress(callback: Function): void {
@@ -840,6 +899,39 @@ class UnifiedService {
 
   getPlatform(): string {
     return this.isBrowserMode() ? mockService.getPlatform() : this.wailsService.getPlatform();
+  }
+
+  // Custom Templates
+  async getAllCustomTemplates(): Promise<any[]> {
+    return this.isBrowserMode() ? mockService.getAllCustomTemplates() : this.wailsService.getAllCustomTemplates();
+  }
+
+  async getCustomTemplateById(id: number): Promise<any> {
+    return this.isBrowserMode() ? mockService.getCustomTemplateById(id) : this.wailsService.getCustomTemplateById(id);
+  }
+
+  async createCustomTemplate(name: string, content: string): Promise<number> {
+    return this.isBrowserMode() ? mockService.createCustomTemplate(name, content) : this.wailsService.createCustomTemplate(name, content);
+  }
+
+  async updateCustomTemplate(id: number, name: string, content: string): Promise<void> {
+    return this.isBrowserMode() ? mockService.updateCustomTemplate(id, name, content) : this.wailsService.updateCustomTemplate(id, name, content);
+  }
+
+  async deleteCustomTemplate(id: number): Promise<void> {
+    return this.isBrowserMode() ? mockService.deleteCustomTemplate(id) : this.wailsService.deleteCustomTemplate(id);
+  }
+
+  async toggleCustomTemplate(id: number, enabled: boolean): Promise<void> {
+    return this.isBrowserMode() ? mockService.toggleCustomTemplate(id, enabled) : this.wailsService.toggleCustomTemplate(id, enabled);
+  }
+
+  async validateCustomTemplate(content: string): Promise<any> {
+    return this.isBrowserMode() ? mockService.validateCustomTemplate(content) : this.wailsService.validateCustomTemplate(content);
+  }
+
+  async getCustomTemplatesStats(): Promise<any> {
+    return this.isBrowserMode() ? mockService.getCustomTemplatesStats() : this.wailsService.getCustomTemplatesStats();
   }
 
   onScanProgress(callback: Function): void {
