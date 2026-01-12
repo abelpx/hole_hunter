@@ -2,211 +2,120 @@
 
 <div align="center">
 
-**基于 Nuclei 引擎的现代化 Web 安全测试套件**
+基于 Nuclei 引擎的现代化 Web 安全扫描工具
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?logo=go)](https://go.dev/)
-[![React Version](https://img.shields.io/badge/React-18+-61DAFB?logo=react)](https://react.dev/)
-[![Electron](https://img.shields.io/badge/Electron-28+-47848F?logo=electron)](https://www.electronjs.org/)
-
-[English](./README_EN.md) | 简体中文
+[![Go Version](https://img.shields.io/badge/Go-1.25+-00ADD8?logo=go)](https://go.dev/)
+[![React](https://img.shields.io/badge/React-18+-61DAFB?logo=react)](https://react.dev/)
+[![Wails](https://img.shields.io/badge/Wails-v2-41b883?logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMjEuMiAxMjEuMiI+PHBhdGggZmlsbD0iIzQxYjg4MyIgZD0iTTAgMGgxMjEuMnYxMjEuMkgwVjB6Ii8+PHBhdGggZmlsbD0iI2ZmZiIgZD0iTTM3LjMgODMuOGMwIC41LjIuOS41IDEuNGwtOC44IDguOGMtMS4xIDEuMS0zIDEuMS00LjEgMEw5LjkgODAuMmMtMS4xLTEuMS0xLjEtMyAwLTQuMWw4LjgtOC44Yy41LS41IDEuMS0uNSAxLjQgMGw4LjggOC44Yy42LjYuNiAxLjYgMCAyLjItLjlsNy4yLTcuMmMuNi0uNi42LTEuNi0uMS0yLjJMMzguMiA2N2MtMS4xLTEuMS0xLjEtMyAwLTQuMWw4LjgtOC44Yy41LS41IDEuMS0uNSAxLjQgMGw4LjggOC44Yy42LjYuNiAxLjYgMCAyLjItLjlsNy4yLTcuMmMuNi0uNi42LTEuNi0uMS0yLjFMNDEuOCAzOS41Yy0xLjEtMS4xLTEuMS0zIDAtNC4xTDUwLjYgMjdjLjUtLjUgMS4xLS41IDEuNCAwbDguOCA4LjhjLjYuNi42IDEuNiAwIDIuMi0uOWw3LjItNy4yYy42LS42LjYtMS42LS4xLTIuMkM2Ni4xIDE5LjkgNjUuNSAxOS41IDY1LjEgMTlsLTguOC04LjhjLTEuMS0xLjEtMS4xLTMgMC00LjFMNzUuOCAyLjljLjUtLjUgMS4xLS41IDEuNCAwbDguOCA4LjhjLjYuNi42IDEuNiAwIDIuMi0uOWw3LjItNy4yYy42LS42LjYtMS42LS4xLTIuMkM3Mi4zIDkuMiA3MS43IDguOCA3MS4zIDguMUw1Mi40IDI3LjljLTEuMS0xLjEtMS4xLTMgMC00LjFsOC44LTguOGMuNS0uNSAxLjEtLjUgMS40IDBsOC44IDguOGMuNi42IDEuNiAwIDIuMi0uOWw3LjItNy4yYy42LS42LjYtMS42LS4xLTIuMmwtOC44LTguOGMtMS4xLTEuMS0xLjEgMyAwIDQuMWw4LjggOC44Yy41LjUuNSAxLjEgMCAxLjRsLTguOCA4LjhjLS42LjYtMS42LjYtMi4yLS4xbC03LjItNy4yYy0uNi0uNi0uNi0xLjYuMS0yLjJsOC44LTguOGMxLjEtMS4xIDEuMS0zIDAtNC4xbC04LjgtOC44Yy0uNS0uNS0xLjEtLjUtMS40IDBsLTguOCA4LjhjLS42LjYtMS42LS42LTIuMi0uMWwtNy4yIDcuMmMtLjYuNi0uNi0xLjYtLjEtMi4yLjFMNDAuOSA1NS41YzEuMSAxLjEgMS4xIDMgMCA0LjFMLzIgNzkuMmMtMS4xIDEuMS0xLjEgMyAwIDQuMWwtOC44IDguOGMtLjYuNi0xLjYtLjYtMi4yLS4xLTcuMiA3LjItLjYuNi0uNi0xLjYtLjEtMi4yLjFMNDAuOSA5Ni4xYzEuMSAxLjEgMS4xIDMgMCA0LjFMLzIgMTE5LjJjLTEuMSAxLjEtMyAxLjEtNC4xIDBMMCA5Ni4xYy0xLjEtMS4xLTEuMS0zIDAtNC4xbDguOC04LjhjLjUtLjUgMS4xLS41IDEuNCAwbDguOCA4LjhjLjYuNi42IDEuNiAwIDIuMi0uOWw3LjItNy4yYy42LS42LjYtMS42LS4xLTIuMmwtOC44LTguOGMtMS4xLTEuMS0xLjEtMyAwLTQuMWw4LjgtOC44Yy41LS41IDEuMS0uNSAxLjQgMGw4LjggOC44Yy42LjYuNiAxLjYgMCAyLjItLjlsNy4yLTcuMmMuNi0uNi42LTEuNi0uMS0yLjFMNDAuOSAzOS41Yy0xLjEtMS4xLTEuMS0zIDAtNC4xTDUwLjYgMjdjLjUtLjUgMS4xLS41IDEuNCAwbDguOCA4LjhjLjYuNi42IDEuNiAwIDIuMi0uOWw3LjItNy4yYy42LS42LjYtMS42LS4xLTIuMkM2Ni4xIDE5LjkgNjUuNSAxOS41IDY1LjEgMTlsLTguOC04LjhjLTEuMS0xLjEtMS4xLTMgMC00LjFMNzUuOCAyLjljLjUtLjUgMS4xLS41IDEuNCAwbDguOCA4LjhjLjYuNi42IDEuNiAwIDIuMi0uOWw3LjItNy4yYy42LS42LjYtMS42LS4xLTIuMkM3Mi4zIDkuMiA3MS43IDguOCA3MS4zIDguMUw1Mi40IDI3LjljLTEuMS0xLjEtMS4xLTMgMC00LjFsOC44LTguOGMuNS0uNSAxLjEtLjUgMS40IDBsOC44IDguOGMuNi42IDEuNiAwIDIuMi0uOWw3LjItNy4yYy42LS42LjYtMS42LS4xLTIuMmwtOC44LTguOGMtMS4xLTEuMS0xLjEgMyAwIDQuMWw4LjggOC44Yy41LjUuNSAxLjEgMCAxLjRsLTguOCA4LjhjLS42LjYtMS42LjYtMi4yLS4xbC03LjItNy4yYy0uNi0uNi0uNi0xLjYuMS0yLjJsOC44LTguOGMxLjEtMS4xIDEuMS0zIDAtNC4xbC04LjgtOC44Yy0uNS0uNS0xLjEtLjUtMS14Ii8+PC9zdmc+)](https://wails.io/)
 
 </div>
 
 ## 简介
 
-HoleHunter 是一款面向安全研究人员和渗透测试工程师的轻量化安全测试工具，基于 Nuclei 引擎驱动，提供简洁高效的漏洞发现与验证能力。
+HoleHunter 是一款基于 Wails v2 构建的跨平台桌面应用，集成 Nuclei 漏洞扫描引擎，为安全研究人员提供简洁高效的漏洞发现工具。
 
 ### 核心特性
 
-- **漏洞扫描** - 基于 Nuclei 6000+ POC 模板
-- **现代化 UI** - 暗色主题 + 毛玻璃效果
-- **本地化存储** - SQLite 数据库，保护隐私
-- **跨平台支持** - macOS / Windows / Linux
-- **实时监控** - 扫描进度实时更新
-- **结果导出** - 支持 JSON/HTML/CSV 格式
+- **完全离线** - 内置 Nuclei v3.6.2 + 12000+ 扫描模板
+- **跨平台** - 支持 macOS (ARM64/AMD64)、Linux、Windows
+- **零配置** - 首次运行自动初始化，无需手动设置
+- **本地化** - SQLite 存储，数据完全本地化
+- **现代 UI** - React 18 + Tailwind CSS，暗色主题
 
 ## 快速开始
 
 ### 环境要求
 
-- **Node.js** >= 18.0.0
-- **Go** >= 1.21
-- **Nuclei** >= 3.0
+- **Go** >= 1.25
+- **Node.js** >= 18.0
+- **Wails CLI** >= v2.11
 
-### 安装
+### 安装 Wails CLI
 
 ```bash
-# 克隆项目
-git clone https://github.com/yourusername/hole_hunter.git
-cd hole_hunter
-
-# 安装前端依赖
-cd frontend
-npm install
-
-# 安装 Nuclei
-brew install nuclei  # macOS
-# 或
-go install -v github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
-
-# 更新模板
-nuclei -update-templates
+go install github.com/wailsapp/wails/v2/cmd/wails@latest
 ```
 
-### 开发
+### 开发模式
 
 ```bash
-# 前端开发
-cd frontend && npm run dev
-
-# 后端开发
-cd backend && go run cmd/server/main.go
-
-# 桌面版开发
-cd frontend && npm run dev:electron
+# 启动开发模式（热重载）
+make dev
 ```
 
-### 构建
+### 构建应用
 
-#### 使用 Makefile（推荐）
+#### 1. 交叉编译 Nuclei（首次构建）
 
 ```bash
-# 查看所有可用命令
-make help
+# 一次性交叉编译所有平台的 nuclei
+make nuclei-compile-all
+```
 
-# 构建前端
-make frontend
+#### 2. 构建桌面应用
 
-# 构建后端
-make backend
+```bash
+# 调试构建（包含开发者工具）
+make build-debug
 
-# 运行后端服务
-make backend-run
-
-# 构建桌面应用（当前平台）
-make desktop
-
-# 构建所有平台的桌面应用
-make desktop-build-all
-
-# 构建特定平台桌面应用
-make desktop-build-win     # Windows
-make desktop-build-mac     # macOS
-make desktop-build-linux   # Linux
-
-# 完整构建（前端 + 后端）
+# 生产构建（优化）
 make build
-
-# 清理构建产物
-make clean
 ```
 
-#### 手动构建
+#### 3. 运行应用
 
 ```bash
-# 构建前端
-cd frontend && npm run build
-
-# 编译后端（当前平台）
-cd backend && go build -o bin/server cmd/server/main.go
-
-# 打包桌面应用
-cd frontend && npm run dist:mac  # macOS
-cd frontend && npm run dist:win   # Windows
-cd frontend && npm run dist       # Linux
+make run
 ```
 
-## 技术架构
+### 构建产物
 
-| 层级 | 技术栈 |
-|------|--------|
-| 前端 | React 18 + TypeScript + Tailwind CSS |
-| 状态管理 | Zustand |
-| 桌面框架 | Electron 28+ |
-| 后端 | Go 1.21+ + Gin |
-| 数据库 | SQLite |
-| 扫描引擎 | Nuclei CLI |
+| 平台 | 架构 | 产物 |
+|------|------|------|
+| macOS | ARM64/AMD64 | `HoleHunter.app` |
+| Linux | ARM64/AMD64 | `HoleHunter` |
+| Windows | AMD64 | `HoleHunter.exe` |
 
-**桌面版架构**：Electron 应用内嵌 Go 后端服务，不占用宿主机端口，所有服务在应用内部运行。
+应用大小约 300MB（含 Nuclei 二进制和模板）。
 
 ## 项目结构
 
 ```
 hole_hunter/
-├── frontend/           # React 前端 + Electron
+├── app.go                  # Wails 应用入口
+├── internal/
+│   ├── nuclei/            # Nuclei 集成
+│   └── offline/           # 离线扫描器
+├── frontend/              # React 前端
 │   ├── src/
-│   │   ├── main/      # Electron 主进程（内嵌后端管理）
-│   │   │   ├── backend/     # Go 后端服务管理器
-│   │   │   ├── window/      # 窗口管理
-│   │   │   ├── ipc/         # IPC 通信
-│   │   │   └── database/    # 数据库管理
-│   │   └── renderer/  # React 渲染进程
-│   ├── build/          # 构建资源
-│   │   └── backend/    # Go 后端二进制文件（打包）
-│   ├── package.json
-│   └── electron-builder.yml
-├── backend/            # Go 后端
-│   ├── cmd/server/    # 服务器入口
-│   ├── internal/      # 内部模块
-│   │   ├── api/       # API 路由
-│   │   ├── services/  # 业务逻辑
-│   │   ├── models/    # 数据模型
-│   │   └── database/  # 数据库
-│   ├── pkg/           # 公共包
-│   └── go.mod
-├── docs/               # 项目文档
-├── Makefile            # 构建脚本
+│   │   └── renderer/      # React 组件
+│   └── wailsjs/           # Wails 生成的绑定
+├── scripts/               # 构建脚本
+│   ├── build-nuclei-all.sh    # Nuclei 交叉编译
+│   └── download-nuclei.sh     # Nuclei 下载
+├── build/                 # 构建输出
+│   ├── nuclei-binaries/   # 交叉编译的 nuclei
+│   └── nuclei-templates/  # 官方模板库
+├── Makefile
+├── wails.json
 └── README.md
-```
-
-## 配置
-
-配置文件位于 `~/.holehunter/config.yaml`：
-
-```yaml
-server:
-  port: "8888"
-  read_timeout: 30
-  write_timeout: 30
-
-database:
-  path: "./holehunter.db"
-
-nuclei:
-  binary_path: "nuclei"
-  templates_dir: "./templates"
-
-scan:
-  default_rate_limit: 150
-  default_timeout: 10
-  max_concurrent: 5
-  default_retries: 1
 ```
 
 ## 文档
 
-- [完整产品需求文档 (PRD)](./docs/COMPLETE_PRD.md)
-- [构建指南](./docs/BUILD_GUIDE.md)
-- [桌面应用打包指南](./docs/DESKTOP_PACKAGING.md)
-- [桌面版开发规范](./docs/DESKTOP_DEV_STANDARD.md) ⭐ **必读**
-- [API 文档](./docs/API.md)
-- [项目进度](./docs/PROGRESS.md)
-- [UI 功能测试指南](./docs/UI_FUNCTIONALITY_TEST.md)
+- [构建指南](./BUILD.md) - 详细的构建和打包说明
+- [API 文档](./docs/API.md) - 应用 API 参考
 
-## 贡献
+## 工作原理
 
-欢迎贡献代码、报告 Bug 或提出新功能建议！
-
-1. Fork 本仓库
-2. 创建功能分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'feat: Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 创建 Pull Request
+1. **Nuclei 管理** - 通过子项目方式管理 Nuclei 源码，交叉编译各平台二进制
+2. **离线运行** - 首次启动时自动复制 Nuclei 和模板到用户目录 `~/.holehunter/`
+3. **扫描执行** - 调用内置 Nuclei 执行扫描，结果存入 SQLite
 
 ## 许可证
 
-本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
+MIT License
 
 ---
 
