@@ -11,7 +11,7 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, 'src/renderer'),
       // 添加 wailsjs 路径别名
-      '/@wailsjs': path.resolve(__dirname, 'wailsjs/wailsjs')
+      '@wailsjs': path.resolve(__dirname, 'wailsjs/wailsjs')
     }
   },
   build: {

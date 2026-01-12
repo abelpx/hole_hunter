@@ -67,6 +67,24 @@ func (a *App) shutdown(ctx context.Context) {
 	}
 }
 
+// LogFromFrontend receives log messages from frontend
+func (a *App) LogFromFrontend(level string, message string) {
+	prefix := ""
+	switch level {
+	case "error":
+		prefix = "[ERROR]"
+	case "warn":
+		prefix = "[WARN]"
+	case "info":
+		prefix = "[INFO]"
+	case "debug":
+		prefix = "[DEBUG]"
+	default:
+		prefix = "[LOG]"
+	}
+	println(prefix + " " + message)
+}
+
 // migrateOldData 尝试从旧位置迁移数据
 func (a *App) migrateOldData(newDataDir string) {
 	// 检查新数据库是否已有数据
@@ -545,19 +563,19 @@ func (a *App) HealthCheck() map[string]interface{} {
 
 // ScanTask represents a scan task
 type ScanTask struct {
-	ID                int      `json:"id"`
-	TargetID          int      `json:"target_id"`
-	Status            string   `json:"status"`
-	Strategy          string   `json:"strategy"`
-	TemplatesUsed     []string `json:"templates_used"`
-	StartedAt         string   `json:"started_at"`
-	CompletedAt       string   `json:"completed_at"`
-	TotalTemplates    int      `json:"total_templates"`
-	ExecutedTemplates int      `json:"executed_templates"`
-	Progress          int      `json:"progress"`
-	CurrentTemplate   string   `json:"current_template"`
-	Error             string   `json:"error"`
-	CreatedAt         string   `json:"created_at"`
+	ID                int       `json:"id"`
+	TargetID          int       `json:"target_id"`
+	Status            string    `json:"status"`
+	Strategy          string    `json:"strategy"`
+	TemplatesUsed     []string  `json:"templates_used"`
+	StartedAt         *string   `json:"started_at,omitempty"`
+	CompletedAt       *string   `json:"completed_at,omitempty"`
+	TotalTemplates    *int      `json:"total_templates,omitempty"`
+	ExecutedTemplates *int      `json:"executed_templates,omitempty"`
+	Progress          int       `json:"progress"`
+	CurrentTemplate   *string   `json:"current_template,omitempty"`
+	Error             *string   `json:"error,omitempty"`
+	CreatedAt         string    `json:"created_at"`
 }
 
 // GetAllScanTasks returns all scan tasks

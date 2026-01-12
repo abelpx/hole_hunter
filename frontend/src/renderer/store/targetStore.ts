@@ -56,8 +56,7 @@ const initialFilters: TargetFilters = {
 
 export const useTargetStore = create<TargetState>()(
   devtools(
-    persist(
-      (set, get) => ({
+    (set, get) => ({
         // 初始状态
         targets: [],
         selectedIds: [],
@@ -208,15 +207,10 @@ export const useTargetStore = create<TargetState>()(
         },
       }),
       {
-        name: 'target-storage',
-        partialize: (state) => ({
-          filters: state.filters,
-        }),
+        name: 'TargetStore',
       }
-    ),
-    { name: 'TargetStore' }
-  )
-);
+    )
+  );
 
 // Selectors
 export const selectFilteredTargets = (state: TargetState) => {

@@ -66,6 +66,8 @@ export function GetVulnerabilitiesByTaskID(arg1:number):Promise<Array<main.Vulne
 
 export function HealthCheck():Promise<Record<string, any>>;
 
+export function LogFromFrontend(arg1:string,arg2:string):Promise<void>;
+
 export function SetConfig(arg1:string,arg2:string):Promise<void>;
 
 export function UpdateHttpRequest(arg1:number,arg2:string,arg3:string,arg4:string,arg5:Record<string, string>,arg6:string,arg7:string,arg8:Array<string>):Promise<void>;

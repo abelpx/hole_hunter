@@ -23,7 +23,8 @@
     /* Path mapping */
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/renderer/*"]
+      "@/*": ["./src/renderer/*"],
+      "@wailsjs/*": ["./wailsjs/wailsjs/*"]
     }
   },
   "include": ["src"],

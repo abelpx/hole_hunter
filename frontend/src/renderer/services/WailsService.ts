@@ -20,6 +20,10 @@ import {
   BruteResult,
 } from '../types';
 
+// 导入 Wails 自动生成的绑定
+// 使用相对路径，从 src/renderer/services 导入 wailsjs
+import * as WailsApp from '../../../wailsjs/wailsjs/go/main/App';
+
 // 运行环境类型
 type RuntimeEnvironment = 'wails' | 'electron' | 'browser';
 
@@ -64,34 +68,18 @@ interface WailsRuntime {
   EventsEmit(event: string, data?: any): void;
 }
 
-// 从全局 window 对象获取 Wails 绑定
+// 获取 Wails 绑定 - 直接使用导入的模块
 function getWailsApp(): WailsBindings | null {
-  if (typeof window === 'undefined') return null;
-
-  // 尝试多种方式获取绑定
-  const w = window as any;
-
-  console.log('[getWailsApp] Checking window object...');
-  console.log('[getWailsApp] window.go:', w.go);
-  console.log('[getWailsApp] window.go?.main:', w.go?.main);
-  console.log('[getWailsApp] window.go?.main?.App:', w.go?.main?.App);
-
-  // 方式1: 直接从 window.go.main.App 获取
-  if (w?.go?.main?.App) {
-    console.log('[getWailsApp] Found App via window.go.main.App');
-    return w.go.main.App;
+  // 在 Wails 环境中，导入的 WailsApp 模块会自动绑定
+  // 如果绑定失败（比如在浏览器环境），返回 null
+  try {
+    // 尝试调用一个简单的方法来测试绑定是否可用
+    // 实际调用会在每个方法中进行
+    return WailsApp as any;
+  } catch (error) {
+    console.log('[getWailsApp] Wails bindings not available:', error);
+    return null;
   }
-
-  // 方式2: 从 window.wailsjs 获取
-  if (w?.wailsjs?.go?.main?.App) {
-    console.log('[getWailsApp] Found App via window.wailsjs.go.main.App');
-    return w.wailsjs.go.main.App;
-  }
-
-  console.warn('[getWailsApp] Wails App not found on window object');
-  console.log('[getWailsApp] Available keys:', Object.keys(w).filter(k => k.includes('go') || k.includes('wails') || k.includes('App')));
-
-  return null;
 }
 
 function getWailsRuntime(): WailsRuntime | null {
@@ -120,15 +108,20 @@ function detectEnvironment(): RuntimeEnvironment {
 
   const w = window as any;
 
-  // 检测 Wails - 更宽松的检测
-  // Wails v2 通过 window.go 暴露绑定
-  if (w.go !== undefined) {
-    console.log('[detectEnvironment] Found window.go, detecting as Wails environment');
+  console.log('[detectEnvironment] Checking window object keys:', Object.keys(w).filter(k => k.includes('go') || k.includes('wails') || k.includes('Wails')));
+  console.log('[detectEnvironment] window._WailsRuntime_:', (w as any)._WailsRuntime_);
+  console.log('[detectEnvironment] window.go:', w.go);
+
+  // 检测 Wails - 检查是否有 Wails 运行时
+  // Wails v2 在打包后会有 _WailsRuntime_ 对象
+  if ((w as any)._WailsRuntime_ !== undefined || w.go !== undefined) {
+    console.log('[detectEnvironment] Detected Wails environment');
     return 'wails';
   }
 
   // 检测 Electron
   if (w.electronAPI !== undefined) {
+    console.log('[detectEnvironment] Detected Electron environment');
     return 'electron';
   }
 
@@ -142,11 +135,10 @@ const currentEnvironment = detectEnvironment();
 // Wails 服务实现
 class WailsServiceImpl {
   private getApp(): WailsBindings | null {
-    const app = getWailsApp();
-    if (!app) {
-      console.warn('[WailsService] Wails App not available on window object');
-    }
-    return app;
+    // 直接返回导入的 WailsApp 模块
+    // 在 Wails 环境中，这个模块会自动绑定到 Go 后端
+    // 在浏览器环境中，调用会失败并返回 null
+    return WailsApp as any;
   }
 
   private getRuntime(): WailsRuntime | null {
@@ -156,13 +148,21 @@ class WailsServiceImpl {
   // ==================== 目标管理 ====================
 
   async getAllTargets(): Promise<Target[]> {
+    console.log('[WailsService] getAllTargets called');
     const App = this.getApp();
-    if (!App) return [];
+    if (!App) {
+      console.warn('[WailsService] getAllTargets: App not available, returning empty array');
+      return [];
+    }
+    console.log('[WailsService] Calling App.GetAllTargets...');
     const targets = await App.GetAllTargets();
-    return targets ? targets.map(t => ({
+    console.log('[WailsService] GetAllTargets result:', targets);
+    const result = targets ? targets.map(t => ({
       ...t,
       tags: t.tags || []
     })) : [];
+    console.log('[WailsService] Returning', result.length, 'targets');
+    return result;
   }
 
   async getTargetById(id: number): Promise<Target> {
@@ -217,14 +217,23 @@ class WailsServiceImpl {
   // ==================== 扫描管理 ====================
 
   async createScan(data: CreateScanRequest): Promise<ScanTask> {
+    console.log('[WailsService] createScan called with data:', data);
     const App = this.getApp();
-    if (!App) throw new Error('Wails bindings not available');
+    if (!App) {
+      console.error('[WailsService] createScan: Wails bindings not available');
+      throw new Error('Wails bindings not available');
+    }
+    console.log('[WailsService] Calling App.CreateScanTask...');
     const id = await App.CreateScanTask(
       data.target_id,
       data.strategy,
       data.templates || []
     );
-    return await App.GetScanTaskByID(Number(id));
+    console.log('[WailsService] CreateScanTask returned id:', id);
+    console.log('[WailsService] Calling App.GetScanTaskByID...');
+    const scan = await App.GetScanTaskByID(Number(id));
+    console.log('[WailsService] GetScanTaskByID returned:', scan);
+    return scan;
   }
 
   async cancelScan(id: number): Promise<void> {
@@ -757,6 +766,7 @@ class UnifiedService {
   }
 
   async createScan(data: CreateScanRequest): Promise<ScanTask> {
+    console.log('[UnifiedService] createScan called, environment:', this.environment, 'isBrowserMode:', this.isBrowserMode());
     return this.isBrowserMode() ? mockService.createScan(data) : this.wailsService.createScan(data);
   }
 

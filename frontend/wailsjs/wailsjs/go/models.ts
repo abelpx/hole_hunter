@@ -250,13 +250,13 @@ export namespace main {
 	    status: string;
 	    strategy: string;
 	    templates_used: string[];
-	    started_at: string;
-	    completed_at: string;
-	    total_templates: number;
-	    executed_templates: number;
+	    started_at?: string;
+	    completed_at?: string;
+	    total_templates?: number;
+	    executed_templates?: number;
 	    progress: number;
-	    current_template: string;
-	    error: string;
+	    current_template?: string;
+	    error?: string;
 	    created_at: string;
 	
 	    static createFrom(source: any = {}) {

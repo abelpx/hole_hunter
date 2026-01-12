@@ -50,6 +50,15 @@ export const ScansPage: React.FC = () => {
   useEffect(() => {
     loadScans();
 
+    // 加载目标数据
+    const loadTargets = async () => {
+      const { targets } = useTargetStore.getState();
+      if (targets.length === 0) {
+        await useTargetStore.getState().fetchTargets();
+      }
+    };
+    loadTargets();
+
     // 监听扫描事件
     const handleScanStarted = ({ scanId }: { scanId: number }) => {
       console.log('Scan started:', scanId);
@@ -162,23 +171,34 @@ export const ScansPage: React.FC = () => {
   };
 
   const handleStartScan = async (config: ScanConfigOptions) => {
+    console.log('[ScansPage] handleStartScan called with config:', config);
+    console.log('[ScansPage] selectedTargetId:', selectedTargetId);
+    console.log('[ScansPage] available targets:', targets);
+
     if (!selectedTargetId) {
+      console.error('[ScansPage] No target selected');
+      alert('请先选择目标');
       return;
     }
 
     try {
       const target = targets.find((t) => t.id === selectedTargetId);
       if (!target) {
+        console.error('[ScansPage] Target not found for id:', selectedTargetId);
         throw new Error('Target not found');
       }
 
+      console.log('[ScansPage] Found target:', target);
       const service = getService();
+      console.log('[ScansPage] Got service:', service);
+
       const scan = await service.createScan({
         target_id: target.id,
         strategy: config.severity?.join(',') || 'default',
         templates: config.templates || [],
       });
 
+      console.log('[ScansPage] Scan created successfully:', scan);
       setShowConfigModal(false);
       addLog(scan.id, 'info', `Scan created for target: ${target.name}`);
       loadScans();
@@ -235,9 +255,15 @@ export const ScansPage: React.FC = () => {
           type="primary"
           icon={<Play size={16} />}
           onClick={() => {
+            console.log('[ScansPage] New Scan button clicked');
+            console.log('[ScansPage] targets.length:', targets.length);
+            console.log('[ScansPage] targets:', targets);
             if (targets.length > 0) {
               setSelectedTargetId(targets[0].id);
               setShowConfigModal(true);
+              console.log('[ScansPage] Opening config modal for target:', targets[0].id);
+            } else {
+              console.log('[ScansPage] No targets available');
             }
           }}
           disabled={targets.length === 0}

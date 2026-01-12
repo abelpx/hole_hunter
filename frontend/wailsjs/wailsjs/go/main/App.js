@@ -130,6 +130,10 @@ export function HealthCheck() {
   return window['go']['main']['App']['HealthCheck']();
 }
 
+export function LogFromFrontend(arg1, arg2) {
+  return window['go']['main']['App']['LogFromFrontend'](arg1, arg2);
+}
+
 export function SetConfig(arg1, arg2) {
   return window['go']['main']['App']['SetConfig'](arg1, arg2);
 }
