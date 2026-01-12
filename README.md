@@ -104,8 +104,9 @@ hole_hunter/
 
 ## 文档
 
-- [构建指南](./BUILD.md) - 详细的构建和打包说明
+- [构建指南](./docs/BUILD.md) - 详细的构建和打包说明
 - [API 文档](./docs/API.md) - 应用 API 参考
+- [开发进度](./docs/PROGRESS.md) - 功能模块开发状态
 
 ## 工作原理
 
