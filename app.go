@@ -10,13 +10,14 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
+	stdruntime "runtime"
 	"strings"
 	"sync"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/holehunter/holehunter/internal/offline"
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // App struct
@@ -135,7 +136,7 @@ func (a *App) initNuclei() {
 		}
 
 		println("Error: Nuclei binary not found. Scanning will be disabled.")
-		println("Platform:", runtime.GOOS+"_"+runtime.GOARCH)
+		println("Platform:", stdruntime.GOOS+"_"+stdruntime.GOARCH)
 		return
 	}
 
@@ -1700,6 +1701,11 @@ func (a *App) StartScan(taskID int) error {
 	// 更新任务状态为 running
 	a.UpdateScanTaskStatus(taskID, "running")
 
+	// 推送扫描启动事件
+	runtime.EventsEmit(a.ctx, "scan-started", map[string]interface{}{
+		"scanId": taskID,
+	})
+
 	// 启动扫描
 	go a.runScan(task, target, templates)
 
@@ -1732,7 +1738,7 @@ func (a *App) runScan(task ScanTask, target Target, templates []string) {
 		a.handleScanError(taskID, fmt.Errorf("failed to create stdout pipe: %w", err))
 		return
 	}
-	_, err = cmd.StderrPipe()
+	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		a.handleScanError(taskID, fmt.Errorf("failed to create stderr pipe: %w", err))
 		return
@@ -1746,6 +1752,7 @@ func (a *App) runScan(task ScanTask, target Target, templates []string) {
 
 	// 解析输出
 	go a.parseScanOutput(taskID, stdout)
+	go a.parseScanProgress(taskID, stderr)
 
 	// 等待命令完成
 	if err := cmd.Wait(); err != nil {
@@ -1753,14 +1760,32 @@ func (a *App) runScan(task ScanTask, target Target, templates []string) {
 		return
 	}
 
+	// 获取漏洞数量
+	a.scanProgressMu.Lock()
+	vulnCount := 0
+	if progress, ok := a.scanProgress[taskID]; ok {
+		vulnCount = progress.VulnCount
+	}
+	a.scanProgressMu.Unlock()
+
 	// 更新状态为完成
 	a.UpdateScanTaskStatus(taskID, "completed")
+
+	// 推送扫描完成事件
+	runtime.EventsEmit(a.ctx, "scan-completed", map[string]interface{}{
+		"scanId":   taskID,
+		"status":   "completed",
+		"findings": vulnCount,
+	})
 }
 
 // buildNucleiArgs 构建 nuclei 命令参数
 func (a *App) buildNucleiArgs(targetURL, strategy string, templates []string) []string {
 	args := []string{
 		"-u", targetURL,
+		"-json",           // JSON 输出
+		"-stats",          // 启用统计信息
+		"-silent",         // 静默模式，减少输出
 		"-rate-limit", "150",
 		"-timeout", "10",
 		"-retries", "1",
@@ -1780,6 +1805,67 @@ func (a *App) buildNucleiArgs(targetURL, strategy string, templates []string) []
 	}
 
 	return args
+}
+
+// parseScanProgress 解析 nuclei 的进度输出（从 stderr）
+func (a *App) parseScanProgress(taskID int, pipe io.ReadCloser) {
+	defer pipe.Close()
+
+	scanner := bufio.NewScanner(pipe)
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		// nuclei 的进度输出格式示例：
+		// [INF] Current template: http/cves/2021/CVE-2021-XXXXX.yaml (0/12035)
+		// [INF] [stats] requests: 123, findings: 5, rps: 10, duration: 12s
+
+		// 尝试解析模板进度
+		if strings.Contains(line, "Current template:") {
+			// 提取模板名称和进度
+			parts := strings.Split(line, "(")
+			if len(parts) == 2 {
+				// 格式: (0/12035)
+				progressStr := strings.TrimSuffix(parts[1], ")")
+				progressParts := strings.Split(progressStr, "/")
+				if len(progressParts) == 2 {
+					var current, total int
+					fmt.Sscanf(progressParts[0], "%d", &current)
+					fmt.Sscanf(progressParts[1], "%d", &total)
+
+					// 提取模板名称
+					templateName := strings.TrimSpace(strings.TrimPrefix(parts[0], "[INF] Current template:"))
+
+					a.updateScanProgress(taskID, ScanProgress{
+						TaskID:          taskID,
+						Status:          "running",
+						Executed:        current,
+						TotalTemplates:  total,
+						Progress:        int(float64(current) / float64(total) * 100),
+						CurrentTemplate: templateName,
+					})
+				}
+			}
+		}
+
+		// 尝试解析统计信息
+		if strings.Contains(line, "[stats]") {
+			// 提取发现数
+			if strings.Contains(line, "findings:") {
+				parts := strings.Split(line, "findings:")
+				if len(parts) == 2 {
+					var findings int
+					fmt.Sscanf(strings.TrimSpace(strings.Fields(parts[1])[0]), "%d", &findings)
+
+					a.scanProgressMu.Lock()
+					if existing, ok := a.scanProgress[taskID]; ok {
+						existing.VulnCount = findings
+						a.scanProgress[taskID] = existing
+					}
+					a.scanProgressMu.Unlock()
+				}
+			}
+		}
+	}
 }
 
 // parseScanOutput 解析扫描输出
@@ -1812,6 +1898,12 @@ func (a *App) parseScanOutput(taskID int, pipe io.ReadCloser) {
 				0,
 			)
 
+			// 推送漏洞发现事件
+			runtime.EventsEmit(a.ctx, "scan-finding", map[string]interface{}{
+				"scanId":  taskID,
+				"finding": output,
+			})
+
 			// 更新进度
 			a.updateScanProgress(taskID, ScanProgress{
 				TaskID:     taskID,
@@ -1840,6 +1932,12 @@ func (a *App) handleScanError(taskID int, err error) {
 		Error:  err.Error(),
 	}
 	a.scanProgressMu.Unlock()
+
+	// 推送扫描错误事件
+	runtime.EventsEmit(a.ctx, "scan-error", map[string]interface{}{
+		"scanId": taskID,
+		"error":  err.Error(),
+	})
 }
 
 // updateScanProgress 更新扫描进度
@@ -1861,7 +1959,14 @@ func (a *App) updateScanProgress(taskID int, progress ScanProgress) {
 				existing.Progress = int(float64(progress.Executed) / float64(existing.TotalTemplates) * 100)
 			}
 		}
+		if progress.TotalTemplates > 0 {
+			existing.TotalTemplates = progress.TotalTemplates
+		}
+		if progress.CurrentTemplate != "" {
+			existing.CurrentTemplate = progress.CurrentTemplate
+		}
 		a.scanProgress[taskID] = existing
+		progress = existing
 	} else {
 		a.scanProgress[taskID] = progress
 	}
@@ -1870,6 +1975,17 @@ func (a *App) updateScanProgress(taskID int, progress ScanProgress) {
 	if progress.TotalTemplates > 0 {
 		a.UpdateScanTaskProgress(taskID, progress.Executed, progress.TotalTemplates, progress.Progress)
 	}
+
+	// 推送事件到前端
+	runtime.EventsEmit(a.ctx, "scan-progress", map[string]interface{}{
+		"scanId":            taskID,
+		"progress":          progress.Progress,
+		"currentTemplate":   progress.CurrentTemplate,
+		"completedTemplates": progress.Executed,
+		"totalTemplates":    progress.TotalTemplates,
+		"findings":          progress.VulnCount,
+		"status":            progress.Status,
+	})
 }
 
 // GetScanProgress 获取扫描进度
@@ -1924,7 +2040,7 @@ func (a *App) GetNucleiStatus() NucleiStatus {
 		Version:      a.nucleiVersion,
 		Path:         a.nucleiBinary,
 		Embedded:     a.nucleiEmbedded,
-		Platform:     runtime.GOOS + "_" + runtime.GOARCH,
+		Platform:     stdruntime.GOOS + "_" + stdruntime.GOARCH,
 		Installed:    false,
 		OfflineMode:  a.offlineScanner != nil,
 		Ready:        false,
