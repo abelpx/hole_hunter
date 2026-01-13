@@ -37,6 +37,11 @@ interface NucleiTemplate {
   path: string;
   category: string;
   enabled: boolean;
+  // 漏洞详细信息
+  impact?: string;       // 影响范围/危害
+  remediation?: string;  // 解决方案
+  reference?: string[];  // 参考资料
+  metadata?: Record<string, string>;
 }
 
 interface TemplateCategory {
@@ -135,17 +140,21 @@ export const TemplatesPage: React.FC = () => {
       setLoading(true);
       const data = await GetAllNucleiTemplates();
 
-      // 将后端数据转换为前端格式
+      // 将后端数据转换为前端格式（保留所有字段）
       const transformedTemplates: NucleiTemplate[] = data.map(t => ({
         id: t.id,
         name: t.name || t.id,
         author: t.author || 'unknown',
         severity: (t.severity || 'info') as NucleiTemplate['severity'],
         tags: t.tags || [],
-        description: '',
+        description: t.description || '',
         path: t.path,
         category: t.category || 'other',
         enabled: t.enabled,
+        impact: t.impact,
+        remediation: t.remediation,
+        reference: t.reference,
+        metadata: t.metadata,
       }));
 
       setTemplates(transformedTemplates);
@@ -439,25 +448,31 @@ export const TemplatesPage: React.FC = () => {
             <table className="w-full">
               <thead className="bg-slate-900/50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                     模板名称
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                     分类
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider w-24">
                     作者
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                     严重程度
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                    影响范围
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                    解决方案
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                     标签
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                     状态
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-400 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-right text-xs font-medium text-slate-400 uppercase tracking-wider">
                     操作
                   </th>
                 </tr>
@@ -465,29 +480,37 @@ export const TemplatesPage: React.FC = () => {
               <tbody className="divide-y divide-slate-700">
                 {filteredTemplates.map((template) => (
                   <tr key={template.id} className="hover:bg-slate-700/30 transition-colors">
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-3">
                       <div>
                         <div className="text-sm font-medium text-slate-200">
                           {template.name}
                         </div>
-                        <div className="text-xs text-slate-500">{template.id}</div>
+                        <div className="text-xs text-slate-500 truncate max-w-[200px]">{template.id}</div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-sm text-slate-400">{template.category}</td>
-                    <td className="px-6 py-4 text-sm text-slate-400">{template.author}</td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-3 text-sm text-slate-400">{template.category}</td>
+                    <td className="px-4 py-3 text-sm text-slate-400 truncate max-w-[120px]" title={template.author}>
+                      {template.author}
+                    </td>
+                    <td className="px-4 py-3">
                       <span
                         className={clsx(
-                          'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border',
+                          'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border',
                           getSeverityColor(template.severity)
                         )}
                       >
                         {getSeverityLabel(template.severity)}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-3 text-sm text-slate-400 max-w-[200px]" title={template.impact}>
+                      <div className="truncate">{template.impact || '-'}</div>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-slate-400 max-w-[200px]" title={template.remediation}>
+                      <div className="truncate">{template.remediation || '-'}</div>
+                    </td>
+                    <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-1">
-                        {template.tags.slice(0, 3).map((tag) => (
+                        {template.tags.slice(0, 2).map((tag) => (
                           <span
                             key={tag}
                             className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-700 text-slate-300"
@@ -495,32 +518,32 @@ export const TemplatesPage: React.FC = () => {
                             {tag}
                           </span>
                         ))}
-                        {template.tags.length > 3 && (
+                        {template.tags.length > 2 && (
                           <span className="text-xs text-slate-500">
-                            +{template.tags.length - 3}
+                            +{template.tags.length - 2}
                           </span>
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-3">
                       {template.enabled ? (
                         <div className="flex items-center text-green-400 text-sm">
-                          <CheckCircle size={14} className="mr-1" />
+                          <CheckCircle size={12} className="mr-1" />
                           已启用
                         </div>
                       ) : (
                         <div className="flex items-center text-slate-500 text-sm">
-                          <XCircle size={14} className="mr-1" />
+                          <XCircle size={12} className="mr-1" />
                           未启用
                         </div>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <Button
                           type="ghost"
                           size="sm"
-                          icon={<Eye size={14} />}
+                          icon={<Eye size={12} />}
                           onClick={() => {
                             setSelectedTemplate(template);
                             loadTemplateContent(template.path);
@@ -605,6 +628,53 @@ export const TemplatesPage: React.FC = () => {
                 )}
               </div>
             </div>
+
+            {/* 漏洞详细信息 */}
+            {selectedTemplate.description && (
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-2">描述</label>
+                <p className="text-sm text-slate-300">{selectedTemplate.description}</p>
+              </div>
+            )}
+
+            {selectedTemplate.impact && (
+              <div>
+                <label className="block text-sm font-medium text-red-400 mb-2">
+                  <AlertCircle size={14} className="inline mr-1" />
+                  影响范围/危害
+                </label>
+                <p className="text-sm text-slate-300">{selectedTemplate.impact}</p>
+              </div>
+            )}
+
+            {selectedTemplate.remediation && (
+              <div>
+                <label className="block text-sm font-medium text-green-400 mb-2">
+                  <CheckCircle size={14} className="inline mr-1" />
+                  解决方案
+                </label>
+                <p className="text-sm text-slate-300">{selectedTemplate.remediation}</p>
+              </div>
+            )}
+
+            {selectedTemplate.reference && selectedTemplate.reference.length > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-2">参考资料</label>
+                <div className="space-y-2">
+                  {selectedTemplate.reference.map((ref, idx) => (
+                    <a
+                      key={idx}
+                      href={ref}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block text-sm text-sky-400 hover:text-sky-300 truncate"
+                    >
+                      {ref}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-slate-400 mb-2">模板内容 (YAML)</label>

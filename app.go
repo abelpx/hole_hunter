@@ -35,6 +35,10 @@ type App struct {
 	runningScansMu    sync.Mutex
 	scanProgress      map[int]ScanProgress
 	scanProgressMu    sync.RWMutex
+	// 模板缓存
+	templatesCache    []NucleiTemplate
+	templatesCacheMu  sync.RWMutex
+	templatesCacheTime time.Time
 }
 
 // ScanProgress represents the progress of a scan
@@ -2366,14 +2370,20 @@ func (a *App) GetCustomTemplatesStats() map[string]interface{} {
 
 // NucleiTemplate represents a nuclei POC template file
 type NucleiTemplate struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	Severity string `json:"severity"`
-	Author   string `json:"author"`
-	Path     string `json:"path"`
-	Category string `json:"category"`
-	Tags     []string `json:"tags"`
-	Enabled  bool   `json:"enabled"`
+	ID          string   `json:"id"`
+	Name        string   `json:"name"`
+	Severity    string   `json:"severity"`
+	Author      string   `json:"author"`
+	Path        string   `json:"path"`
+	Category    string   `json:"category"`
+	Tags        []string `json:"tags"`
+	Enabled     bool     `json:"enabled"`
+	Description string   `json:"description,omitempty"`
+	// 漏洞详细信息
+	Impact      string   `json:"impact,omitempty"`       // 影响范围
+	Remediation string   `json:"remediation,omitempty"`  // 解决方案
+	Reference   []string `json:"reference,omitempty"`    // 参考资料
+	Metadata    map[string]string `json:"metadata,omitempty"` // 其他元数据
 }
 
 // GetNucleiTemplatesDir returns the nuclei templates directory
@@ -2394,8 +2404,19 @@ func (a *App) GetNucleiTemplatesDir() string {
 	return filepath.Join(a.userDataDir, "nuclei-templates")
 }
 
-// GetAllNucleiTemplates scans the nuclei templates directory and returns all templates
+// GetAllNucleiTemplates scans the nuclei templates directory and returns all templates (with cache)
 func (a *App) GetAllNucleiTemplates() ([]NucleiTemplate, error) {
+	a.templatesCacheMu.RLock()
+	// 如果缓存存在且不超过 5 分钟，直接返回
+	if a.templatesCache != nil && time.Since(a.templatesCacheTime) < 5*time.Minute {
+		result := make([]NucleiTemplate, len(a.templatesCache))
+		copy(result, a.templatesCache)
+		a.templatesCacheMu.RUnlock()
+		return result, nil
+	}
+	a.templatesCacheMu.RUnlock()
+
+	// 需要重新加载
 	templatesDir := a.GetNucleiTemplatesDir()
 
 	// 如果目录不存在，返回空列表
@@ -2404,6 +2425,32 @@ func (a *App) GetAllNucleiTemplates() ([]NucleiTemplate, error) {
 	}
 
 	var templates []NucleiTemplate
+	var templatesMu sync.Mutex
+
+	// 使用并发扫描加速模板加载
+	type fileResult struct {
+		path    string
+		content []byte
+	}
+	fileChan := make(chan fileResult, 100)
+	var wg sync.WaitGroup
+
+	// 启动多个 worker 并发解析
+	const numWorkers = 4
+	for i := 0; i < numWorkers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for file := range fileChan {
+				template := parseNucleiTemplate(file.content, file.path, templatesDir)
+				if template != nil {
+					templatesMu.Lock()
+					templates = append(templates, *template)
+					templatesMu.Unlock()
+				}
+			}
+		}()
+	}
 
 	// 遍历所有 YAML 文件
 	walkErr := filepath.Walk(templatesDir, func(path string, info os.FileInfo, err error) error {
@@ -2416,35 +2463,38 @@ func (a *App) GetAllNucleiTemplates() ([]NucleiTemplate, error) {
 			return nil
 		}
 
-		// 读取并解析模板文件
+		// 快速读取文件（不解析内容，只读取基本信息）
 		content, err := os.ReadFile(path)
 		if err != nil {
 			return nil // 跳过读取失败的文件
 		}
 
-		// 基本解析
-		template := parseNucleiTemplate(content, path, templatesDir)
-		if template != nil {
-			templates = append(templates, *template)
-		}
-
+		fileChan <- fileResult{path: path, content: content}
 		return nil
 	})
+
+	close(fileChan)
+	wg.Wait()
 
 	if walkErr != nil {
 		return nil, walkErr
 	}
 
+	// 更新缓存
+	a.templatesCacheMu.Lock()
+	a.templatesCache = templates
+	a.templatesCacheTime = time.Now()
+	a.templatesCacheMu.Unlock()
+
 	return templates, nil
 }
 
-// parseNucleiTemplate 解析单个 nuclei 模板文件
+// parseNucleiTemplate 解析单个 nuclei 模板文件（优化版）
 func parseNucleiTemplate(content []byte, path, baseDir string) *NucleiTemplate {
-	lines := strings.Split(string(content), "\n")
-
 	template := &NucleiTemplate{
-		Path:    path,
-		Enabled: true, // 默认启用
+		Path:     path,
+		Enabled:  true,
+		Metadata: make(map[string]string),
 	}
 
 	// 提取相对路径作为 ID
@@ -2457,44 +2507,117 @@ func parseNucleiTemplate(content []byte, path, baseDir string) *NucleiTemplate {
 		template.Category = parts[0]
 	}
 
-	// 解析 YAML 内容
-	inInfo := false
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
+	// 快速解析：只查找关键字段，使用字符串搜索
+	contentStr := string(content)
 
-		// 解析 id
-		if strings.HasPrefix(line, "id:") {
-			template.ID = strings.TrimSpace(strings.TrimPrefix(line, "id:"))
-			template.ID = strings.Trim(template.ID, "\"")
+	// 提取 id（快速查找）
+	if idx := strings.Index(contentStr, "id:"); idx > 0 {
+		endIdx := strings.Index(contentStr[idx:], "\n")
+		if endIdx > 0 {
+			idLine := strings.TrimSpace(contentStr[idx+3 : idx+endIdx])
+			template.ID = strings.Trim(strings.TrimSpace(idLine), "\"")
 		}
+	}
 
-		// 解析 info 字段
-		if strings.HasPrefix(line, "info:") {
-			inInfo = true
-			continue
+	// 提取 info 块内容
+	infoStart := strings.Index(contentStr, "info:")
+	if infoStart < 0 {
+		template.Name = filepath.Base(path)
+		return template
+	}
+
+	// 找到 info 块的结束位置（下一个顶级键）
+	infoEnd := len(contentStr)
+	for _, key := range []string{"\nhttp:", "\ndns:", "\nfile:", "\nnetwork:", "\nTCP:", "\nworkflow:"} {
+		if idx := strings.Index(contentStr[infoStart:], key); idx > 0 && idx < infoEnd {
+			infoEnd = infoStart + idx
 		}
+	}
 
-		// 解析 name
-		if strings.HasPrefix(line, "name:") && inInfo {
-			template.Name = strings.TrimSpace(strings.TrimPrefix(line, "name:"))
-			template.Name = strings.Trim(template.Name, "\"")
+	infoBlock := contentStr[infoStart:infoEnd]
+
+	// 提取 name
+	if idx := strings.Index(infoBlock, "name:"); idx > 0 {
+		endIdx := strings.Index(infoBlock[idx:], "\n")
+		if endIdx > 0 {
+			nameLine := strings.TrimSpace(infoBlock[idx+5 : idx+endIdx])
+			template.Name = strings.Trim(strings.TrimSpace(nameLine), "\"")
 		}
+	}
 
-		// 解析 severity
-		if strings.HasPrefix(line, "severity:") && inInfo {
-			template.Severity = strings.TrimSpace(strings.TrimPrefix(line, "severity:"))
-			template.Severity = strings.Trim(template.Severity, "\"")
+	// 提取 severity
+	if idx := strings.Index(infoBlock, "severity:"); idx > 0 {
+		endIdx := strings.Index(infoBlock[idx:], "\n")
+		if endIdx > 0 {
+			sevLine := strings.TrimSpace(infoBlock[idx+9 : idx+endIdx])
+			template.Severity = strings.Trim(strings.TrimSpace(sevLine), "\"")
 		}
+	}
 
-		// 解析 author
-		if strings.HasPrefix(line, "author:") && inInfo {
-			template.Author = strings.TrimSpace(strings.TrimPrefix(line, "author:"))
-			template.Author = strings.Trim(template.Author, "\"")
+	// 提取 author（截断显示）
+	if idx := strings.Index(infoBlock, "author:"); idx > 0 {
+		endIdx := strings.Index(infoBlock[idx:], "\n")
+		if endIdx > 0 {
+			authorLine := strings.TrimSpace(infoBlock[idx+7 : idx+endIdx])
+			author := strings.Trim(strings.TrimSpace(authorLine), "\"")
+			// 截断过长的作者名
+			if len(author) > 30 {
+				author = author[:30] + "..."
+			}
+			template.Author = author
 		}
+	}
 
-		// 解析 tags
-		if strings.HasPrefix(line, "tags:") && inInfo {
-			tagsLine := strings.TrimSpace(strings.TrimPrefix(line, "tags:"))
+	// 提取 description
+	if idx := strings.Index(infoBlock, "description:"); idx > 0 {
+		endIdx := strings.Index(infoBlock[idx:], "\n")
+		if endIdx > 0 {
+			descLine := strings.TrimSpace(infoBlock[idx+12 : idx+endIdx])
+			template.Description = strings.Trim(strings.TrimSpace(descLine), "\"")
+		}
+	}
+
+	// 提取 impact（影响范围）
+	if idx := strings.Index(infoBlock, "impact:"); idx > 0 {
+		endIdx := strings.Index(infoBlock[idx:], "\n")
+		if endIdx > 0 {
+			impactLine := strings.TrimSpace(infoBlock[idx+7 : idx+endIdx])
+			template.Impact = strings.Trim(strings.TrimSpace(impactLine), "\"")
+		}
+	}
+
+	// 提取 reference（参考资料）
+	if idx := strings.Index(infoBlock, "reference:"); idx > 0 {
+		// 找到 reference 的结束位置（可能是换行或下一个键）
+		refStart := idx + 10
+		refBlock := infoBlock[refStart:]
+
+		// 处理多行 reference
+		lines := strings.Split(refBlock, "\n")
+		var refs []string
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			if line == "" || strings.HasPrefix(line, "-") || strings.HasPrefix(line, "http") {
+				if strings.HasPrefix(line, "- ") {
+					line = strings.TrimPrefix(line, "- ")
+				}
+				if strings.HasPrefix(line, "http") {
+					refs = append(refs, line)
+				}
+			} else {
+				break
+			}
+		}
+		if len(refs) > 0 {
+			template.Reference = refs
+		}
+	}
+
+	// 提取 tags
+	if idx := strings.Index(infoBlock, "tags:"); idx > 0 {
+		endIdx := strings.Index(infoBlock[idx:], "\n")
+		if endIdx > 0 {
+			tagsLine := strings.TrimSpace(infoBlock[idx+5 : idx+endIdx])
 			tagsLine = strings.Trim(tagsLine, `"`)
 			tagsLine = strings.Trim(tagsLine, "[")
 			tagsLine = strings.Trim(tagsLine, "]")
@@ -2504,12 +2627,6 @@ func parseNucleiTemplate(content []byte, path, baseDir string) *NucleiTemplate {
 					template.Tags[i] = strings.TrimSpace(template.Tags[i])
 				}
 			}
-			continue
-		}
-
-		// 退出 info 块
-		if inInfo && (strings.HasPrefix(line, "http:") || strings.HasPrefix(line, "dns:") || strings.HasPrefix(line, "network:")) {
-			inInfo = false
 		}
 	}
 
