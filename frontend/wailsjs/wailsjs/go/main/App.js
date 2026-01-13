@@ -10,6 +10,10 @@ export function CreateBruteTask(arg1, arg2, arg3) {
   return window['go']['main']['App']['CreateBruteTask'](arg1, arg2, arg3);
 }
 
+export function CreateCustomTemplate(arg1, arg2) {
+  return window['go']['main']['App']['CreateCustomTemplate'](arg1, arg2);
+}
+
 export function CreateDomainBruteTask(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['CreateDomainBruteTask'](arg1, arg2, arg3, arg4);
 }
@@ -32,6 +36,10 @@ export function CreateTarget(arg1, arg2, arg3, arg4) {
 
 export function CreateVulnerability(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9) {
   return window['go']['main']['App']['CreateVulnerability'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
+}
+
+export function DeleteCustomTemplate(arg1) {
+  return window['go']['main']['App']['DeleteCustomTemplate'](arg1);
 }
 
 export function DeleteHttpRequest(arg1) {
@@ -62,12 +70,20 @@ export function GetAllConfigs() {
   return window['go']['main']['App']['GetAllConfigs']();
 }
 
+export function GetAllCustomTemplates() {
+  return window['go']['main']['App']['GetAllCustomTemplates']();
+}
+
 export function GetAllDomainBruteTasks() {
   return window['go']['main']['App']['GetAllDomainBruteTasks']();
 }
 
 export function GetAllHttpRequests() {
   return window['go']['main']['App']['GetAllHttpRequests']();
+}
+
+export function GetAllNucleiTemplates() {
+  return window['go']['main']['App']['GetAllNucleiTemplates']();
 }
 
 export function GetAllPortScanTasks() {
@@ -88,6 +104,18 @@ export function GetAllVulnerabilities() {
 
 export function GetConfig(arg1) {
   return window['go']['main']['App']['GetConfig'](arg1);
+}
+
+export function GetCustomTemplateByID(arg1) {
+  return window['go']['main']['App']['GetCustomTemplateByID'](arg1);
+}
+
+export function GetCustomTemplatesDir() {
+  return window['go']['main']['App']['GetCustomTemplatesDir']();
+}
+
+export function GetCustomTemplatesStats() {
+  return window['go']['main']['App']['GetCustomTemplatesStats']();
 }
 
 export function GetDashboardStats() {
@@ -112,6 +140,22 @@ export function GetHttpResponseHistory(arg1) {
 
 export function GetNucleiStatus() {
   return window['go']['main']['App']['GetNucleiStatus']();
+}
+
+export function GetNucleiTemplateBySeverity(arg1) {
+  return window['go']['main']['App']['GetNucleiTemplateBySeverity'](arg1);
+}
+
+export function GetNucleiTemplateContent(arg1) {
+  return window['go']['main']['App']['GetNucleiTemplateContent'](arg1);
+}
+
+export function GetNucleiTemplatesCategories() {
+  return window['go']['main']['App']['GetNucleiTemplatesCategories']();
+}
+
+export function GetNucleiTemplatesDir() {
+  return window['go']['main']['App']['GetNucleiTemplatesDir']();
 }
 
 export function GetPortScanResults(arg1) {
@@ -146,6 +190,10 @@ export function LogFromFrontend(arg1, arg2) {
   return window['go']['main']['App']['LogFromFrontend'](arg1, arg2);
 }
 
+export function SearchNucleiTemplates(arg1) {
+  return window['go']['main']['App']['SearchNucleiTemplates'](arg1);
+}
+
 export function SetConfig(arg1, arg2) {
   return window['go']['main']['App']['SetConfig'](arg1, arg2);
 }
@@ -156,6 +204,14 @@ export function StartScan(arg1) {
 
 export function StopScan(arg1) {
   return window['go']['main']['App']['StopScan'](arg1);
+}
+
+export function ToggleCustomTemplate(arg1, arg2) {
+  return window['go']['main']['App']['ToggleCustomTemplate'](arg1, arg2);
+}
+
+export function UpdateCustomTemplate(arg1, arg2, arg3) {
+  return window['go']['main']['App']['UpdateCustomTemplate'](arg1, arg2, arg3);
 }
 
 export function UpdateHttpRequest(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) {
@@ -176,4 +232,8 @@ export function UpdateTarget(arg1, arg2, arg3, arg4, arg5) {
 
 export function UpdateVulnerability(arg1, arg2, arg3) {
   return window['go']['main']['App']['UpdateVulnerability'](arg1, arg2, arg3);
+}
+
+export function ValidateCustomTemplate(arg1) {
+  return window['go']['main']['App']['ValidateCustomTemplate'](arg1);
 }

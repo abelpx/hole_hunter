@@ -6,6 +6,8 @@ export function CreateBrutePayloadSet(arg1:string,arg2:string,arg3:Record<string
 
 export function CreateBruteTask(arg1:string,arg2:number,arg3:string):Promise<number>;
 
+export function CreateCustomTemplate(arg1:string,arg2:string):Promise<number>;
+
 export function CreateDomainBruteTask(arg1:string,arg2:Array<string>,arg3:number,arg4:number):Promise<number>;
 
 export function CreateHttpRequest(arg1:string,arg2:string,arg3:string,arg4:Record<string, string>,arg5:string,arg6:string,arg7:Array<string>):Promise<number>;
@@ -17,6 +19,8 @@ export function CreateScanTask(arg1:string,arg2:number,arg3:string,arg4:Array<st
 export function CreateTarget(arg1:string,arg2:string,arg3:string,arg4:Array<string>):Promise<number>;
 
 export function CreateVulnerability(arg1:number,arg2:string,arg3:string,arg4:string,arg5:string,arg6:string,arg7:string,arg8:string,arg9:number):Promise<number>;
+
+export function DeleteCustomTemplate(arg1:number):Promise<void>;
 
 export function DeleteHttpRequest(arg1:number):Promise<void>;
 
@@ -32,9 +36,13 @@ export function GetAllBruteTasks():Promise<Array<main.BruteTask>>;
 
 export function GetAllConfigs():Promise<Record<string, string>>;
 
+export function GetAllCustomTemplates():Promise<Array<main.CustomTemplate>>;
+
 export function GetAllDomainBruteTasks():Promise<Array<main.DomainBruteTask>>;
 
 export function GetAllHttpRequests():Promise<Array<main.HttpRequest>>;
+
+export function GetAllNucleiTemplates():Promise<Array<main.NucleiTemplate>>;
 
 export function GetAllPortScanTasks():Promise<Array<main.PortScanTask>>;
 
@@ -45,6 +53,12 @@ export function GetAllTargets():Promise<Array<main.Target>>;
 export function GetAllVulnerabilities():Promise<Array<main.Vulnerability>>;
 
 export function GetConfig(arg1:string):Promise<string>;
+
+export function GetCustomTemplateByID(arg1:number):Promise<main.CustomTemplate>;
+
+export function GetCustomTemplatesDir():Promise<string>;
+
+export function GetCustomTemplatesStats():Promise<Record<string, any>>;
 
 export function GetDashboardStats():Promise<main.DashboardStats>;
 
@@ -57,6 +71,14 @@ export function GetHttpRequestByID(arg1:number):Promise<main.HttpRequest>;
 export function GetHttpResponseHistory(arg1:number):Promise<Array<main.HttpResponse>>;
 
 export function GetNucleiStatus():Promise<main.NucleiStatus>;
+
+export function GetNucleiTemplateBySeverity(arg1:string):Promise<Array<main.NucleiTemplate>>;
+
+export function GetNucleiTemplateContent(arg1:string):Promise<string>;
+
+export function GetNucleiTemplatesCategories():Promise<Record<string, any>>;
+
+export function GetNucleiTemplatesDir():Promise<string>;
 
 export function GetPortScanResults(arg1:number):Promise<Array<main.PortScanResult>>;
 
@@ -74,11 +96,17 @@ export function InstallNuclei():Promise<void>;
 
 export function LogFromFrontend(arg1:string,arg2:string):Promise<void>;
 
+export function SearchNucleiTemplates(arg1:string):Promise<Array<main.NucleiTemplate>>;
+
 export function SetConfig(arg1:string,arg2:string):Promise<void>;
 
 export function StartScan(arg1:number):Promise<void>;
 
 export function StopScan(arg1:number):Promise<void>;
+
+export function ToggleCustomTemplate(arg1:number,arg2:boolean):Promise<void>;
+
+export function UpdateCustomTemplate(arg1:number,arg2:string,arg3:string):Promise<void>;
 
 export function UpdateHttpRequest(arg1:number,arg2:string,arg3:string,arg4:string,arg5:Record<string, string>,arg6:string,arg7:string,arg8:Array<string>):Promise<void>;
 
@@ -89,3 +117,5 @@ export function UpdateScanTaskStatus(arg1:number,arg2:string):Promise<void>;
 export function UpdateTarget(arg1:number,arg2:string,arg3:string,arg4:string,arg5:Array<string>):Promise<void>;
 
 export function UpdateVulnerability(arg1:number,arg2:boolean,arg3:string):Promise<void>;
+
+export function ValidateCustomTemplate(arg1:string):Promise<Record<string, any>>;

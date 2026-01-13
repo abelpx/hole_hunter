@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { Button, Input, Select, Modal, Badge } from '../components/ui';
 import clsx from 'clsx';
+import { GetAllNucleiTemplates, GetNucleiTemplateContent } from '../../wailsjs/go/main/App';
 
 interface NucleiTemplate {
   id: string;
@@ -32,9 +33,8 @@ interface NucleiTemplate {
   tags: string[];
   description: string;
   path: string;
-  isInstalled: boolean;
-  isCustom: boolean;
-  lastUpdated: string;
+  category: string;
+  enabled: boolean;
 }
 
 interface TemplateCategory {
@@ -44,15 +44,17 @@ interface TemplateCategory {
   icon: React.ReactNode;
 }
 
-// 模板分类
-const templateCategories: TemplateCategory[] = [
-  { id: 'all', name: '全部模板', count: 6000, icon: <Layers size={16} /> },
-  { id: 'cves', name: 'CVE 漏洞', count: 2500, icon: <AlertCircle size={16} /> },
-  { id: 'vulnerabilities', name: '通用漏洞', count: 1800, icon: <AlertCircle size={16} /> },
-  { id: 'exposures', name: '信息泄露', count: 1200, icon: <Eye size={16} /> },
-  { id: 'technologies', name: '技术检测', count: 800, icon: <Tag size={16} /> },
-  { id: 'misconfiguration', name: '配置错误', count: 500, icon: <AlertCircle size={16} /> },
-  { id: 'custom', name: '自定义模板', count: 0, icon: <Edit size={16} /> },
+// 模板分类定义
+const templateCategoryDefs: Omit<TemplateCategory, 'count'>[] = [
+  { id: 'all', name: '全部模板', icon: <Layers size={16} /> },
+  { id: 'cves', name: 'CVE 漏洞', icon: <AlertCircle size={16} /> },
+  { id: 'vulnerabilities', name: '通用漏洞', icon: <AlertCircle size={16} /> },
+  { id: 'exposures', name: '信息泄露', icon: <Eye size={16} /> },
+  { id: 'technologies', name: '技术检测', icon: <Tag size={16} /> },
+  { id: 'misconfiguration', name: '配置错误', icon: <AlertCircle size={16} /> },
+  { id: 'network', name: '网络', icon: <AlertCircle size={16} /> },
+  { id: 'file', name: '文件', icon: <FileCode size={16} /> },
+  { id: 'workflows', name: '工作流', icon: <Edit size={16} /> },
 ];
 
 export const TemplatesPage: React.FC = () => {
@@ -61,16 +63,12 @@ export const TemplatesPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedTemplate, setSelectedTemplate] = useState<NucleiTemplate | null>(null);
+  const [templateContent, setTemplateContent] = useState<string>('');
 
   // 过滤条件
   const [searchQuery, setSearchQuery] = useState('');
   const [severityFilter, setSeverityFilter] = useState<string>('all');
   const [authorFilter, setAuthorFilter] = useState<string>('all');
-
-  // 操作状态
-  const [updating, setUpdating] = useState(false);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showImportModal, setShowImportModal] = useState(false);
 
   useEffect(() => {
     loadTemplates();
@@ -83,90 +81,36 @@ export const TemplatesPage: React.FC = () => {
   const loadTemplates = async () => {
     try {
       setLoading(true);
-      // TODO: 实现从后端加载模板列表
-      // const data = await ipcService.getTemplates();
+      const data = await GetAllNucleiTemplates();
 
-      // 临时模拟数据
-      const mockTemplates: NucleiTemplate[] = [
-        {
-          id: 'cve-2021-44228',
-          name: 'Apache Log4j RCE',
-          author: 'pdteam',
-          severity: 'critical',
-          tags: ['cve', 'cve2021', 'rce', 'log4j', 'oast'],
-          description: 'Apache Log4j 远程代码执行漏洞检测',
-          path: '/nuclei-templates/cves/2021/CVE-2021-44228.yaml',
-          isInstalled: true,
-          isCustom: false,
-          lastUpdated: '2024-01-15',
-        },
-        {
-          id: 'spring4shell',
-          name: 'Spring Framework RCE',
-          author: 'pdteam',
-          severity: 'critical',
-          tags: ['cve', 'cve2022', 'rce', 'spring', 'spring4shell'],
-          description: 'Spring Framework 远程代码执行漏洞检测',
-          path: '/nuclei-templates/cves/2022/CVE-2022-22965.yaml',
-          isInstalled: true,
-          isCustom: false,
-          lastUpdated: '2024-01-10',
-        },
-        {
-          id: 'struts2-rce',
-          name: 'Apache Struts2 RCE',
-          author: 'daffainfo',
-          severity: 'critical',
-          tags: ['cve', 'rce', 'struts2', 's2-061'],
-          description: 'Apache Struts2 远程代码执行漏洞',
-          path: '/nuclei-templates/cves/2018/CVE-2018-11776.yaml',
-          isInstalled: true,
-          isCustom: false,
-          lastUpdated: '2023-12-20',
-        },
-        {
-          id: 'exposed-admin-panel',
-          name: 'Admin Panel Exposed',
-          author: 'geisler',
-          severity: 'high',
-          tags: ['panel', 'exposure', 'admin'],
-          description: '检测暴露的管理面板',
-          path: '/nuclei-templates/exposures/admin/admin-panel.yaml',
-          isInstalled: true,
-          isCustom: false,
-          lastUpdated: '2024-01-05',
-        },
-        {
-          id: 'nginx-version',
-          name: 'Nginx Version Detection',
-          author: 'pdteam',
-          severity: 'info',
-          tags: ['tech', 'nginx', 'version'],
-          description: '检测 Nginx 版本信息',
-          path: '/nuclei-templates/technologies/nginx-version.yaml',
-          isInstalled: true,
-          isCustom: false,
-          lastUpdated: '2023-11-15',
-        },
-        {
-          id: 'custom-xss',
-          name: 'Custom XSS Detection',
-          author: 'user',
-          severity: 'medium',
-          tags: ['xss', 'custom'],
-          description: '自定义 XSS 检测模板',
-          path: '/custom-templates/xss.yaml',
-          isInstalled: true,
-          isCustom: true,
-          lastUpdated: '2024-01-20',
-        },
-      ];
+      // 将后端数据转换为前端格式
+      const transformedTemplates: NucleiTemplate[] = data.map(t => ({
+        id: t.id,
+        name: t.name || t.id,
+        author: t.author || 'unknown',
+        severity: (t.severity || 'info') as NucleiTemplate['severity'],
+        tags: t.tags || [],
+        description: '',
+        path: t.path,
+        category: t.category || 'other',
+        enabled: t.enabled,
+      }));
 
-      setTemplates(mockTemplates);
+      setTemplates(transformedTemplates);
     } catch (error) {
       console.error('Failed to load templates:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadTemplateContent = async (path: string) => {
+    try {
+      const content = await GetNucleiTemplateContent(path);
+      setTemplateContent(content);
+    } catch (error) {
+      console.error('Failed to load template content:', error);
+      setTemplateContent('// 无法加载模板内容');
     }
   };
 
@@ -175,13 +119,7 @@ export const TemplatesPage: React.FC = () => {
 
     // 分类过滤
     if (selectedCategory !== 'all') {
-      if (selectedCategory === 'custom') {
-        filtered = filtered.filter((t) => t.isCustom);
-      } else if (selectedCategory === 'cves') {
-        filtered = filtered.filter((t) => t.tags.includes('cve'));
-      } else {
-        filtered = filtered.filter((t) => t.tags.some((tag) => tag.includes(selectedCategory)));
-      }
+      filtered = filtered.filter((t) => t.category === selectedCategory || t.category.startsWith(selectedCategory + '/'));
     }
 
     // 搜索过滤
@@ -205,38 +143,6 @@ export const TemplatesPage: React.FC = () => {
     }
 
     setFilteredTemplates(filtered);
-  };
-
-  const handleUpdateTemplates = async () => {
-    try {
-      setUpdating(true);
-      // TODO: 实现更新模板 API
-      // await ipcService.updateTemplates();
-
-      // 模拟更新过程
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      alert('模板更新成功！');
-      loadTemplates();
-    } catch (error: any) {
-      alert('更新失败: ' + error.message);
-    } finally {
-      setUpdating(false);
-    }
-  };
-
-  const handleDeleteTemplate = async (templateId: string) => {
-    if (!confirm('确定要删除这个模板吗？')) {
-      return;
-    }
-
-    try {
-      // TODO: 实现删除模板 API
-      // await ipcService.deleteTemplate(templateId);
-      console.log('Deleting template:', templateId);
-      loadTemplates();
-    } catch (error: any) {
-      alert('删除失败: ' + error.message);
-    }
   };
 
   const getSeverityColor = (severity: NucleiTemplate['severity']) => {
@@ -266,43 +172,50 @@ export const TemplatesPage: React.FC = () => {
     return Array.from(authors).sort();
   };
 
+  // 动态计算模板分类统计
+  const getTemplateCategories = (): TemplateCategory[] => {
+    const categoryMap = new Map<string, number>();
+
+    // 统计每个分类的模板数量
+    templates.forEach(t => {
+      const topCategory = t.category.split('/')[0];
+      categoryMap.set(topCategory, (categoryMap.get(topCategory) || 0) + 1);
+    });
+
+    return [
+      { id: 'all', name: '全部模板', count: templates.length, icon: <Layers size={16} /> },
+      ...templateCategoryDefs
+        .filter(catDef => catDef.id !== 'all')
+        .map(catDef => ({
+          ...catDef,
+          count: categoryMap.get(catDef.id) || 0,
+        }))
+        .filter(cat => cat.count > 0) // 只显示有模板的分类
+    ];
+  };
+
   return (
     <div className="space-y-6">
       {/* 页面标题 */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100">模板管理</h1>
-          <p className="text-slate-400 mt-1">管理 Nuclei 扫描模板库</p>
+          <h1 className="text-2xl font-bold text-slate-100">POC 模板浏览</h1>
+          <p className="text-slate-400 mt-1">浏览和管理 Nuclei 扫描模板库</p>
         </div>
         <div className="flex gap-3">
           <Button
             type="secondary"
-            icon={<Upload size={16} />}
-            onClick={() => setShowImportModal(true)}
-          >
-            导入模板
-          </Button>
-          <Button
-            type="secondary"
             icon={<RefreshCw size={16} />}
-            onClick={handleUpdateTemplates}
-            loading={updating}
+            onClick={loadTemplates}
           >
-            {updating ? '更新中...' : '更新模板'}
-          </Button>
-          <Button
-            type="primary"
-            icon={<FileCode size={16} />}
-            onClick={() => setShowCreateModal(true)}
-          >
-            创建模板
+            刷新
           </Button>
         </div>
       </div>
 
       {/* 统计卡片 */}
       <div className="grid grid-cols-5 gap-4">
-        {templateCategories.map((category) => (
+        {getTemplateCategories().map((category) => (
           <button
             key={category.id}
             onClick={() => setSelectedCategory(category.id)}
@@ -403,6 +316,9 @@ export const TemplatesPage: React.FC = () => {
                     模板名称
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                    分类
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                     作者
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
@@ -413,9 +329,6 @@ export const TemplatesPage: React.FC = () => {
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                     状态
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
-                    最后更新
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-slate-400 uppercase tracking-wider">
                     操作
@@ -428,12 +341,12 @@ export const TemplatesPage: React.FC = () => {
                     <td className="px-6 py-4">
                       <div>
                         <div className="text-sm font-medium text-slate-200">
-                          {template.isCustom && <Star size={12} className="inline text-yellow-400 mr-1" />}
                           {template.name}
                         </div>
                         <div className="text-xs text-slate-500">{template.id}</div>
                       </div>
                     </td>
+                    <td className="px-6 py-4 text-sm text-slate-400">{template.category}</td>
                     <td className="px-6 py-4 text-sm text-slate-400">{template.author}</td>
                     <td className="px-6 py-4">
                       <span
@@ -463,39 +376,31 @@ export const TemplatesPage: React.FC = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      {template.isInstalled ? (
+                      {template.enabled ? (
                         <div className="flex items-center text-green-400 text-sm">
                           <CheckCircle size={14} className="mr-1" />
-                          已安装
+                          已启用
                         </div>
                       ) : (
                         <div className="flex items-center text-slate-500 text-sm">
                           <XCircle size={14} className="mr-1" />
-                          未安装
+                          未启用
                         </div>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-sm text-slate-400">{template.lastUpdated}</td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <Button
                           type="ghost"
                           size="sm"
                           icon={<Eye size={14} />}
-                          onClick={() => setSelectedTemplate(template)}
+                          onClick={() => {
+                            setSelectedTemplate(template);
+                            loadTemplateContent(template.path);
+                          }}
                         >
                           查看
                         </Button>
-                        {template.isCustom && (
-                          <Button
-                            type="ghost"
-                            size="sm"
-                            icon={<Trash2 size={14} />}
-                            onClick={() => handleDeleteTemplate(template.id)}
-                          >
-                            删除
-                          </Button>
-                        )}
                       </div>
                     </td>
                   </tr>
@@ -511,19 +416,22 @@ export const TemplatesPage: React.FC = () => {
         <Modal
           visible={!!selectedTemplate}
           title="模板详情"
-          onClose={() => setSelectedTemplate(null)}
-          onConfirm={() => setSelectedTemplate(null)}
+          onClose={() => {
+            setSelectedTemplate(null);
+            setTemplateContent('');
+          }}
+          onConfirm={() => {
+            setSelectedTemplate(null);
+            setTemplateContent('');
+          }}
           confirmText="关闭"
           width="xl"
         >
           <div className="space-y-4">
             <div className="flex items-start justify-between">
               <div className="flex-1">
-                <h3 className="text-lg font-semibold text-slate-200 flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-slate-200">
                   {selectedTemplate.name}
-                  {selectedTemplate.isCustom && (
-                    <Star size={14} className="text-yellow-400" />
-                  )}
                 </h3>
                 <p className="text-sm text-slate-500 mt-1">{selectedTemplate.id}</p>
               </div>
@@ -537,19 +445,14 @@ export const TemplatesPage: React.FC = () => {
               </span>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-400 mb-1">描述</label>
-              <p className="text-sm text-slate-200">{selectedTemplate.description}</p>
-            </div>
-
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-400 mb-1">作者</label>
                 <p className="text-sm text-slate-200">{selectedTemplate.author}</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1">最后更新</label>
-                <p className="text-sm text-slate-200">{selectedTemplate.lastUpdated}</p>
+                <label className="block text-sm font-medium text-slate-400 mb-1">分类</label>
+                <p className="text-sm text-slate-200">{selectedTemplate.category}</p>
               </div>
               <div className="col-span-2">
                 <label className="block text-sm font-medium text-slate-400 mb-1">模板路径</label>
@@ -562,7 +465,7 @@ export const TemplatesPage: React.FC = () => {
             <div>
               <label className="block text-sm font-medium text-slate-400 mb-2">标签</label>
               <div className="flex flex-wrap gap-2">
-                {selectedTemplate.tags.map((tag) => (
+                {selectedTemplate.tags.length > 0 ? selectedTemplate.tags.map((tag) => (
                   <span
                     key={tag}
                     className="inline-flex items-center px-3 py-1 rounded-md text-sm font-medium bg-slate-700 text-slate-300"
@@ -570,113 +473,23 @@ export const TemplatesPage: React.FC = () => {
                     <Tag size={12} className="mr-1" />
                     {tag}
                   </span>
-                ))}
+                )) : (
+                  <span className="text-sm text-slate-500">无标签</span>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-400 mb-2">模板内容 (YAML)</label>
+              <div className="bg-slate-900 border border-slate-700 rounded-lg p-4 max-h-96 overflow-auto">
+                <pre className="text-xs text-slate-300 font-mono whitespace-pre-wrap">
+                  {templateContent || '加载中...'}
+                </pre>
               </div>
             </div>
           </div>
         </Modal>
       )}
-
-      {/* 创建模板模态框 */}
-      <Modal
-        visible={showCreateModal}
-        title="创建自定义模板"
-        onClose={() => setShowCreateModal(false)}
-        onConfirm={() => {
-          // TODO: 实现创建模板逻辑
-          setShowCreateModal(false);
-        }}
-        confirmText="创建"
-        width="xl"
-      >
-        <div className="space-y-4">
-          <Input label="模板名称" placeholder="例如: Custom XSS Detection" />
-          <Input label="模板 ID" placeholder="例如: custom-xss" />
-          <Select
-            label="严重程度"
-            options={[
-              { value: 'critical', label: '严重' },
-              { value: 'high', label: '高危' },
-              { value: 'medium', label: '中危' },
-              { value: 'low', label: '低危' },
-              { value: 'info', label: '信息' },
-            ]}
-          />
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
-              标签（逗号分隔）
-            </label>
-            <Input placeholder="例如: xss, web, custom" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
-              模板内容 (YAML)
-            </label>
-            <textarea
-              placeholder="id: custom-xss
-
-info:
-  name: Custom XSS Detection
-  author: user
-  severity: medium
-  tags: xss,web
-
-requests:
-  - method: GET
-    path:
-      - '{{BaseURL}}'"
-              className="w-full h-48 px-4 py-3 bg-slate-900 border border-slate-700 rounded-lg text-slate-200 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 resize-none"
-            />
-          </div>
-        </div>
-      </Modal>
-
-      {/* 导入模板模态框 */}
-      <Modal
-        visible={showImportModal}
-        title="导入模板"
-        onClose={() => setShowImportModal(false)}
-        onConfirm={() => {
-          // TODO: 实现导入模板逻辑
-          setShowImportModal(false);
-        }}
-        confirmText="导入"
-      >
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
-              从文件导入
-            </label>
-            <div className="flex items-center gap-3">
-              <input
-                type="file"
-                accept=".yaml,.yml"
-                className="flex-1 text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-slate-700 file:text-slate-300 hover:file:bg-slate-600"
-              />
-            </div>
-          </div>
-
-          <div className="border-t border-slate-700 pt-4">
-            <label className="block text-sm font-medium text-slate-300 mb-2">
-              或从 URL 导入
-            </label>
-            <Input
-              placeholder="https://raw.githubusercontent.com/..."
-              type="url"
-            />
-          </div>
-
-          <div className="border-t border-slate-700 pt-4">
-            <label className="block text-sm font-medium text-slate-300 mb-2">
-              或直接粘贴 YAML 内容
-            </label>
-            <textarea
-              placeholder="粘贴模板 YAML 内容..."
-              className="w-full h-32 px-4 py-3 bg-slate-900 border border-slate-700 rounded-lg text-slate-200 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 resize-none"
-            />
-          </div>
-        </div>
-      </Modal>
     </div>
   );
 };

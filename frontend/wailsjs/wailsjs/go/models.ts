@@ -54,6 +54,28 @@ export namespace main {
 	        this.created_at = source["created_at"];
 	    }
 	}
+	export class CustomTemplate {
+	    id: number;
+	    name: string;
+	    path: string;
+	    content?: string;
+	    enabled: boolean;
+	    created_at: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new CustomTemplate(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.path = source["path"];
+	        this.content = source["content"];
+	        this.enabled = source["enabled"];
+	        this.created_at = source["created_at"];
+	    }
+	}
 	export class DashboardStats {
 	    total_targets: number;
 	    total_scans: number;
@@ -220,6 +242,32 @@ export namespace main {
 	        this.template_count = source["template_count"];
 	        this.offline_mode = source["offline_mode"];
 	        this.ready = source["ready"];
+	    }
+	}
+	export class NucleiTemplate {
+	    id: string;
+	    name: string;
+	    severity: string;
+	    author: string;
+	    path: string;
+	    category: string;
+	    tags: string[];
+	    enabled: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new NucleiTemplate(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.severity = source["severity"];
+	        this.author = source["author"];
+	        this.path = source["path"];
+	        this.category = source["category"];
+	        this.tags = source["tags"];
+	        this.enabled = source["enabled"];
 	    }
 	}
 	export class PortScanResult {
