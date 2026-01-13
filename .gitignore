@@ -81,9 +81,12 @@ coverage/
 # Vite cache
 .vite/
 
-# Nuclei templates
+# Nuclei templates (submodule)
+# 追踪子模块本身，但忽略其内容的本地修改
+nuclei-templates/*
+!nuclei-templates/.gitattributes
+!nuclei-templates/.gitignore
 templates/
-nuclei-templates/
 
 # Config (local)
 config.yaml

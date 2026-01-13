@@ -1,0 +1,3 @@
+[submodule "nuclei-templates"]
+	path = nuclei-templates
+	url = git@github.com:projectdiscovery/nuclei-templates.git

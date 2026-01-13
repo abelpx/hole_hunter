@@ -143,7 +143,7 @@ endif
 ## copy-templates: 复制 nuclei 模板到应用包（内部目标）
 copy-templates:
 	@echo "$(BLUE)复制 nuclei 模板到应用包...$(NC)"
-	@TEMPLATES_SRC="build/nuclei-templates"; \
+	@TEMPLATES_SRC="nuclei-templates"; \
 	if [ -d "$$TEMPLATES_SRC" ]; then \
 		TEMPLATE_COUNT=$$(find "$$TEMPLATES_SRC" -name "*.yaml" 2>/dev/null | wc -l | xargs); \
 		if [ "$(DETECTED_OS)" = "macOS" ]; then \
@@ -163,7 +163,7 @@ copy-templates:
 			fi; \
 		fi; \
 	else \
-		echo "$(YELLOW)警告: 模板目录不存在，运行 'make nuclei-compile-all' 获取模板$(NC)"; \
+		echo "$(YELLOW)警告: 模板目录不存在，运行 'git submodule update --init --recursive' 获取模板$(NC)"; \
 	fi
 
 ## show-build-info: 显示构建信息（内部目标）

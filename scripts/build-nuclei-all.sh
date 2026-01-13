@@ -100,18 +100,30 @@ IFS="$OLDIFS"
 echo ""
 echo -e "${BLUE}步骤 3: 获取 Nuclei 官方模板...${NC}"
 
-TEMPLATES_DIR="${PROJECT_ROOT}/build/nuclei-templates"
-if [ -d "${TEMPLATES_DIR}" ]; then
-    echo -e "${YELLOW}模板目录已存在，跳过下载${NC}"
+# 检查并初始化 submodule
+if [ -f "${PROJECT_ROOT}/.gitmodules" ]; then
+    if [ -L "${PROJECT_ROOT}/nuclei-templates" ] || [ -d "${PROJECT_ROOT}/nuclei-templates/.git" ]; then
+        echo -e "${YELLOW}submodule 已存在，更新中...${NC}"
+        cd "${PROJECT_ROOT}"
+        git submodule update --init --recursive nuclei-templates
+        cd "${PROJECT_ROOT}"
+    else
+        echo -e "${YELLOW}初始化 submodule...${NC}"
+        cd "${PROJECT_ROOT}"
+        git submodule update --init --recursive nuclei-templates
+        cd "${PROJECT_ROOT}"
+    fi
 else
-    echo -e "${YELLOW}正在克隆 nuclei-templates...${NC}"
-    git clone --depth 1 git@github.com:projectdiscovery/nuclei-templates.git "${TEMPLATES_DIR}"
-    echo -e "${GREEN}✓ 模板下载完成${NC}"
-
-    # 统计模板数量
-    TEMPLATE_COUNT=$(find "${TEMPLATES_DIR}" -name "*.yaml" 2>/dev/null | wc -l | xargs)
-    echo -e "${GREEN}✓ 共下载 ${TEMPLATE_COUNT} 个模板${NC}"
+    echo -e "${YELLOW}未找到 .gitmodules，克隆模板...${NC}"
+    TEMPLATES_DIR="${PROJECT_ROOT}/nuclei-templates"
+    if [ ! -d "${TEMPLATES_DIR}" ]; then
+        git clone --depth 1 git@github.com:projectdiscovery/nuclei-templates.git "${TEMPLATES_DIR}"
+    fi
 fi
+
+# 统计模板数量
+TEMPLATE_COUNT=$(find "${PROJECT_ROOT}/nuclei-templates" -name "*.yaml" 2>/dev/null | wc -l | xargs)
+echo -e "${GREEN}✓ 当前共有 ${TEMPLATE_COUNT} 个模板${NC}"
 echo ""
 
 echo ""
