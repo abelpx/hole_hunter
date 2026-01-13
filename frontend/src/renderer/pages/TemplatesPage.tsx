@@ -280,6 +280,31 @@ export const TemplatesPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* 禁用分组提示栏 */}
+      {disabledCategories.size > 0 && (
+        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <PowerOff size={20} className="text-yellow-400" />
+            <div>
+              <p className="text-sm font-medium text-yellow-200">
+                已禁用 {disabledCategories.size} 个分组
+              </p>
+              <p className="text-xs text-yellow-400/70">
+                这些分组的模板将不会出现在扫描结果中
+              </p>
+            </div>
+          </div>
+          <Button
+            type="secondary"
+            size="sm"
+            icon={<Power size={14} />}
+            onClick={enableAllCategories}
+          >
+            启用所有
+          </Button>
+        </div>
+      )}
+
       {/* 页面标题 */}
       <div className="flex items-center justify-between">
         <div>
@@ -319,14 +344,14 @@ export const TemplatesPage: React.FC = () => {
       </div>
 
       {/* 统计卡片 */}
-      <div className="grid grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
         {getTemplateCategories().map((category) => {
           const isDisabled = category.id !== 'all' && disabledCategories.has(category.id);
           return (
             <div
               key={category.id}
               className={clsx(
-                'bg-slate-800/50 border rounded-xl p-4 text-left transition-all relative',
+                'bg-slate-800/50 border rounded-xl p-4 text-left transition-all relative min-w-[160px]',
                 selectedCategory === category.id
                   ? 'border-sky-500 bg-sky-500/10'
                   : 'border-slate-700',
@@ -338,7 +363,7 @@ export const TemplatesPage: React.FC = () => {
                   setSelectedCategory(category.id);
                   setCurrentPage(1);
                 }}
-                className="w-full"
+                className="w-full pr-8"
               >
                 <div className="flex items-center justify-between mb-2">
                   <div className={clsx(
@@ -386,50 +411,25 @@ export const TemplatesPage: React.FC = () => {
         })}
       </div>
 
-      {/* 分组状态提示 */}
-      {disabledCategories.size > 0 && (
-        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <PowerOff size={20} className="text-yellow-400" />
-            <div>
-              <p className="text-sm font-medium text-yellow-200">
-                已禁用 {disabledCategories.size} 个分组
-              </p>
-              <p className="text-xs text-yellow-400/70">
-                这些分组的模板将不会出现在扫描结果中
-              </p>
-            </div>
-          </div>
-          <Button
-            type="secondary"
-            size="sm"
-            icon={<Power size={14} />}
-            onClick={enableAllCategories}
-          >
-            启用所有
-          </Button>
-        </div>
-      )}
-
       {/* 过滤和搜索 */}
-      <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
-        <div className="flex flex-wrap items-center gap-3">
-          {/* 搜索框 - 占据更多空间 */}
-          <div className="flex-[3] min-w-[200px] relative">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+      <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-2.5">
+        <div className="flex items-center gap-2">
+          {/* 搜索框 */}
+          <div className="flex-1 min-w-[200px] relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <Input
               placeholder="搜索模板名称、ID、标签..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 w-full"
+              className="pl-9 text-sm h-9"
             />
           </div>
 
           {/* 严重程度选择 */}
           <Select
-            placeholder="严重程度"
+            placeholder="等级"
             options={[
-              { value: 'all', label: '全部等级' },
+              { value: 'all', label: '全部' },
               { value: 'critical', label: '严重' },
               { value: 'high', label: '高危' },
               { value: 'medium', label: '中危' },
@@ -438,7 +438,8 @@ export const TemplatesPage: React.FC = () => {
             ]}
             value={severityFilter}
             onChange={setSeverityFilter}
-            className="w-36 min-w-[120px]"
+            size="sm"
+            className="w-24 flex-shrink-0"
           />
 
           {/* 作者选择 */}
@@ -450,7 +451,8 @@ export const TemplatesPage: React.FC = () => {
             ]}
             value={authorFilter}
             onChange={setAuthorFilter}
-            className="w-40 min-w-[140px]"
+            size="sm"
+            className="w-32 flex-shrink-0"
           />
         </div>
       </div>
@@ -474,7 +476,17 @@ export const TemplatesPage: React.FC = () => {
         ) : (
           <>
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full table-fixed">
+                <colgroup>
+                  <col style={{ width: '18%' }} /> {/* 模板名称 */}
+                  <col style={{ width: '10%' }} /> {/* 分类 */}
+                  <col style={{ width: '9%' }} /> {/* 作者 */}
+                  <col style={{ width: '8%' }} /> {/* 严重程度 */}
+                  <col style={{ width: '28%' }} /> {/* 漏洞描述 */}
+                  <col style={{ width: '15%' }} /> {/* 标签 */}
+                  <col style={{ width: '10%' }} /> {/* 状态 */}
+                  <col style={{ width: '12%' }} /> {/* 操作 */}
+                </colgroup>
                 <thead className="bg-slate-900/50">
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
@@ -483,17 +495,14 @@ export const TemplatesPage: React.FC = () => {
                     <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                       分类
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider w-24">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                       作者
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                       严重程度
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
-                      影响范围
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
-                      解决方案
+                      漏洞描述
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                       标签
@@ -510,77 +519,77 @@ export const TemplatesPage: React.FC = () => {
                   {filteredTemplates.map((template) => (
                     <tr key={template.id} className="hover:bg-slate-700/30 transition-colors">
                       <td className="px-4 py-3">
-                        <div>
-                          <div className="text-sm font-medium text-slate-200">
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium text-slate-200 truncate" title={template.name}>
                             {template.name}
                           </div>
-                          <div className="text-xs text-slate-500 truncate max-w-[200px]">{template.id}</div>
+                          <div className="text-xs text-slate-500 truncate" title={template.id}>{template.id}</div>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-sm text-slate-400">{template.category}</td>
-                      <td className="px-4 py-3 text-sm text-slate-400 truncate max-w-[120px]" title={template.author}>
+                      <td className="px-4 py-3 text-sm text-slate-400 truncate" title={template.category}>
+                        {template.category}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-slate-400 truncate" title={template.author}>
                         {template.author}
                       </td>
                       <td className="px-4 py-3">
                         <span
                           className={clsx(
-                            'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border',
+                            'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border whitespace-nowrap',
                             getSeverityColor(template.severity)
                           )}
                         >
                           {getSeverityLabel(template.severity)}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-sm text-slate-400 max-w-[200px]" title={template.impact}>
-                        <div className="truncate">{template.impact || '-'}</div>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-slate-400 max-w-[200px]" title={template.remediation}>
-                        <div className="truncate">{template.remediation || '-'}</div>
+                      <td className="px-4 py-3">
+                        <div className="text-sm text-slate-400 line-clamp-2" title={template.description || '暂无描述'}>
+                          {template.description || '暂无描述'}
+                        </div>
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex flex-wrap gap-1">
-                          {template.tags.slice(0, 2).map((tag) => (
+                          {template.tags.slice(0, 3).map((tag) => (
                             <span
                               key={tag}
-                              className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-700 text-slate-300"
+                              className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-700 text-slate-300 truncate max-w-[100px]"
+                              title={tag}
                             >
                               {tag}
                             </span>
                           ))}
-                          {template.tags.length > 2 && (
+                          {template.tags.length > 3 && (
                             <span className="text-xs text-slate-500">
-                              +{template.tags.length - 2}
+                              +{template.tags.length - 3}
                             </span>
                           )}
                         </div>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 whitespace-nowrap">
                         {template.enabled ? (
                           <div className="flex items-center text-green-400 text-sm">
-                            <CheckCircle size={12} className="mr-1" />
-                            已启用
+                            <CheckCircle size={12} className="mr-1 flex-shrink-0" />
+                            <span>已启用</span>
                           </div>
                         ) : (
                           <div className="flex items-center text-slate-500 text-sm">
-                            <XCircle size={12} className="mr-1" />
-                            未启用
+                            <XCircle size={12} className="mr-1 flex-shrink-0" />
+                            <span>未启用</span>
                           </div>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <Button
-                            type="ghost"
-                            size="sm"
-                            icon={<Eye size={12} />}
-                            onClick={() => {
-                              setSelectedTemplate(template);
-                              loadTemplateContent(template.path);
-                            }}
-                          >
-                            查看
-                          </Button>
-                        </div>
+                      <td className="px-4 py-3 text-right whitespace-nowrap">
+                        <Button
+                          type="ghost"
+                          size="sm"
+                          icon={<Eye size={12} className="flex-shrink-0" />}
+                          onClick={() => {
+                            setSelectedTemplate(template);
+                            loadTemplateContent(template.path);
+                          }}
+                        >
+                          查看
+                        </Button>
                       </td>
                     </tr>
                   ))}

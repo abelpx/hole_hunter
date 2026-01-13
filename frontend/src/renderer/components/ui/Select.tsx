@@ -26,6 +26,7 @@ export interface SelectProps {
   error?: string;
   disabled?: boolean;
   size?: 'sm' | 'md' | 'lg';
+  className?: string;
 }
 
 const sizeStyles: Record<'sm' | 'md' | 'lg', string> = {
@@ -43,6 +44,7 @@ export const Select: React.FC<SelectProps> = ({
   error,
   disabled,
   size = 'md',
+  className = '',
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
@@ -109,7 +111,7 @@ export const Select: React.FC<SelectProps> = ({
   };
 
   return (
-    <div className="w-full">
+    <div className={className || "w-full"}>
       {label && (
         <label className="block text-sm font-medium text-slate-300 mb-1.5">
           {label}

@@ -2551,7 +2551,7 @@ func (a *App) GetNucleiTemplatesPaginated(page, pageSize int) (*PaginatedTemplat
 				return // 跳过读取失败的文件
 			}
 
-			template := parseNucleiTemplateQuick(content, fi.path, templatesDir, fi.category, fi.id)
+			template := parseNucleiTemplate(content, fi.path, templatesDir)
 			if template != nil {
 				templatesMu.Lock()
 				templates = append(templates, *template)
@@ -2573,108 +2573,7 @@ func (a *App) GetNucleiTemplatesPaginated(page, pageSize int) (*PaginatedTemplat
 	}, nil
 }
 
-// parseNucleiTemplateQuick 快速解析模板（只读取必要字段）
-func parseNucleiTemplateQuick(content []byte, path, baseDir, category, id string) *NucleiTemplate {
-	template := &NucleiTemplate{
-		ID:       id,
-		Path:     path,
-		Category: category,
-		Enabled:  true,
-		Name:     id, // 默认使用 ID 作为名称
-		Severity: "info",
-		Author:   "unknown",
-		Tags:     []string{},
-		Metadata: make(map[string]string),
-	}
-
-	// 快速解析：只查找关键字段
-	contentStr := string(content)
-
-	// 提取 name
-	if idx := strings.Index(contentStr, "name:"); idx > 0 {
-		endIdx := strings.Index(contentStr[idx:], "\n")
-		if endIdx > 0 {
-			nameLine := strings.TrimSpace(contentStr[idx+5 : idx+endIdx])
-			template.Name = strings.Trim(strings.TrimSpace(nameLine), "\"")
-		}
-	}
-
-	// 提取 severity
-	if idx := strings.Index(contentStr, "severity:"); idx > 0 {
-		endIdx := strings.Index(contentStr[idx:], "\n")
-		if endIdx > 0 {
-			severityLine := strings.TrimSpace(contentStr[idx+9 : idx+endIdx])
-			template.Severity = strings.ToLower(strings.TrimSpace(severityLine))
-		}
-	}
-
-	// 提取 author
-	if idx := strings.Index(contentStr, "author:"); idx > 0 {
-		// 查找作者字段的结束位置（考虑列表格式）
-		authorSection := contentStr[idx:]
-		endIdx := strings.Index(authorSection, "\n")
-		if endIdx > 0 {
-			authorLine := strings.TrimSpace(authorSection[7 : endIdx+1])
-			author := strings.TrimSpace(authorLine)
-			author = strings.Trim(author, "\"")
-
-			// 处理列表格式：- author1, author2
-			if strings.HasPrefix(author, "-") {
-				author = strings.TrimSpace(author[1:])
-			}
-
-			// 限制作者名称长度
-			if len(author) > 30 {
-				author = author[:30] + "..."
-			}
-			template.Author = author
-		}
-	}
-
-	// 提取 tags（简化处理）
-	if idx := strings.Index(contentStr, "tags:"); idx > 0 {
-		tagsSection := contentStr[idx+5:]
-		// 只读取前 200 个字符的 tags 区域
-		if len(tagsSection) > 200 {
-			tagsSection = tagsSection[:200]
-		}
-		// 提取简单的标签列表
-		lines := strings.Split(tagsSection, "\n")
-		var tags []string
-		for _, line := range lines {
-			line = strings.TrimSpace(line)
-			if strings.HasPrefix(line, "-") || strings.HasPrefix(line, "tags:") {
-				if strings.HasPrefix(line, "-") {
-					tag := strings.TrimSpace(strings.TrimPrefix(line, "-"))
-					tag = strings.Trim(tag, "\"'")
-					if tag != "" {
-						tags = append(tags, tag)
-					}
-				}
-			} else if !strings.HasPrefix(line, " ") && !strings.HasPrefix(line, "\t") {
-				break // 退出 tags 区域
-			}
-			// 限制标签数量
-			if len(tags) >= 10 {
-				break
-			}
-		}
-		template.Tags = tags
-	}
-
-	// 提取 description
-	if idx := strings.Index(contentStr, "description:"); idx > 0 {
-		endIdx := strings.Index(contentStr[idx:], "\n")
-		if endIdx > 0 {
-			descLine := strings.TrimSpace(contentStr[idx+12 : idx+endIdx])
-			template.Description = strings.Trim(strings.TrimSpace(descLine), "\"")
-		}
-	}
-
-	return template
-}
-
-// parseNucleiTemplate 解析单个 nuclei 模板文件（优化版）
+// parseNucleiTemplate 解析单个 nuclei 模板文件
 func parseNucleiTemplate(content []byte, path, baseDir string) *NucleiTemplate {
 	template := &NucleiTemplate{
 		Path:     path,
@@ -2736,6 +2635,10 @@ func parseNucleiTemplate(content []byte, path, baseDir string) *NucleiTemplate {
 		if endIdx > 0 {
 			sevLine := strings.TrimSpace(infoBlock[idx+9 : idx+endIdx])
 			template.Severity = strings.Trim(strings.TrimSpace(sevLine), "\"")
+		} else {
+			// 处理 severity 在最后的情况（没有换行符）
+			sevLine := strings.TrimSpace(infoBlock[idx+9:])
+			template.Severity = strings.Trim(strings.TrimSpace(sevLine), "\"")
 		}
 	}
 
@@ -2753,21 +2656,138 @@ func parseNucleiTemplate(content []byte, path, baseDir string) *NucleiTemplate {
 		}
 	}
 
-	// 提取 description
+	// 提取 description - 支持多行 YAML
 	if idx := strings.Index(infoBlock, "description:"); idx > 0 {
-		endIdx := strings.Index(infoBlock[idx:], "\n")
-		if endIdx > 0 {
-			descLine := strings.TrimSpace(infoBlock[idx+12 : idx+endIdx])
-			template.Description = strings.Trim(strings.TrimSpace(descLine), "\"")
+		lineStart := idx + 12
+		remainder := infoBlock[lineStart:]
+		remainder = strings.TrimLeft(remainder, " \t\n\r")
+
+		// 检查是否有多行标记（| 或 |-）
+		if strings.HasPrefix(remainder, "|") {
+			// 多行格式，读取所有缩进的行
+			pipeIdx := strings.Index(remainder, "\n")
+			if pipeIdx >= 0 {
+				contentAfterPipe := remainder[pipeIdx+1:]
+				lines := strings.Split(contentAfterPipe, "\n")
+				var descLines []string
+				for _, line := range lines {
+					trimmed := strings.TrimSpace(line)
+					if trimmed == "" {
+						continue
+					}
+					// 遇到下一个字段就停止（2 空格开头，且包含 ":" 且不是内容行）
+					if strings.HasPrefix(line, "  ") && !strings.HasPrefix(line, "    ") {
+						// 检查是否是新的字段定义（key: 或 key: |）
+						if strings.Contains(trimmed, ":") {
+							// 这是一个新字段，停止读取
+							break
+						}
+					}
+					// 只添加有4+空格缩进的内容行
+					if strings.HasPrefix(line, "    ") || strings.HasPrefix(line, "\t") {
+						descLines = append(descLines, trimmed)
+					}
+				}
+				template.Description = strings.Join(descLines, " ")
+			}
+		} else {
+			// 单行格式 - 读取到下一个换行符
+			endIdx := strings.Index(remainder, "\n")
+			if endIdx > 0 {
+				template.Description = strings.Trim(strings.TrimSpace(remainder[:endIdx]), "\"")
+			} else {
+				template.Description = strings.Trim(strings.TrimSpace(remainder), "\"")
+			}
 		}
 	}
 
-	// 提取 impact（影响范围）
+	// 提取 impact（影响范围）- 支持多行 YAML
 	if idx := strings.Index(infoBlock, "impact:"); idx > 0 {
-		endIdx := strings.Index(infoBlock[idx:], "\n")
-		if endIdx > 0 {
-			impactLine := strings.TrimSpace(infoBlock[idx+7 : idx+endIdx])
-			template.Impact = strings.Trim(strings.TrimSpace(impactLine), "\"")
+		lineStart := idx + 7
+		remainder := infoBlock[lineStart:]
+		remainder = strings.TrimLeft(remainder, " \t\n\r")
+
+		// 检查是否有多行标记（| 或 |-）
+		if strings.HasPrefix(remainder, "|") {
+			// 多行格式，读取所有缩进的行
+			pipeIdx := strings.Index(remainder, "\n")
+			if pipeIdx >= 0 {
+				contentAfterPipe := remainder[pipeIdx+1:]
+				lines := strings.Split(contentAfterPipe, "\n")
+				var impactLines []string
+				for _, line := range lines {
+					trimmed := strings.TrimSpace(line)
+					if trimmed == "" {
+						continue
+					}
+					// 遇到下一个字段就停止（2 空格开头，且包含 ":" 且不是内容行）
+					if strings.HasPrefix(line, "  ") && !strings.HasPrefix(line, "    ") {
+						// 检查是否是新的字段定义（key: 或 key: |）
+						if strings.Contains(trimmed, ":") {
+							// 这是一个新字段，停止读取
+							break
+						}
+					}
+					// 只添加有4+空格缩进的内容行
+					if strings.HasPrefix(line, "    ") || strings.HasPrefix(line, "\t") {
+						impactLines = append(impactLines, trimmed)
+					}
+				}
+				template.Impact = strings.Join(impactLines, " ")
+			}
+		} else {
+			// 单行格式 - 读取到下一个换行符
+			endIdx := strings.Index(remainder, "\n")
+			if endIdx > 0 {
+				template.Impact = strings.Trim(strings.TrimSpace(remainder[:endIdx]), "\"")
+			} else {
+				template.Impact = strings.Trim(strings.TrimSpace(remainder), "\"")
+			}
+		}
+	}
+
+	// 提取 remediation（解决方案）- 支持多行 YAML
+	if idx := strings.Index(infoBlock, "remediation:"); idx > 0 {
+		lineStart := idx + 12
+		remainder := infoBlock[lineStart:]
+		remainder = strings.TrimLeft(remainder, " \t\n\r")
+
+		// 检查是否有多行标记（| 或 |-）
+		if strings.HasPrefix(remainder, "|") {
+			// 多行格式，读取所有缩进的行
+			pipeIdx := strings.Index(remainder, "\n")
+			if pipeIdx >= 0 {
+				contentAfterPipe := remainder[pipeIdx+1:]
+				lines := strings.Split(contentAfterPipe, "\n")
+				var remLines []string
+				for _, line := range lines {
+					trimmed := strings.TrimSpace(line)
+					if trimmed == "" {
+						continue
+					}
+					// 遇到下一个字段就停止（2 空格开头，且包含 ":" 且不是内容行）
+					if strings.HasPrefix(line, "  ") && !strings.HasPrefix(line, "    ") {
+						// 检查是否是新的字段定义（key: 或 key: |）
+						if strings.Contains(trimmed, ":") {
+							// 这是一个新字段，停止读取
+							break
+						}
+					}
+					// 只添加有4+空格缩进的内容行
+					if strings.HasPrefix(line, "    ") || strings.HasPrefix(line, "\t") {
+						remLines = append(remLines, trimmed)
+					}
+				}
+				template.Remediation = strings.Join(remLines, " ")
+			}
+		} else {
+			// 单行格式 - 读取到下一个换行符
+			endIdx := strings.Index(remainder, "\n")
+			if endIdx > 0 {
+				template.Remediation = strings.Trim(strings.TrimSpace(remainder[:endIdx]), "\"")
+			} else {
+				template.Remediation = strings.Trim(strings.TrimSpace(remainder), "\"")
+			}
 		}
 	}
 
@@ -2798,21 +2818,61 @@ func parseNucleiTemplate(content []byte, path, baseDir string) *NucleiTemplate {
 		}
 	}
 
-	// 提取 tags
+	// 提取 tags - 支持多行 YAML 列表格式
 	if idx := strings.Index(infoBlock, "tags:"); idx > 0 {
-		endIdx := strings.Index(infoBlock[idx:], "\n")
-		if endIdx > 0 {
-			tagsLine := strings.TrimSpace(infoBlock[idx+5 : idx+endIdx])
-			tagsLine = strings.Trim(tagsLine, `"`)
-			tagsLine = strings.Trim(tagsLine, "[")
-			tagsLine = strings.Trim(tagsLine, "]")
-			if tagsLine != "" {
-				template.Tags = strings.Split(tagsLine, ",")
-				for i := range template.Tags {
-					template.Tags[i] = strings.TrimSpace(template.Tags[i])
+		lineStart := idx + 5
+		remainder := infoBlock[lineStart:]
+
+		lines := strings.Split(remainder, "\n")
+		var tags []string
+
+		for i, line := range lines {
+			originalLine := line
+			line = strings.TrimSpace(line)
+			if line == "" {
+				continue
+			}
+
+			// 第一行可能是逗号分隔的 tag 列表
+			if i == 0 && !strings.HasPrefix(line, "-") && !strings.Contains(line, ":") {
+				tagList := strings.Split(line, ",")
+				for _, t := range tagList {
+					t = strings.TrimSpace(t)
+					if t != "" {
+						tags = append(tags, t)
+					}
+				}
+				// 第一行处理完就结束，因为逗号分隔的 tags 在同一行
+				template.Tags = tags
+				return template
+			}
+
+			// 处理列表项格式 "- tagname"
+			if strings.HasPrefix(line, "-") {
+				tag := strings.TrimSpace(strings.TrimPrefix(line, "-"))
+				tag = strings.Trim(tag, "\"'")
+				if tag != "" {
+					tags = append(tags, tag)
+				}
+			} else if strings.HasPrefix(originalLine, "    ") {
+				tag := strings.Trim(line, "\"'")
+				if tag != "" && !strings.Contains(tag, ":") {
+					tags = append(tags, tag)
 				}
 			}
+
+			// 遇到新的顶级字段就停止（检查是否有冒号且不是内容行）
+			trimmed := strings.TrimSpace(originalLine)
+			if trimmed != "" && !strings.HasPrefix(originalLine, " ") && !strings.HasPrefix(originalLine, "\t") {
+				// 这是新的顶级字段，停止
+				break
+			}
+			// 检查是否是字段定义（2空格开头且包含冒号）
+			if strings.HasPrefix(originalLine, "  ") && !strings.HasPrefix(originalLine, "    ") && strings.Contains(trimmed, ":") {
+				break
+			}
 		}
+		template.Tags = tags
 	}
 
 	// 如果没有 name，使用文件名
@@ -3112,7 +3172,7 @@ func (a *App) GetNucleiTemplatesPaginatedV2(filter TemplateFilter) (*PaginatedTe
 				return
 			}
 
-			template := parseNucleiTemplateQuick(content, fi.path, templatesDir, fi.category, fi.id)
+			template := parseNucleiTemplate(content, fi.path, templatesDir)
 			if template != nil {
 				// 应用第二层过滤：基于内容的过滤（严重程度、作者）
 				if filter.Severity != "" && !strings.EqualFold(template.Severity, filter.Severity) {
