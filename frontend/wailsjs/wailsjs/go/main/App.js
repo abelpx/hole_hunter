@@ -86,6 +86,10 @@ export function GetAllNucleiTemplates() {
   return window['go']['main']['App']['GetAllNucleiTemplates']();
 }
 
+export function GetNucleiTemplatesPaginated(arg1, arg2) {
+  return window['go']['main']['App']['GetNucleiTemplatesPaginated'](arg1, arg2);
+}
+
 export function GetAllPortScanTasks() {
   return window['go']['main']['App']['GetAllPortScanTasks']();
 }

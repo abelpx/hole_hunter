@@ -253,6 +253,11 @@ export namespace main {
 	    category: string;
 	    tags: string[];
 	    enabled: boolean;
+	    description?: string;
+	    impact?: string;
+	    remediation?: string;
+	    reference?: string[];
+	    metadata?: Record<string, string>;
 	
 	    static createFrom(source: any = {}) {
 	        return new NucleiTemplate(source);
@@ -268,6 +273,25 @@ export namespace main {
 	        this.category = source["category"];
 	        this.tags = source["tags"];
 	        this.enabled = source["enabled"];
+	        this.description = source["description"];
+	        this.impact = source["impact"];
+	        this.remediation = source["remediation"];
+	        this.reference = source["reference"];
+	        this.metadata = source["metadata"];
+	    }
+	}
+	export class PaginatedTemplatesResult {
+	    templates: NucleiTemplate[];
+	    total: number;
+
+	    static createFrom(source: any = {}) {
+	        return new PaginatedTemplatesResult(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.templates = source["templates"];
+	        this.total = source["total"];
 	    }
 	}
 	export class PortScanResult {

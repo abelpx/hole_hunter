@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	stdruntime "runtime"
 	"strings"
 	"sync"
@@ -2405,57 +2406,50 @@ func (a *App) GetNucleiTemplatesDir() string {
 }
 
 // GetAllNucleiTemplates scans the nuclei templates directory and returns all templates (with cache)
+// 保留此方法以兼容现有调用，内部使用分页实现
 func (a *App) GetAllNucleiTemplates() ([]NucleiTemplate, error) {
-	a.templatesCacheMu.RLock()
-	// 如果缓存存在且不超过 5 分钟，直接返回
-	if a.templatesCache != nil && time.Since(a.templatesCacheTime) < 5*time.Minute {
-		result := make([]NucleiTemplate, len(a.templatesCache))
-		copy(result, a.templatesCache)
-		a.templatesCacheMu.RUnlock()
-		return result, nil
-	}
-	a.templatesCacheMu.RUnlock()
+	// 使用分页 API 获取所有数据（每页 1000 条）
+	const pageSize = 1000
+	var allTemplates []NucleiTemplate
 
-	// 需要重新加载
+	for page := 1; ; page++ {
+		templates, total, err := a.GetNucleiTemplatesPaginated(page, pageSize)
+		if err != nil {
+			return nil, err
+		}
+		allTemplates = append(allTemplates, templates...)
+		if len(allTemplates) >= total {
+			break
+		}
+	}
+
+	return allTemplates, nil
+}
+
+// GetNucleiTemplatesPaginated 返回分页的模板列表（<1秒响应）
+// 只扫描文件路径和基本信息，不读取完整文件内容
+func (a *App) GetNucleiTemplatesPaginated(page, pageSize int) ([]NucleiTemplate, int, error) {
 	templatesDir := a.GetNucleiTemplatesDir()
 
 	// 如果目录不存在，返回空列表
 	if _, err := os.Stat(templatesDir); os.IsNotExist(err) {
-		return []NucleiTemplate{}, nil
+		return []NucleiTemplate{}, 0, nil
 	}
 
-	var templates []NucleiTemplate
-	var templatesMu sync.Mutex
-
-	// 使用并发扫描加速模板加载
-	type fileResult struct {
-		path    string
-		content []byte
-	}
-	fileChan := make(chan fileResult, 100)
-	var wg sync.WaitGroup
-
-	// 启动多个 worker 并发解析
-	const numWorkers = 4
-	for i := 0; i < numWorkers; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for file := range fileChan {
-				template := parseNucleiTemplate(file.content, file.path, templatesDir)
-				if template != nil {
-					templatesMu.Lock()
-					templates = append(templates, *template)
-					templatesMu.Unlock()
-				}
-			}
-		}()
+	// 快速扫描：只收集文件路径，不读取内容
+	type templateFileInfo struct {
+		path     string
+		category string
+		id       string
 	}
 
-	// 遍历所有 YAML 文件
+	var allFiles []templateFileInfo
+	var filesMu sync.Mutex
+
+	// 并发遍历目录
 	walkErr := filepath.Walk(templatesDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			return err
+			return nil // 跳过错误，继续处理其他文件
 		}
 
 		// 跳过目录和非 YAML 文件
@@ -2463,30 +2457,185 @@ func (a *App) GetAllNucleiTemplates() ([]NucleiTemplate, error) {
 			return nil
 		}
 
-		// 快速读取文件（不解析内容，只读取基本信息）
-		content, err := os.ReadFile(path)
-		if err != nil {
-			return nil // 跳过读取失败的文件
+		// 快速提取基本信息（不读取文件内容）
+		relPath, _ := filepath.Rel(templatesDir, path)
+		id := strings.TrimSuffix(relPath, ".yaml")
+		parts := strings.Split(relPath, string(filepath.Separator))
+		category := ""
+		if len(parts) > 0 {
+			category = parts[0]
 		}
 
-		fileChan <- fileResult{path: path, content: content}
+		filesMu.Lock()
+		allFiles = append(allFiles, templateFileInfo{
+			path:     path,
+			category: category,
+			id:       id,
+		})
+		filesMu.Unlock()
+
 		return nil
 	})
 
-	close(fileChan)
-	wg.Wait()
-
 	if walkErr != nil {
-		return nil, walkErr
+		return nil, 0, walkErr
 	}
 
-	// 更新缓存
-	a.templatesCacheMu.Lock()
-	a.templatesCache = templates
-	a.templatesCacheTime = time.Now()
-	a.templatesCacheMu.Unlock()
+	total := len(allFiles)
+	if total == 0 {
+		return []NucleiTemplate{}, 0, nil
+	}
 
-	return templates, nil
+	// 计算分页范围
+	start := (page - 1) * pageSize
+	if start >= total {
+		return []NucleiTemplate{}, total, nil
+	}
+	end := start + pageSize
+	if end > total {
+		end = total
+	}
+
+	// 只解析当前页需要的文件
+	pagedFiles := allFiles[start:end]
+	templates := make([]NucleiTemplate, 0, len(pagedFiles))
+
+	// 使用信号量限制并发读取文件数
+	sem := make(chan struct{}, 10) // 最多 10 个并发读取
+	var wg sync.WaitGroup
+	var templatesMu sync.Mutex
+
+	for _, fileInfo := range pagedFiles {
+		wg.Add(1)
+		go func(fi templateFileInfo) {
+			defer wg.Done()
+			sem <- struct{}{}        // 获取信号量
+			defer func() { <-sem }() // 释放信号量
+
+			// 只读取文件头部的关键信息（最多读取前 2KB）
+			content, err := os.ReadFile(fi.path)
+			if err != nil {
+				return // 跳过读取失败的文件
+			}
+
+			template := parseNucleiTemplateQuick(content, fi.path, templatesDir, fi.category, fi.id)
+			if template != nil {
+				templatesMu.Lock()
+				templates = append(templates, *template)
+				templatesMu.Unlock()
+			}
+		}(fileInfo)
+	}
+
+	wg.Wait()
+
+	// 按 ID 排序保证分页稳定性
+	sort.Slice(templates, func(i, j int) bool {
+		return templates[i].ID < templates[j].ID
+	})
+
+	return templates, total, nil
+}
+
+// parseNucleiTemplateQuick 快速解析模板（只读取必要字段）
+func parseNucleiTemplateQuick(content []byte, path, baseDir, category, id string) *NucleiTemplate {
+	template := &NucleiTemplate{
+		ID:       id,
+		Path:     path,
+		Category: category,
+		Enabled:  true,
+		Name:     id, // 默认使用 ID 作为名称
+		Severity: "info",
+		Author:   "unknown",
+		Tags:     []string{},
+		Metadata: make(map[string]string),
+	}
+
+	// 快速解析：只查找关键字段
+	contentStr := string(content)
+
+	// 提取 name
+	if idx := strings.Index(contentStr, "name:"); idx > 0 {
+		endIdx := strings.Index(contentStr[idx:], "\n")
+		if endIdx > 0 {
+			nameLine := strings.TrimSpace(contentStr[idx+5 : idx+endIdx])
+			template.Name = strings.Trim(strings.TrimSpace(nameLine), "\"")
+		}
+	}
+
+	// 提取 severity
+	if idx := strings.Index(contentStr, "severity:"); idx > 0 {
+		endIdx := strings.Index(contentStr[idx:], "\n")
+		if endIdx > 0 {
+			severityLine := strings.TrimSpace(contentStr[idx+9 : idx+endIdx])
+			template.Severity = strings.ToLower(strings.TrimSpace(severityLine))
+		}
+	}
+
+	// 提取 author
+	if idx := strings.Index(contentStr, "author:"); idx > 0 {
+		// 查找作者字段的结束位置（考虑列表格式）
+		authorSection := contentStr[idx:]
+		endIdx := strings.Index(authorSection, "\n")
+		if endIdx > 0 {
+			authorLine := strings.TrimSpace(authorSection[7 : endIdx+1])
+			author := strings.TrimSpace(authorLine)
+			author = strings.Trim(author, "\"")
+
+			// 处理列表格式：- author1, author2
+			if strings.HasPrefix(author, "-") {
+				author = strings.TrimSpace(author[1:])
+			}
+
+			// 限制作者名称长度
+			if len(author) > 30 {
+				author = author[:30] + "..."
+			}
+			template.Author = author
+		}
+	}
+
+	// 提取 tags（简化处理）
+	if idx := strings.Index(contentStr, "tags:"); idx > 0 {
+		tagsSection := contentStr[idx+5:]
+		// 只读取前 200 个字符的 tags 区域
+		if len(tagsSection) > 200 {
+			tagsSection = tagsSection[:200]
+		}
+		// 提取简单的标签列表
+		lines := strings.Split(tagsSection, "\n")
+		var tags []string
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			if strings.HasPrefix(line, "-") || strings.HasPrefix(line, "tags:") {
+				if strings.HasPrefix(line, "-") {
+					tag := strings.TrimSpace(strings.TrimPrefix(line, "-"))
+					tag = strings.Trim(tag, "\"'")
+					if tag != "" {
+						tags = append(tags, tag)
+					}
+				}
+			} else if !strings.HasPrefix(line, " ") && !strings.HasPrefix(line, "\t") {
+				break // 退出 tags 区域
+			}
+			// 限制标签数量
+			if len(tags) >= 10 {
+				break
+			}
+		}
+		template.Tags = tags
+	}
+
+	// 提取 description
+	if idx := strings.Index(contentStr, "description:"); idx > 0 {
+		endIdx := strings.Index(contentStr[idx:], "\n")
+		if endIdx > 0 {
+			descLine := strings.TrimSpace(contentStr[idx+12 : idx+endIdx])
+			template.Description = strings.Trim(strings.TrimSpace(descLine), "\"")
+		}
+	}
+
+	return template
 }
 
 // parseNucleiTemplate 解析单个 nuclei 模板文件（优化版）

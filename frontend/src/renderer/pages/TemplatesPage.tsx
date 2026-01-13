@@ -3,7 +3,7 @@
  * 管理 Nuclei 扫描模板，支持分组管理和启用/禁用
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Layers,
   Search,
@@ -22,10 +22,12 @@ import {
   AlertCircle,
   Power,
   PowerOff,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { Button, Input, Select, Modal, Badge } from '../components/ui';
 import clsx from 'clsx';
-import { GetAllNucleiTemplates, GetNucleiTemplateContent } from '@wailsjs/go/main/App';
+import { GetNucleiTemplatesPaginated, GetNucleiTemplateContent } from '@wailsjs/go/main/App';
 
 interface NucleiTemplate {
   id: string;
@@ -65,9 +67,14 @@ const templateCategoryDefs: Omit<TemplateCategory, 'count'>[] = [
 ];
 
 export const TemplatesPage: React.FC = () => {
+  // 分页状态
   const [templates, setTemplates] = useState<NucleiTemplate[]>([]);
   const [filteredTemplates, setFilteredTemplates] = useState<NucleiTemplate[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [total, setTotal] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(50); // 每页50条
+  const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedTemplate, setSelectedTemplate] = useState<NucleiTemplate | null>(null);
   const [templateContent, setTemplateContent] = useState<string>('');
@@ -84,6 +91,11 @@ export const TemplatesPage: React.FC = () => {
     loadTemplates();
     loadCategoryPreferences();
   }, []);
+
+  // 当分页或过滤条件变化时重新加载
+  useEffect(() => {
+    loadTemplates();
+  }, [currentPage, pageSize, selectedCategory]);
 
   // 加载分类偏好设置
   const loadCategoryPreferences = () => {
@@ -135,12 +147,18 @@ export const TemplatesPage: React.FC = () => {
     filterTemplates();
   }, [templates, searchQuery, severityFilter, authorFilter, selectedCategory]);
 
-  const loadTemplates = async () => {
+  const loadTemplates = useCallback(async () => {
     try {
-      setLoading(true);
-      const data = await GetAllNucleiTemplates();
+      if (initialLoading) {
+        setInitialLoading(true);
+      } else {
+        setLoading(true);
+      }
 
-      // 将后端数据转换为前端格式（保留所有字段）
+      // 使用分页 API
+      const { templates: data, total: totalCount } = await GetNucleiTemplatesPaginated(currentPage, pageSize);
+
+      // 将后端数据转换为前端格式
       const transformedTemplates: NucleiTemplate[] = data.map(t => ({
         id: t.id,
         name: t.name || t.id,
@@ -158,12 +176,14 @@ export const TemplatesPage: React.FC = () => {
       }));
 
       setTemplates(transformedTemplates);
+      setTotal(totalCount);
     } catch (error) {
       console.error('Failed to load templates:', error);
     } finally {
       setLoading(false);
+      setInitialLoading(false);
     }
-  };
+  }, [currentPage, pageSize, initialLoading]);
 
   const loadTemplateContent = async (path: string) => {
     try {
@@ -292,7 +312,11 @@ export const TemplatesPage: React.FC = () => {
             type="secondary"
             size="sm"
             icon={<RefreshCw size={14} />}
-            onClick={loadTemplates}
+            onClick={() => {
+              setCurrentPage(1);
+              loadTemplates();
+            }}
+            disabled={loading}
           >
             刷新
           </Button>
@@ -315,7 +339,10 @@ export const TemplatesPage: React.FC = () => {
               )}
             >
               <button
-                onClick={() => setSelectedCategory(category.id)}
+                onClick={() => {
+                  setSelectedCategory(category.id);
+                  setCurrentPage(1);
+                }}
                 className="w-full"
               >
                 <div className="flex items-center justify-between mb-2">
@@ -432,8 +459,11 @@ export const TemplatesPage: React.FC = () => {
 
       {/* 模板列表 */}
       <div className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden">
-        {loading ? (
-          <div className="p-8 text-center text-slate-400">加载中...</div>
+        {initialLoading ? (
+          <div className="p-8 text-center text-slate-400">
+            <RefreshCw size={24} className="mx-auto mb-2 animate-spin" />
+            加载中...
+          </div>
         ) : filteredTemplates.length === 0 ? (
           <div className="p-8 text-center">
             <FileCode size={48} className="mx-auto text-slate-600 mb-4" />
@@ -444,120 +474,182 @@ export const TemplatesPage: React.FC = () => {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-slate-900/50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
-                    模板名称
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
-                    分类
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider w-24">
-                    作者
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
-                    严重程度
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
-                    影响范围
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
-                    解决方案
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
-                    标签
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
-                    状态
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-slate-400 uppercase tracking-wider">
-                    操作
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-700">
-                {filteredTemplates.map((template) => (
-                  <tr key={template.id} className="hover:bg-slate-700/30 transition-colors">
-                    <td className="px-4 py-3">
-                      <div>
-                        <div className="text-sm font-medium text-slate-200">
-                          {template.name}
-                        </div>
-                        <div className="text-xs text-slate-500 truncate max-w-[200px]">{template.id}</div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-slate-400">{template.category}</td>
-                    <td className="px-4 py-3 text-sm text-slate-400 truncate max-w-[120px]" title={template.author}>
-                      {template.author}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={clsx(
-                          'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border',
-                          getSeverityColor(template.severity)
-                        )}
-                      >
-                        {getSeverityLabel(template.severity)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-slate-400 max-w-[200px]" title={template.impact}>
-                      <div className="truncate">{template.impact || '-'}</div>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-slate-400 max-w-[200px]" title={template.remediation}>
-                      <div className="truncate">{template.remediation || '-'}</div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap gap-1">
-                        {template.tags.slice(0, 2).map((tag) => (
-                          <span
-                            key={tag}
-                            className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-700 text-slate-300"
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                        {template.tags.length > 2 && (
-                          <span className="text-xs text-slate-500">
-                            +{template.tags.length - 2}
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      {template.enabled ? (
-                        <div className="flex items-center text-green-400 text-sm">
-                          <CheckCircle size={12} className="mr-1" />
-                          已启用
-                        </div>
-                      ) : (
-                        <div className="flex items-center text-slate-500 text-sm">
-                          <XCircle size={12} className="mr-1" />
-                          未启用
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Button
-                          type="ghost"
-                          size="sm"
-                          icon={<Eye size={12} />}
-                          onClick={() => {
-                            setSelectedTemplate(template);
-                            loadTemplateContent(template.path);
-                          }}
-                        >
-                          查看
-                        </Button>
-                      </div>
-                    </td>
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-slate-900/50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                      模板名称
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                      分类
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider w-24">
+                      作者
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                      严重程度
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                      影响范围
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                      解决方案
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                      标签
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                      状态
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-slate-400 uppercase tracking-wider">
+                      操作
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-slate-700">
+                  {filteredTemplates.map((template) => (
+                    <tr key={template.id} className="hover:bg-slate-700/30 transition-colors">
+                      <td className="px-4 py-3">
+                        <div>
+                          <div className="text-sm font-medium text-slate-200">
+                            {template.name}
+                          </div>
+                          <div className="text-xs text-slate-500 truncate max-w-[200px]">{template.id}</div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-slate-400">{template.category}</td>
+                      <td className="px-4 py-3 text-sm text-slate-400 truncate max-w-[120px]" title={template.author}>
+                        {template.author}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={clsx(
+                            'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border',
+                            getSeverityColor(template.severity)
+                          )}
+                        >
+                          {getSeverityLabel(template.severity)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-slate-400 max-w-[200px]" title={template.impact}>
+                        <div className="truncate">{template.impact || '-'}</div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-slate-400 max-w-[200px]" title={template.remediation}>
+                        <div className="truncate">{template.remediation || '-'}</div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap gap-1">
+                          {template.tags.slice(0, 2).map((tag) => (
+                            <span
+                              key={tag}
+                              className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-700 text-slate-300"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                          {template.tags.length > 2 && (
+                            <span className="text-xs text-slate-500">
+                              +{template.tags.length - 2}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        {template.enabled ? (
+                          <div className="flex items-center text-green-400 text-sm">
+                            <CheckCircle size={12} className="mr-1" />
+                            已启用
+                          </div>
+                        ) : (
+                          <div className="flex items-center text-slate-500 text-sm">
+                            <XCircle size={12} className="mr-1" />
+                            未启用
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            type="ghost"
+                            size="sm"
+                            icon={<Eye size={12} />}
+                            onClick={() => {
+                              setSelectedTemplate(template);
+                              loadTemplateContent(template.path);
+                            }}
+                          >
+                            查看
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* 分页控件 */}
+            {total > 0 && (
+              <div className="flex items-center justify-between px-4 py-3 bg-slate-900/30 border-t border-slate-700">
+                <div className="text-sm text-slate-400">
+                  显示第 {Math.min((currentPage - 1) * pageSize + 1, total)} - {Math.min(currentPage * pageSize, total)} 条，共 {total} 条
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="ghost"
+                    size="sm"
+                    icon={<ChevronLeft size={16} />}
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1 || loading}
+                  >
+                    上一页
+                  </Button>
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: Math.min(5, Math.ceil(total / pageSize)) }, (_, i) => {
+                      let pageNum;
+                      const totalPages = Math.ceil(total / pageSize);
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (currentPage <= 3) {
+                        pageNum = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = currentPage - 2 + i;
+                      }
+
+                      return (
+                        <button
+                          key={pageNum}
+                          onClick={() => setCurrentPage(pageNum)}
+                          className={clsx(
+                            'min-w-[32px] h-8 px-2 rounded-md text-sm font-medium transition-colors',
+                            currentPage === pageNum
+                              ? 'bg-sky-600 text-white'
+                              : 'text-slate-400 hover:bg-slate-700'
+                          )}
+                          disabled={loading}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <Button
+                    type="ghost"
+                    size="sm"
+                    icon={<ChevronRight size={16} />}
+                    onClick={() => setCurrentPage(p => p + 1)}
+                    disabled={currentPage * pageSize >= total || loading}
+                  >
+                    下一页
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
 
