@@ -1,2 +1,29 @@
 #!/bin/bash
+# 先运行 commitlint 检查基本格式
 npx commitlint --edit $1
+
+# 检查是否包含 Claude/Anthropic 署名信息
+COMMIT_MSG_FILE=$1
+COMMIT_MSG=$(cat "$COMMIT_MSG_FILE")
+
+# 转换为小写进行不区分大小写的检查
+COMMIT_MSG_LOWER=$(echo "$COMMIT_MSG" | tr '[:upper:]' '[:lower:]')
+
+# 禁止的模式
+if echo "$COMMIT_MSG_LOWER" | grep -q "co-authored-by:.*claude"; then
+    echo "❌ 错误：提交消息中不允许包含 Claude/Anthropic 署名信息"
+    echo "请移除 'Co-Authored-By: Claude' 相关行后重试"
+    exit 1
+fi
+
+if echo "$COMMIT_MSG_LOWER" | grep -q "co-authored-by:.*@.*anthropic"; then
+    echo "❌ 错误：提交消息中不允许包含 Claude/Anthropic 署名信息"
+    echo "请移除包含 '@anthropic.com' 的 Co-Authored-By 行后重试"
+    exit 1
+fi
+
+if echo "$COMMIT_MSG_LOWER" | grep -q "claude.*<.*noreply@anthropic"; then
+    echo "❌ 错误：提交消息中不允许包含 Claude/Anthropic 署名信息"
+    echo "请移除 Claude 相关的署名行后重试"
+    exit 1
+fi
