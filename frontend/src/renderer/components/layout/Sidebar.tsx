@@ -18,6 +18,7 @@ import {
   HelpCircle,
   RotateCcw,
   Zap,
+  Code,
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -48,6 +49,7 @@ const defaultMenuItems: MenuItem[] = [
   { id: 'brute', label: '暴力破解', icon: <Zap size={18} /> },
   { id: 'reports', label: '扫描报告', icon: <FileText size={18} /> },
   { id: 'templates', label: '模板管理', icon: <Layers size={18} /> },
+  { id: 'custom-templates', label: '自定义 POC', icon: <Code size={18} /> },
   { id: 'tools', label: '工具箱', icon: <Wrench size={18} /> },
   { id: 'settings', label: '系统设置', icon: <Settings size={18} /> },
 ];

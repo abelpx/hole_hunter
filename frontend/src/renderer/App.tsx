@@ -10,6 +10,7 @@ import { BrutePage } from './pages/BrutePage';
 import { ReportsPage } from './pages/ReportsPage';
 import { ToolsPage } from './pages/ToolsPage';
 import { TemplatesPage } from './pages/TemplatesPage';
+import { CustomTemplatesPage } from './pages/CustomTemplatesPage';
 import { Button, Input, Select, Modal, Badge, Tag } from './components/ui';
 import { Play, Plus, Trash2, Target as TargetIcon, Shield, Bell } from 'lucide-react';
 import { getService } from './services/WailsService';
@@ -30,6 +31,7 @@ function App() {
   const [showReportsPage, setShowReportsPage] = useState(false);
   const [showToolsPage, setShowToolsPage] = useState(false);
   const [showTemplatesPage, setShowTemplatesPage] = useState(false);
+  const [showCustomTemplatesPage, setShowCustomTemplatesPage] = useState(false);
 
   useEffect(() => {
     // 检查运行环境
@@ -97,6 +99,7 @@ function App() {
     setShowReportsPage(item === 'reports');
     setShowToolsPage(item === 'tools');
     setShowTemplatesPage(item === 'templates');
+    setShowCustomTemplatesPage(item === 'custom-templates');
   };
 
   return (
@@ -126,6 +129,8 @@ function App() {
         <ToolsPage />
       ) : showTemplatesPage ? (
         <TemplatesPage />
+      ) : showCustomTemplatesPage ? (
+        <CustomTemplatesPage />
       ) : (
         // 演示页面
         <div className="max-w-4xl mx-auto">

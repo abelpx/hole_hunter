@@ -34,3 +34,6 @@ export type { ScanChartProps, ScanChartData } from './ScanChart';
 
 export { RecentActivity } from './RecentActivity';
 export type { RecentActivityProps, ActivityItem } from './RecentActivity';
+
+export { YamlEditor } from './YamlEditor';
+export type { YamlEditorProps } from './YamlEditor';
