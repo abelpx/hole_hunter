@@ -265,18 +265,22 @@ export const TemplatesPage: React.FC = () => {
   const getTemplateCategories = (): TemplateCategory[] => {
     const categoryMap = new Map<string, number>();
 
-    // 统计每个分类的模板数量
+    // 统计每个分类的模板数量（注意：这里只统计当前页的分类统计）
+    // TODO: 如果需要准确的分类总数，需要在后端添加分类统计 API
     templates.forEach(t => {
       const topCategory = t.category.split('/')[0];
       categoryMap.set(topCategory, (categoryMap.get(topCategory) || 0) + 1);
     });
 
     return [
-      { id: 'all', name: '全部模板', count: templates.length, icon: <Layers size={16} /> },
+      // "全部模板"使用后端返回的总数量 total，而不是当前页的 templates.length
+      { id: 'all', name: '全部模板', count: total, icon: <Layers size={16} /> },
       ...templateCategoryDefs
         .filter(catDef => catDef.id !== 'all')
         .map(catDef => ({
           ...catDef,
+          // 注意：这里显示的是当前页该分类的数量，不是该分类的总数
+          // 实际应用中，分类统计应该从后端获取
           count: categoryMap.get(catDef.id) || 0,
         }))
         .filter(cat => cat.count > 0) // 只显示有模板的分类
