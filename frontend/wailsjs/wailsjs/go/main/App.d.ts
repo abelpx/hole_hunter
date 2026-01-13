@@ -80,7 +80,7 @@ export function GetNucleiTemplatesCategories():Promise<Record<string, any>>;
 
 export function GetNucleiTemplatesDir():Promise<string>;
 
-export function GetNucleiTemplatesPaginated(arg1:number,arg2:number):Promise<Array<main.NucleiTemplate>>;
+export function GetNucleiTemplatesPaginated(arg1:number,arg2:number):Promise<main.PaginatedTemplatesResult>;
 
 export function GetPortScanResults(arg1:number):Promise<Array<main.PortScanResult>>;
 

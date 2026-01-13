@@ -2387,6 +2387,12 @@ type NucleiTemplate struct {
 	Metadata    map[string]string `json:"metadata,omitempty"` // 其他元数据
 }
 
+// PaginatedTemplatesResult 分页查询结果
+type PaginatedTemplatesResult struct {
+	Templates []NucleiTemplate `json:"templates"`
+	Total     int              `json:"total"`
+}
+
 // GetNucleiTemplatesDir returns the nuclei templates directory
 func (a *App) GetNucleiTemplatesDir() string {
 	// 尝试从项目根目录获取（开发环境，git submodule）
@@ -2413,12 +2419,12 @@ func (a *App) GetAllNucleiTemplates() ([]NucleiTemplate, error) {
 	var allTemplates []NucleiTemplate
 
 	for page := 1; ; page++ {
-		templates, total, err := a.GetNucleiTemplatesPaginated(page, pageSize)
+		result, err := a.GetNucleiTemplatesPaginated(page, pageSize)
 		if err != nil {
 			return nil, err
 		}
-		allTemplates = append(allTemplates, templates...)
-		if len(allTemplates) >= total {
+		allTemplates = append(allTemplates, result.Templates...)
+		if len(allTemplates) >= result.Total {
 			break
 		}
 	}
@@ -2428,12 +2434,15 @@ func (a *App) GetAllNucleiTemplates() ([]NucleiTemplate, error) {
 
 // GetNucleiTemplatesPaginated 返回分页的模板列表（<1秒响应）
 // 只扫描文件路径和基本信息，不读取完整文件内容
-func (a *App) GetNucleiTemplatesPaginated(page, pageSize int) ([]NucleiTemplate, int, error) {
+func (a *App) GetNucleiTemplatesPaginated(page, pageSize int) (*PaginatedTemplatesResult, error) {
 	templatesDir := a.GetNucleiTemplatesDir()
 
 	// 如果目录不存在，返回空列表
 	if _, err := os.Stat(templatesDir); os.IsNotExist(err) {
-		return []NucleiTemplate{}, 0, nil
+		return &PaginatedTemplatesResult{
+			Templates: []NucleiTemplate{},
+			Total:     0,
+		}, nil
 	}
 
 	// 快速扫描：只收集文件路径，不读取内容
@@ -2478,18 +2487,24 @@ func (a *App) GetNucleiTemplatesPaginated(page, pageSize int) ([]NucleiTemplate,
 	})
 
 	if walkErr != nil {
-		return nil, 0, walkErr
+		return nil, walkErr
 	}
 
 	total := len(allFiles)
 	if total == 0 {
-		return []NucleiTemplate{}, 0, nil
+		return &PaginatedTemplatesResult{
+			Templates: []NucleiTemplate{},
+			Total:     0,
+		}, nil
 	}
 
 	// 计算分页范围
 	start := (page - 1) * pageSize
 	if start >= total {
-		return []NucleiTemplate{}, total, nil
+		return &PaginatedTemplatesResult{
+			Templates: []NucleiTemplate{},
+			Total:     total,
+		}, nil
 	}
 	end := start + pageSize
 	if end > total {
@@ -2534,7 +2549,10 @@ func (a *App) GetNucleiTemplatesPaginated(page, pageSize int) ([]NucleiTemplate,
 		return templates[i].ID < templates[j].ID
 	})
 
-	return templates, total, nil
+	return &PaginatedTemplatesResult{
+		Templates: templates,
+		Total:     total,
+	}, nil
 }
 
 // parseNucleiTemplateQuick 快速解析模板（只读取必要字段）
