@@ -280,6 +280,38 @@ export namespace main {
 	        this.metadata = source["metadata"];
 	    }
 	}
+	export class PaginatedTemplatesResult {
+	    templates: NucleiTemplate[];
+	    total: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new PaginatedTemplatesResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.templates = this.convertValues(source["templates"], NucleiTemplate);
+	        this.total = source["total"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class PortScanResult {
 	    id: number;
 	    task_id: number;
@@ -454,6 +486,60 @@ export namespace main {
 	        this.cve = source["cve"];
 	        this.cvss = source["cvss"];
 	        this.created_at = source["created_at"];
+	    }
+	}
+	export class TemplateFilter {
+	    page: number;
+	    pageSize: number;
+	    category: string;
+	    search: string;
+	    severity: string;
+	    author: string;
+
+	    static createFrom(source: any = {}) {
+	        return new TemplateFilter(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.page = source["page"];
+	        this.pageSize = source["pageSize"];
+	        this.category = source["category"];
+	        this.search = source["search"];
+	        this.severity = source["severity"];
+	        this.author = source["author"];
+	    }
+	}
+	export class CategoryStats {
+	    category: string;
+	    count: number;
+
+	    static createFrom(source: any = {}) {
+	        return new CategoryStats(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.category = source["category"];
+	        this.count = source["count"];
+	    }
+	}
+	export class PaginatedTemplatesResult {
+	    templates: NucleiTemplate[];
+	    total: number;
+	    categoryStats: CategoryStats[];
+	    filteredTotal: number;
+
+	    static createFrom(source: any = {}) {
+	        return new PaginatedTemplatesResult(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.templates = source["templates"];
+	        this.total = source["total"];
+	        this.categoryStats = source["categoryStats"];
+	        this.filteredTotal = source["filteredTotal"];
 	    }
 	}
 

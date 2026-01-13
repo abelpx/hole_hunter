@@ -121,3 +121,17 @@ export function UpdateTarget(arg1:number,arg2:string,arg3:string,arg4:string,arg
 export function UpdateVulnerability(arg1:number,arg2:boolean,arg3:string):Promise<void>;
 
 export function ValidateCustomTemplate(arg1:string):Promise<Record<string, any>>;
+
+export function GetNucleiTemplatesPaginatedV2(arg1:main.TemplateFilter):Promise<main.PaginatedTemplatesResult>;
+
+export function SetTemplateEnabled(arg1:string,arg2:boolean):Promise<void>;
+
+export function GetTemplateEnabled(arg1:string):Promise<boolean>;
+
+export function SetCategoryEnabled(arg1:string,arg2:boolean):Promise<void>;
+
+export function ImportTemplate(arg1:string,arg2:string):Promise<string>;
+
+export function DeleteTemplate(arg1:string):Promise<void>;
+
+export function ValidateTemplate(arg1:string):Promise<Record<string, any>>;

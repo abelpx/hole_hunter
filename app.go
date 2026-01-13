@@ -2387,10 +2387,28 @@ type NucleiTemplate struct {
 	Metadata    map[string]string `json:"metadata,omitempty"` // 其他元数据
 }
 
-// PaginatedTemplatesResult 分页查询结果
+// TemplateFilter 模板过滤参数
+type TemplateFilter struct {
+	Page      int    `json:"page"`
+	PageSize  int    `json:"pageSize"`
+	Category  string `json:"category"`   // 分类过滤 (空字符串表示所有)
+	Search    string `json:"search"`     // 搜索关键词
+	Severity  string `json:"severity"`   // 严重程度过滤
+	Author    string `json:"author"`     // 作者过滤
+}
+
+// CategoryStats 分类统计信息
+type CategoryStats struct {
+	Category string `json:"category"`
+	Count    int    `json:"count"`
+}
+
+// PaginatedTemplatesResult 分页查询结果（包含统计信息）
 type PaginatedTemplatesResult struct {
-	Templates []NucleiTemplate `json:"templates"`
-	Total     int              `json:"total"`
+	Templates      []NucleiTemplate `json:"templates"`
+	Total          int              `json:"total"`
+	CategoryStats  []CategoryStats  `json:"categoryStats"` // 各分类的模板总数
+	FilteredTotal  int              `json:"filteredTotal"` // 应用过滤条件后的总数（用于分页计算）
 }
 
 // GetNucleiTemplatesDir returns the nuclei templates directory
@@ -2893,4 +2911,467 @@ func (a *App) SearchNucleiTemplates(query string) ([]NucleiTemplate, error) {
 	return result, nil
 }
 
+// GetNucleiTemplatesPaginatedV2 支持过滤的分页查询（推荐使用）
+// 支持按分类、搜索关键词、严重程度、作者过滤，并返回准确的分类统计
+func (a *App) GetNucleiTemplatesPaginatedV2(filter TemplateFilter) (*PaginatedTemplatesResult, error) {
+	templatesDir := a.GetNucleiTemplatesDir()
+
+	// 如果目录不存在，返回空列表
+	if _, err := os.Stat(templatesDir); os.IsNotExist(err) {
+		return &PaginatedTemplatesResult{
+			Templates:      []NucleiTemplate{},
+			Total:          0,
+			CategoryStats:  []CategoryStats{},
+			FilteredTotal:  0,
+		}, nil
+	}
+
+	// 快速扫描：收集所有模板文件的基本信息
+	type templateFileInfo struct {
+		path     string
+		category string
+		id       string
+	}
+
+	var allFiles []templateFileInfo
+	var filesMu sync.Mutex
+	categoryMap := make(map[string]int) // 全局分类统计
+
+	// 并发遍历目录
+	walkErr := filepath.Walk(templatesDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil // 跳过错误，继续处理其他文件
+		}
+
+		// 跳过目录和非 YAML 文件
+		if info.IsDir() || !strings.HasSuffix(path, ".yaml") {
+			return nil
+		}
+
+		// 快速提取基本信息
+		relPath, _ := filepath.Rel(templatesDir, path)
+		id := strings.TrimSuffix(relPath, ".yaml")
+		parts := strings.Split(relPath, string(filepath.Separator))
+		category := "other"
+		if len(parts) > 0 && parts[0] != "" {
+			category = parts[0]
+		}
+
+		// 统计全局分类数量
+		filesMu.Lock()
+		categoryMap[category]++
+		allFiles = append(allFiles, templateFileInfo{
+			path:     path,
+			category: category,
+			id:       id,
+		})
+		filesMu.Unlock()
+
+		return nil
+	})
+
+	if walkErr != nil {
+		return nil, walkErr
+	}
+
+	total := len(allFiles)
+	if total == 0 {
+		return &PaginatedTemplatesResult{
+			Templates:      []NucleiTemplate{},
+			Total:          0,
+			CategoryStats:  []CategoryStats{},
+			FilteredTotal:  0,
+		}, nil
+	}
+
+	// 构建分类统计列表
+	var categoryStats []CategoryStats
+	for cat, count := range categoryMap {
+		categoryStats = append(categoryStats, CategoryStats{
+			Category: cat,
+			Count:    count,
+		})
+	}
+	sort.Slice(categoryStats, func(i, j int) bool {
+		return categoryStats[i].Count > categoryStats[j].Count // 按数量降序
+	})
+
+	// 应用过滤条件（第一层：基于路径和分类的快速过滤）
+	var filteredFiles []templateFileInfo
+	lowerSearch := strings.ToLower(filter.Search)
+	lowerCategory := strings.ToLower(filter.Category)
+
+	for _, file := range allFiles {
+		// 分类过滤
+		if lowerCategory != "" && lowerCategory != "all" {
+			if !strings.Contains(strings.ToLower(file.category), lowerCategory) {
+				continue
+			}
+		}
+
+		// 搜索关键词过滤（先基于 ID 快速匹配）
+		if lowerSearch != "" {
+			if !strings.Contains(strings.ToLower(file.id), lowerSearch) {
+				// ID 不匹配，需要读取文件内容进行完整匹配
+				// 为了性能，标记这个文件需要详细检查
+				filteredFiles = append(filteredFiles, file)
+				continue
+			}
+		}
+
+		filteredFiles = append(filteredFiles, file)
+	}
+
+	// 如果有搜索关键词，需要读取文件内容进行详细过滤
+	if lowerSearch != "" && filter.Severity == "" && filter.Author == "" {
+		// 只需要读取标记为需要检查的文件
+		var detailedFiles []templateFileInfo
+		for _, file := range filteredFiles {
+			// ID 已经匹配，直接加入
+			if strings.Contains(strings.ToLower(file.id), lowerSearch) {
+				detailedFiles = append(detailedFiles, file)
+				continue
+			}
+
+			// 需要读取文件内容
+			content, err := os.ReadFile(file.path)
+			if err != nil {
+				continue
+			}
+			contentStr := string(content)
+
+			// 检查名称、标签
+			matches := false
+			if idx := strings.Index(contentStr, "name:"); idx > 0 {
+				endIdx := strings.Index(contentStr[idx:], "\n")
+				if endIdx > 0 {
+					name := strings.ToLower(strings.TrimSpace(contentStr[idx+5 : idx+endIdx]))
+					if strings.Contains(name, lowerSearch) {
+						matches = true
+					}
+				}
+			}
+
+			// 检查标签
+			if !matches {
+				tagsStart := strings.Index(contentStr, "tags:")
+				if tagsStart > 0 {
+					tagsEnd := strings.Index(contentStr[tagsStart:], "\n\n")
+					if tagsEnd < 0 {
+						tagsEnd = len(contentStr)
+					}
+					tagsSection := contentStr[tagsStart : tagsStart+tagsEnd]
+					if strings.Contains(strings.ToLower(tagsSection), lowerSearch) {
+						matches = true
+					}
+				}
+			}
+
+			if matches {
+				detailedFiles = append(detailedFiles, file)
+			}
+		}
+		filteredFiles = detailedFiles
+	}
+
+	filteredTotal := len(filteredFiles)
+
+	// 计算分页范围
+	start := (filter.Page - 1) * filter.PageSize
+	if start >= filteredTotal {
+		return &PaginatedTemplatesResult{
+			Templates:      []NucleiTemplate{},
+			Total:          total,
+			CategoryStats:  categoryStats,
+			FilteredTotal:  filteredTotal,
+		}, nil
+	}
+	end := start + filter.PageSize
+	if end > filteredTotal {
+		end = filteredTotal
+	}
+
+	// 只解析当前页需要的文件
+	pagedFiles := filteredFiles[start:end]
+	templates := make([]NucleiTemplate, 0, len(pagedFiles))
+
+	// 使用信号量限制并发读取文件数
+	sem := make(chan struct{}, 10) // 最多 10 个并发读取
+	var wg sync.WaitGroup
+	var templatesMu sync.Mutex
+
+	for _, fileInfo := range pagedFiles {
+		wg.Add(1)
+		go func(fi templateFileInfo) {
+			defer wg.Done()
+			sem <- struct{}{}        // 获取信号量
+			defer func() { <-sem }() // 释放信号量
+
+			content, err := os.ReadFile(fi.path)
+			if err != nil {
+				return
+			}
+
+			template := parseNucleiTemplateQuick(content, fi.path, templatesDir, fi.category, fi.id)
+			if template != nil {
+				// 应用第二层过滤：基于内容的过滤（严重程度、作者）
+				if filter.Severity != "" && !strings.EqualFold(template.Severity, filter.Severity) {
+					return
+				}
+				if filter.Author != "" && !strings.EqualFold(template.Author, filter.Author) {
+					return
+				}
+
+				templatesMu.Lock()
+				templates = append(templates, *template)
+				templatesMu.Unlock()
+			}
+		}(fileInfo)
+	}
+
+	wg.Wait()
+
+	// 按 ID 排序保证分页稳定性
+	sort.Slice(templates, func(i, j int) bool {
+		return templates[i].ID < templates[j].ID
+	})
+
+	return &PaginatedTemplatesResult{
+		Templates:      templates,
+		Total:          total,
+		CategoryStats:  categoryStats,
+		FilteredTotal:  filteredTotal,
+	}, nil
+}
+
+// SetTemplateEnabled 设置模板启用/禁用状态
+func (a *App) SetTemplateEnabled(templateID string, enabled bool) error {
+	templatesDir := a.GetNucleiTemplatesDir()
+	templatePath := filepath.Join(templatesDir, templateID+".yaml")
+
+	if _, err := os.Stat(templatePath); os.IsNotExist(err) {
+		return fmt.Errorf("template not found: %s", templateID)
+	}
+
+	// 使用配置文件存储启用状态（而不是修改模板文件本身）
+	configDir := filepath.Join(a.userDataDir, "template-states")
+	if err := os.MkdirAll(configDir, 0755); err != nil {
+		return fmt.Errorf("failed to create config directory: %w", err)
+	}
+
+	stateFile := filepath.Join(configDir, templateID+".json")
+	state := map[string]interface{}{
+		"enabled": enabled,
+	}
+
+	stateData, err := json.Marshal(state)
+	if err != nil {
+		return fmt.Errorf("failed to marshal state: %w", err)
+	}
+
+	if err := os.WriteFile(stateFile, stateData, 0644); err != nil {
+		return fmt.Errorf("failed to write state: %w", err)
+	}
+
+	return nil
+}
+
+// GetTemplateEnabled 获取模板启用状态
+func (a *App) GetTemplateEnabled(templateID string) (bool, error) {
+	configDir := filepath.Join(a.userDataDir, "template-states")
+	stateFile := filepath.Join(configDir, templateID+".json")
+
+	if _, err := os.Stat(stateFile); os.IsNotExist(err) {
+		// 默认启用
+		return true, nil
+	}
+
+	stateData, err := os.ReadFile(stateFile)
+	if err != nil {
+		return true, nil
+	}
+
+	var state map[string]interface{}
+	if err := json.Unmarshal(stateData, &state); err != nil {
+		return true, nil
+	}
+
+	if enabled, ok := state["enabled"].(bool); ok {
+		return enabled, nil
+	}
+
+	return true, nil
+}
+
+// SetCategoryEnabled 批量设置分类的启用/禁用状态
+func (a *App) SetCategoryEnabled(category string, enabled bool) error {
+	templatesDir := a.GetNucleiTemplatesDir()
+	configDir := filepath.Join(a.userDataDir, "template-states")
+
+	if err := os.MkdirAll(configDir, 0755); err != nil {
+		return fmt.Errorf("failed to create config directory: %w", err)
+	}
+
+	// 遍历所有该分类的模板
+	var templatesToToggle []string
+
+	walkErr := filepath.Walk(templatesDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+
+		if info.IsDir() || !strings.HasSuffix(path, ".yaml") {
+			return nil
+		}
+
+		relPath, _ := filepath.Rel(templatesDir, path)
+		parts := strings.Split(relPath, string(filepath.Separator))
+
+		// 检查是否属于目标分类
+		if len(parts) > 0 && strings.EqualFold(parts[0], category) {
+			templateID := strings.TrimSuffix(relPath, ".yaml")
+			templatesToToggle = append(templatesToToggle, templateID)
+		}
+
+		return nil
+	})
+
+	if walkErr != nil {
+		return walkErr
+	}
+
+	// 批量更新状态
+	state := map[string]interface{}{
+		"enabled": enabled,
+	}
+	stateData, _ := json.Marshal(state)
+
+	for _, templateID := range templatesToToggle {
+		stateFile := filepath.Join(configDir, templateID+".json")
+		if err := os.WriteFile(stateFile, stateData, 0644); err != nil {
+			// 记录错误但继续处理其他文件
+			fmt.Printf("Failed to update state for %s: %v\n", templateID, err)
+		}
+	}
+
+	return nil
+}
+
+// ImportTemplate 导入自定义模板
+func (a *App) ImportTemplate(content string, filename string) (string, error) {
+	// 验证 YAML 格式
+	if !strings.Contains(content, "id:") || !strings.Contains(content, "info:") {
+		return "", fmt.Errorf("invalid template format: missing required fields")
+	}
+
+	// 确保文件扩展名正确
+	if !strings.HasSuffix(filename, ".yaml") && !strings.HasSuffix(filename, ".yml") {
+		filename += ".yaml"
+	}
+
+	// 自定义模板存储目录
+	customDir := filepath.Join(a.GetNucleiTemplatesDir(), "custom")
+	if err := os.MkdirAll(customDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create custom templates directory: %w", err)
+	}
+
+	destPath := filepath.Join(customDir, filename)
+
+	// 检查文件是否已存在
+	if _, err := os.Stat(destPath); err == nil {
+		return "", fmt.Errorf("template already exists: %s", filename)
+	}
+
+	// 写入文件
+	if err := os.WriteFile(destPath, []byte(content), 0644); err != nil {
+		return "", fmt.Errorf("failed to write template: %w", err)
+	}
+
+	// 返回模板 ID
+	relPath, _ := filepath.Rel(a.GetNucleiTemplatesDir(), destPath)
+	return strings.TrimSuffix(relPath, ".yaml"), nil
+}
+
+// DeleteTemplate 删除模板（仅限自定义模板）
+func (a *App) DeleteTemplate(templateID string) error {
+	templatesDir := a.GetNucleiTemplatesDir()
+	templatePath := filepath.Join(templatesDir, templateID+".yaml")
+
+	// 安全检查：只允许删除 custom 目录下的模板
+	parts := strings.Split(templateID, string(filepath.Separator))
+	if len(parts) == 0 || !strings.EqualFold(parts[0], "custom") {
+		return fmt.Errorf("can only delete custom templates")
+	}
+
+	if _, err := os.Stat(templatePath); os.IsNotExist(err) {
+		return fmt.Errorf("template not found: %s", templateID)
+	}
+
+	if err := os.Remove(templatePath); err != nil {
+		return fmt.Errorf("failed to delete template: %w", err)
+	}
+
+	// 同时删除状态文件
+	configDir := filepath.Join(a.userDataDir, "template-states")
+	stateFile := filepath.Join(configDir, templateID+".json")
+	os.Remove(stateFile) // 忽略错误
+
+	return nil
+}
+
+// ValidateTemplate 验证模板格式
+func (a *App) ValidateTemplate(content string) (map[string]interface{}, error) {
+	result := make(map[string]interface{})
+	errors := []string{}
+	warnings := []string{}
+
+	// 基本格式检查
+	if !strings.Contains(content, "id:") {
+		errors = append(errors, "Missing required field: id")
+	}
+	if !strings.Contains(content, "info:") {
+		errors = append(errors, "Missing required field: info")
+	}
+	if !strings.Contains(content, "name:") {
+		errors = append(errors, "Missing required field: name")
+	}
+
+	// 检查是否有协议定义
+	hasProtocol := false
+	for _, protocol := range []string{"http:", "dns:", "file:", "network:", "TCP:", "workflow:"} {
+		if strings.Contains(content, protocol) {
+			hasProtocol = true
+			break
+		}
+	}
+	if !hasProtocol {
+		warnings = append(warnings, "No protocol definition found")
+	}
+
+	// 检查严重程度
+	if strings.Contains(content, "severity:") {
+		validSeverities := []string{"critical", "high", "medium", "low", "info"}
+		hasValidSeverity := false
+		for _, sev := range validSeverities {
+			if strings.Contains(strings.ToLower(content), "severity: "+sev) ||
+			   strings.Contains(strings.ToLower(content), "severity: \""+sev) {
+				hasValidSeverity = true
+				break
+			}
+		}
+		if !hasValidSeverity {
+			warnings = append(warnings, "Invalid or unknown severity level")
+		}
+	} else {
+		warnings = append(warnings, "Missing severity field (default: info)")
+	}
+
+	result["valid"] = len(errors) == 0
+	result["errors"] = errors
+	result["warnings"] = warnings
+	result["errorCount"] = len(errors)
+	result["warningCount"] = len(warnings)
+
+	return result, nil
+}
 
