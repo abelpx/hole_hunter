@@ -1,6 +1,6 @@
 /**
  * 模板管理页面
- * 管理 Nuclei 扫描模板
+ * 管理 Nuclei 扫描模板，支持分组管理和启用/禁用
  */
 
 import React, { useState, useEffect } from 'react';
@@ -20,6 +20,8 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
+  Power,
+  PowerOff,
 } from 'lucide-react';
 import { Button, Input, Select, Modal, Badge } from '../components/ui';
 import clsx from 'clsx';
@@ -70,9 +72,59 @@ export const TemplatesPage: React.FC = () => {
   const [severityFilter, setSeverityFilter] = useState<string>('all');
   const [authorFilter, setAuthorFilter] = useState<string>('all');
 
+  // 分组管理状态
+  const [disabledCategories, setDisabledCategories] = useState<Set<string>>(new Set());
+
   useEffect(() => {
     loadTemplates();
+    loadCategoryPreferences();
   }, []);
+
+  // 加载分类偏好设置
+  const loadCategoryPreferences = () => {
+    try {
+      const saved = localStorage.getItem('disabledTemplateCategories');
+      if (saved) {
+        setDisabledCategories(new Set(JSON.parse(saved)));
+      }
+    } catch (error) {
+      console.error('Failed to load category preferences:', error);
+    }
+  };
+
+  // 保存分类偏好设置
+  const saveCategoryPreferences = (categories: Set<string>) => {
+    try {
+      localStorage.setItem('disabledTemplateCategories', JSON.stringify(Array.from(categories)));
+    } catch (error) {
+      console.error('Failed to save category preferences:', error);
+    }
+  };
+
+  // 切换分类启用状态
+  const toggleCategory = (categoryId: string) => {
+    const newDisabled = new Set(disabledCategories);
+    if (newDisabled.has(categoryId)) {
+      newDisabled.delete(categoryId);
+    } else {
+      newDisabled.add(categoryId);
+    }
+    setDisabledCategories(newDisabled);
+    saveCategoryPreferences(newDisabled);
+  };
+
+  // 启用所有分类
+  const enableAllCategories = () => {
+    setDisabledCategories(new Set());
+    saveCategoryPreferences(new Set());
+  };
+
+  // 禁用所有分类
+  const disableAllCategories = () => {
+    const allCategories = new Set(getTemplateCategories().filter(c => c.id !== 'all').map(c => c.id));
+    setDisabledCategories(allCategories);
+    saveCategoryPreferences(allCategories);
+  };
 
   useEffect(() => {
     filterTemplates();
@@ -116,6 +168,14 @@ export const TemplatesPage: React.FC = () => {
 
   const filterTemplates = () => {
     let filtered = [...templates];
+
+    // 过滤掉禁用分类的模板
+    if (disabledCategories.size > 0) {
+      filtered = filtered.filter((t) => {
+        const topCategory = t.category.split('/')[0];
+        return !disabledCategories.has(topCategory);
+      });
+    }
 
     // 分类过滤
     if (selectedCategory !== 'all') {
@@ -205,7 +265,24 @@ export const TemplatesPage: React.FC = () => {
         <div className="flex gap-3">
           <Button
             type="secondary"
-            icon={<RefreshCw size={16} />}
+            size="sm"
+            icon={<Power size={14} />}
+            onClick={enableAllCategories}
+          >
+            启用所有分组
+          </Button>
+          <Button
+            type="secondary"
+            size="sm"
+            icon={<PowerOff size={14} />}
+            onClick={disableAllCategories}
+          >
+            禁用所有分组
+          </Button>
+          <Button
+            type="secondary"
+            size="sm"
+            icon={<RefreshCw size={14} />}
             onClick={loadTemplates}
           >
             刷新
@@ -215,43 +292,93 @@ export const TemplatesPage: React.FC = () => {
 
       {/* 统计卡片 */}
       <div className="grid grid-cols-5 gap-4">
-        {getTemplateCategories().map((category) => (
-          <button
-            key={category.id}
-            onClick={() => setSelectedCategory(category.id)}
-            className={clsx(
-              'bg-slate-800/50 border rounded-xl p-4 text-left transition-all',
-              'hover:border-sky-500/50 hover:bg-slate-800',
-              selectedCategory === category.id
-                ? 'border-sky-500 bg-sky-500/10'
-                : 'border-slate-700'
-            )}
-          >
-            <div className="flex items-center justify-between mb-2">
-              <div className={clsx(
-                'w-8 h-8 rounded-lg flex items-center justify-center',
+        {getTemplateCategories().map((category) => {
+          const isDisabled = category.id !== 'all' && disabledCategories.has(category.id);
+          return (
+            <div
+              key={category.id}
+              className={clsx(
+                'bg-slate-800/50 border rounded-xl p-4 text-left transition-all relative',
                 selectedCategory === category.id
-                  ? 'bg-sky-500 text-white'
-                  : 'bg-slate-700 text-slate-400'
-              )}>
-                {category.icon}
-              </div>
-              <span className={clsx(
-                'text-2xl font-bold',
-                selectedCategory === category.id ? 'text-sky-400' : 'text-slate-100'
-              )}>
-                {category.count}
-              </span>
+                  ? 'border-sky-500 bg-sky-500/10'
+                  : 'border-slate-700',
+                isDisabled ? 'opacity-50' : 'hover:border-sky-500/50 hover:bg-slate-800'
+              )}
+            >
+              <button
+                onClick={() => setSelectedCategory(category.id)}
+                className="w-full"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className={clsx(
+                    'w-8 h-8 rounded-lg flex items-center justify-center',
+                    selectedCategory === category.id
+                      ? 'bg-sky-500 text-white'
+                      : 'bg-slate-700 text-slate-400'
+                  )}>
+                    {category.icon}
+                  </div>
+                  <span className={clsx(
+                    'text-2xl font-bold',
+                    selectedCategory === category.id ? 'text-sky-400' : 'text-slate-100'
+                  )}>
+                    {category.count}
+                  </span>
+                </div>
+                <p className={clsx(
+                  'text-sm font-medium',
+                  selectedCategory === category.id ? 'text-sky-400' : 'text-slate-300'
+                )}>
+                  {category.name}
+                </p>
+              </button>
+              {category.id !== 'all' && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleCategory(category.id);
+                  }}
+                  className={clsx(
+                    'absolute top-2 right-2 p-1.5 rounded-lg transition-all',
+                    'hover:bg-slate-700',
+                    isDisabled
+                      ? 'text-slate-500 hover:text-slate-400'
+                      : 'text-green-400 hover:text-green-300'
+                  )}
+                  title={isDisabled ? '启用此分组' : '禁用此分组'}
+                >
+                  {isDisabled ? <PowerOff size={14} /> : <Power size={14} />}
+                </button>
+              )}
             </div>
-            <p className={clsx(
-              'text-sm font-medium',
-              selectedCategory === category.id ? 'text-sky-400' : 'text-slate-300'
-            )}>
-              {category.name}
-            </p>
-          </button>
-        ))}
+          );
+        })}
       </div>
+
+      {/* 分组状态提示 */}
+      {disabledCategories.size > 0 && (
+        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <PowerOff size={20} className="text-yellow-400" />
+            <div>
+              <p className="text-sm font-medium text-yellow-200">
+                已禁用 {disabledCategories.size} 个分组
+              </p>
+              <p className="text-xs text-yellow-400/70">
+                这些分组的模板将不会出现在扫描结果中
+              </p>
+            </div>
+          </div>
+          <Button
+            type="secondary"
+            size="sm"
+            icon={<Power size={14} />}
+            onClick={enableAllCategories}
+          >
+            启用所有
+          </Button>
+        </div>
+      )}
 
       {/* 过滤和搜索 */}
       <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
