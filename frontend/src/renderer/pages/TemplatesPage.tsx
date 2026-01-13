@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import { Button, Input, Select, Modal, Badge } from '../components/ui';
 import clsx from 'clsx';
-import { GetAllNucleiTemplates, GetNucleiTemplateContent } from '../../wailsjs/go/main/App';
+import { GetAllNucleiTemplates, GetNucleiTemplateContent } from '@wailsjs/go/main/App';
 
 interface NucleiTemplate {
   id: string;
