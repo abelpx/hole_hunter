@@ -3,9 +3,20 @@
  * 扫描配置模态框
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Modal, Input, Select, Button, Badge } from '../ui';
+import { GetScenarioGroups } from '@wailsjs/go/main/App';
+
+// 场景分组接口
+interface ScenarioGroup {
+  id: string;
+  name: string;
+  description: string;
+  templateIds: string[];
+  createdAt: number;
+  updatedAt: number;
+}
 
 // 预设模板组
 export interface TemplatePreset {
@@ -71,6 +82,8 @@ export interface ScanConfigOptions {
   concurrency?: number;
   timeout?: number;
   retries?: number;
+  scenarioGroupId?: string;  // 场景分组 ID
+  templates?: string[];       // 直接指定模板 ID 列表
 }
 
 export interface ScanConfigModalProps {
@@ -88,6 +101,8 @@ export const ScanConfigModal: React.FC<ScanConfigModalProps> = ({
 }) => {
   const [selectedPreset, setSelectedPreset] = useState<string>('quick');
   const [taskName, setTaskName] = useState<string>('');
+  const [scenarioGroups, setScenarioGroups] = useState<ScenarioGroup[]>([]);
+  const [useScenarioGroup, setUseScenarioGroup] = useState<boolean>(false);
   const [customConfig, setCustomConfig] = useState<ScanConfigOptions>({
     severity: ['critical', 'high'],
     tags: [],
@@ -98,15 +113,54 @@ export const ScanConfigModal: React.FC<ScanConfigModalProps> = ({
     retries: 1,
   });
 
+  // 加载场景分组
+  useEffect(() => {
+    const loadScenarioGroups = async () => {
+      try {
+        const groups = await GetScenarioGroups();
+        setScenarioGroups(groups);
+      } catch (error) {
+        console.error('Failed to load scenario groups:', error);
+      }
+    };
+    loadScenarioGroups();
+  }, []);
+
   // 处理预设选择
   const handlePresetChange = (presetId: string) => {
     setSelectedPreset(presetId);
+    setUseScenarioGroup(false);  // 清除场景分组模式
     const preset = TEMPLATE_PRESETS.find((p) => p.id === presetId);
     if (preset) {
       setCustomConfig({
         ...customConfig,
         severity: preset.severity,
         tags: preset.tags,
+        scenarioGroupId: undefined,  // 清除场景分组
+      });
+    }
+  };
+
+  // 处理场景分组选择
+  const handleScenarioGroupChange = (groupId: string) => {
+    setSelectedPreset('');  // 清除预设选择
+    setCustomConfig({
+      ...customConfig,
+      scenarioGroupId: groupId || undefined,
+      severity: undefined,  // 场景分组模式不使用 severity
+      tags: undefined,      // 场景分组模式不使用 tags
+    });
+  };
+
+  // 切换场景分组模式
+  const toggleScenarioGroupMode = (enabled: boolean) => {
+    setUseScenarioGroup(enabled);
+    if (enabled) {
+      setSelectedPreset('');  // 清除预设选择
+    } else {
+      setCustomConfig({
+        ...customConfig,
+        scenarioGroupId: undefined,
       });
     }
   };
@@ -145,8 +199,51 @@ export const ScanConfigModal: React.FC<ScanConfigModalProps> = ({
           <p className="text-xs text-slate-500 mt-1">留空则自动生成</p>
         </div>
 
-        {/* 预设选择 */}
-        <div>
+        {/* 场景分组选择 */}
+        {scenarioGroups.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <label className="block text-sm font-medium text-slate-300">使用场景分组</label>
+              <button
+                onClick={() => toggleScenarioGroupMode(!useScenarioGroup)}
+                className={`relative w-12 h-6 rounded-full transition-colors ${
+                  useScenarioGroup ? 'bg-sky-500' : 'bg-slate-700'
+                }`}
+              >
+                <span
+                  className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                    useScenarioGroup ? 'left-7' : 'left-1'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {useScenarioGroup && (
+              <div className="space-y-2">
+                <select
+                  className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-slate-200"
+                  value={customConfig.scenarioGroupId || ''}
+                  onChange={(e) => handleScenarioGroupChange(e.target.value)}
+                >
+                  <option value="">选择场景分组</option>
+                  {scenarioGroups.map((group) => (
+                    <option key={group.id} value={group.id}>
+                      {group.name} ({group.templateIds.length} 个 POC)
+                    </option>
+                  ))}
+                </select>
+                {customConfig.scenarioGroupId && (
+                  <p className="text-xs text-slate-500">
+                    {scenarioGroups.find(g => g.id === customConfig.scenarioGroupId)?.description || '使用该场景分组的 POC 进行扫描'}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 预设选择（场景分组模式时禁用） */}
+        <div className={useScenarioGroup ? 'opacity-50 pointer-events-none' : ''}>
           <label className="block text-sm font-medium text-slate-300 mb-3">扫描预设</label>
           <div className="grid grid-cols-2 gap-2">
             {TEMPLATE_PRESETS.map((preset) => (
@@ -166,8 +263,8 @@ export const ScanConfigModal: React.FC<ScanConfigModalProps> = ({
           </div>
         </div>
 
-        {/* 漏洞严重性 */}
-        <div>
+        {/* 漏洞严重性（场景分组模式时禁用） */}
+        <div className={useScenarioGroup ? 'opacity-50 pointer-events-none' : ''}>
           <label className="block text-sm font-medium text-slate-300 mb-2">漏洞严重性</label>
           <div className="flex flex-wrap gap-2">
             {severityOptions.map((option) => (
@@ -287,8 +384,8 @@ export const ScanConfigModal: React.FC<ScanConfigModalProps> = ({
           </div>
         </div>
 
-        {/* 自定义标签 */}
-        <div>
+        {/* 自定义标签（场景分组模式时禁用） */}
+        <div className={useScenarioGroup ? 'opacity-50 pointer-events-none' : ''}>
           <Input
             label="自定义标签"
             placeholder="例如: cve,rce,sqli (逗号分隔)"
@@ -303,8 +400,8 @@ export const ScanConfigModal: React.FC<ScanConfigModalProps> = ({
           <p className="text-xs text-slate-500 mt-1">仅使用包含指定标签的模板</p>
         </div>
 
-        {/* 排除标签 */}
-        <div>
+        {/* 排除标签（场景分组模式时禁用） */}
+        <div className={useScenarioGroup ? 'opacity-50 pointer-events-none' : ''}>
           <Input
             label="排除标签"
             placeholder="例如: dos,brute-force (逗号分隔)"

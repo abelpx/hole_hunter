@@ -200,8 +200,9 @@ export const ScansPage: React.FC = () => {
       const scan = await service.createScan({
         name: config.taskName,
         target_id: target.id,
-        strategy: config.severity?.join(',') || 'default',
+        strategy: config.scenarioGroupId ? `scenario:${config.scenarioGroupId}` : (config.severity?.join(',') || 'default'),
         templates: config.templates || [],
+        scenarioGroupId: config.scenarioGroupId,
       });
 
       console.log('[ScansPage] Scan created successfully:', scan);

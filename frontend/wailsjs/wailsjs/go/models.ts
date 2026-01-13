@@ -446,6 +446,28 @@ export namespace main {
 	        this.created_at = source["created_at"];
 	    }
 	}
+	export class ScenarioGroup {
+	    id: string;
+	    name: string;
+	    description: string;
+	    templateIds: string[];
+	    createdAt: number;
+	    updatedAt: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ScenarioGroup(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.description = source["description"];
+	        this.templateIds = source["templateIds"];
+	        this.createdAt = source["createdAt"];
+	        this.updatedAt = source["updatedAt"];
+	    }
+	}
 	export class Target {
 	    id: number;
 	    name: string;

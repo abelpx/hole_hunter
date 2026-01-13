@@ -17,7 +17,10 @@ import (
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/holehunter/holehunter/internal/models"
 	"github.com/holehunter/holehunter/internal/offline"
+	"github.com/holehunter/holehunter/internal/repository"
+	"github.com/holehunter/holehunter/internal/services"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
@@ -37,9 +40,17 @@ type App struct {
 	scanProgress      map[int]ScanProgress
 	scanProgressMu    sync.RWMutex
 	// 模板缓存
-	templatesCache    []NucleiTemplate
-	templatesCacheMu  sync.RWMutex
+	templatesCache     []NucleiTemplate
+	templatesCacheMu   sync.RWMutex
 	templatesCacheTime time.Time
+
+	// 服务层
+	scenarioService    *services.ScenarioService
+	targetService      *services.TargetService
+	scanService        *services.ScanService
+	vulnerabilityService *services.VulnerabilityService
+	httpService        *services.HTTPService
+	bruteService       *services.BruteService
 }
 
 // ScanProgress represents the progress of a scan
@@ -53,6 +64,24 @@ type ScanProgress struct {
 	VulnCount       int       `json:"vuln_count"`
 	Error           string    `json:"error,omitempty"`
 }
+
+// 类型别名，用于向后兼容
+type ScenarioGroup = models.ScenarioGroup
+type NucleiTemplate = models.NucleiTemplate
+type Target = models.Target
+type ScanTask = models.ScanTask
+type Vulnerability = models.Vulnerability
+type DashboardStats = models.DashboardStats
+type HttpRequest = models.HttpRequest
+type HttpResponse = models.HttpResponse
+type PortScanTask = models.PortScanTask
+type PortScanResult = models.PortScanResult
+type DomainBruteTask = models.DomainBruteTask
+type DomainBruteResult = models.DomainBruteResult
+type BruteTask = models.BruteTask
+type BrutePayloadSet = models.BrutePayloadSet
+type NucleiStatus = models.NucleiStatus
+type CustomTemplate = models.CustomTemplate
 
 // NucleiOutput represents the JSON output from Nuclei scanner
 type NucleiOutput struct {
@@ -112,6 +141,9 @@ func (a *App) startup(ctx context.Context) {
 		println("Failed to initialize database:", err.Error())
 	} else {
 		println("Database initialized at:", a.dbPath)
+
+		// 初始化服务层（需要在数据库初始化后）
+		a.initServices()
 	}
 
 	// 尝试从旧位置迁移数据
@@ -119,6 +151,33 @@ func (a *App) startup(ctx context.Context) {
 
 	// 初始化 Nuclei
 	a.initNuclei()
+}
+
+// initServices 初始化所有服务层
+func (a *App) initServices() {
+	// Scenario 服务（基于文件）
+	scenarioRepo := repository.NewScenarioRepository(a.userDataDir)
+	a.scenarioService = services.NewScenarioService(scenarioRepo)
+
+	// Target 服务
+	targetRepo := repository.NewTargetRepository(a.db)
+	a.targetService = services.NewTargetService(targetRepo)
+
+	// Scan 服务
+	scanRepo := repository.NewScanRepository(a.db)
+	a.scanService = services.NewScanService(scanRepo)
+
+	// Vulnerability 服务
+	vulnRepo := repository.NewVulnerabilityRepository(a.db)
+	a.vulnerabilityService = services.NewVulnerabilityService(vulnRepo)
+
+	// HTTP 服务
+	httpRepo := repository.NewHTTPRepository(a.db)
+	a.httpService = services.NewHTTPService(httpRepo)
+
+	// Brute 服务
+	bruteRepo := repository.NewBruteRepository(a.db)
+	a.bruteService = services.NewBruteService(bruteRepo)
 }
 
 // initNuclei 初始化 nuclei 二进制文件（使用离线扫描器）
@@ -543,115 +602,46 @@ func (a *App) runMigrations() error {
 // ============ Target Management ============
 
 // Target represents a scan target
-type Target struct {
-	ID          int      `json:"id"`
-	Name        string   `json:"name"`
-	URL         string   `json:"url"`
-	Description string   `json:"description"`
-	Tags        []string `json:"tags"`
-	CreatedAt   string   `json:"created_at"`
-	UpdatedAt   string   `json:"updated_at"`
-}
-
 // GetAllTargets returns all targets from the database
 func (a *App) GetAllTargets() ([]Target, error) {
-	a.dbMutex.RLock()
-	defer a.dbMutex.RUnlock()
-
-	rows, err := a.db.Query(`
-		SELECT id, name, url, description, tags, created_at, updated_at
-		FROM targets
-		ORDER BY created_at DESC
-	`)
+	targets, err := a.targetService.GetAll()
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	var targets []Target
-	for rows.Next() {
-		var t Target
-		var tagsJSON string
-		if err := rows.Scan(&t.ID, &t.Name, &t.URL, &t.Description, &tagsJSON, &t.CreatedAt, &t.UpdatedAt); err != nil {
-			return nil, err
-		}
-
-		// Parse tags JSON
-		if tagsJSON != "" && tagsJSON != "[]" {
-			json.Unmarshal([]byte(tagsJSON), &t.Tags)
-		}
-
-		targets = append(targets, t)
+	result := make([]Target, len(targets))
+	for i, t := range targets {
+		result[i] = Target(t)
 	}
-
-	return targets, nil
+	return result, nil
 }
 
 // GetTargetByID returns a single target by ID
 func (a *App) GetTargetByID(id int) (Target, error) {
-	a.dbMutex.RLock()
-	defer a.dbMutex.RUnlock()
-
-	var t Target
-	var tagsJSON string
-
-	err := a.db.QueryRow(`
-		SELECT id, name, url, description, tags, created_at, updated_at
-		FROM targets
-		WHERE id = ?
-	`, id).Scan(&t.ID, &t.Name, &t.URL, &t.Description, &tagsJSON, &t.CreatedAt, &t.UpdatedAt)
-
+	target, err := a.targetService.GetByID(id)
 	if err != nil {
 		return Target{}, err
 	}
-
-	// Parse tags JSON
-	if tagsJSON != "" && tagsJSON != "[]" {
-		json.Unmarshal([]byte(tagsJSON), &t.Tags)
-	}
-
-	return t, nil
+	return Target(*target), nil
 }
 
 // CreateTarget creates a new target
 func (a *App) CreateTarget(name, url, description string, tags []string) (int64, error) {
-	a.dbMutex.Lock()
-	defer a.dbMutex.Unlock()
-
-	tagsJSON, _ := json.Marshal(tags)
-	result, err := a.db.Exec(
-		"INSERT INTO targets (name, url, description, tags) VALUES (?, ?, ?, ?)",
-		name, url, description, string(tagsJSON),
-	)
-
+	target, err := a.targetService.Create(name, url, description, tags)
 	if err != nil {
 		return 0, err
 	}
-
-	return result.LastInsertId()
+	return int64(target.ID), nil
 }
 
 // UpdateTarget updates an existing target
 func (a *App) UpdateTarget(id int, name, url, description string, tags []string) error {
-	a.dbMutex.Lock()
-	defer a.dbMutex.Unlock()
-
-	tagsJSON, _ := json.Marshal(tags)
-	_, err := a.db.Exec(
-		"UPDATE targets SET name = ?, url = ?, description = ?, tags = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-		name, url, description, string(tagsJSON), id,
-	)
-
-	return err
+	return a.targetService.Update(id, name, url, description, tags)
 }
 
 // DeleteTarget deletes a target by ID
 func (a *App) DeleteTarget(id int) error {
-	a.dbMutex.Lock()
-	defer a.dbMutex.Unlock()
-
-	_, err := a.db.Exec("DELETE FROM targets WHERE id = ?", id)
-	return err
+	return a.targetService.Delete(id)
 }
 
 // ============ Health Check ============
@@ -682,299 +672,115 @@ func (a *App) HealthCheck() map[string]interface{} {
 
 // ============ Scan Task Management ============
 
-// ScanTask represents a scan task
-type ScanTask struct {
-	ID                int       `json:"id"`
-	Name              *string   `json:"name,omitempty"`
-	TargetID          int       `json:"target_id"`
-	Status            string    `json:"status"`
-	Strategy          string    `json:"strategy"`
-	TemplatesUsed     []string  `json:"templates_used"`
-	StartedAt         *string   `json:"started_at,omitempty"`
-	CompletedAt       *string   `json:"completed_at,omitempty"`
-	TotalTemplates    *int      `json:"total_templates,omitempty"`
-	ExecutedTemplates *int      `json:"executed_templates,omitempty"`
-	Progress          int       `json:"progress"`
-	CurrentTemplate   *string   `json:"current_template,omitempty"`
-	Error             *string   `json:"error,omitempty"`
-	CreatedAt         string    `json:"created_at"`
-}
-
 // GetAllScanTasks returns all scan tasks
 func (a *App) GetAllScanTasks() ([]ScanTask, error) {
-	a.dbMutex.RLock()
-	defer a.dbMutex.RUnlock()
-
-	rows, err := a.db.Query(`
-		SELECT id, name, target_id, status, strategy, templates_used, started_at, completed_at,
-		       total_templates, executed_templates, progress, current_template, error, created_at
-		FROM scan_tasks
-		ORDER BY created_at DESC
-	`)
+	tasks, err := a.scanService.GetAll()
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	var tasks []ScanTask
-	for rows.Next() {
-		var t ScanTask
-		var templatesStr string
-		if err := rows.Scan(
-			&t.ID, &t.Name, &t.TargetID, &t.Status, &t.Strategy, &templatesStr,
-			&t.StartedAt, &t.CompletedAt, &t.TotalTemplates,
-			&t.ExecutedTemplates, &t.Progress, &t.CurrentTemplate,
-			&t.Error, &t.CreatedAt,
-		); err != nil {
-			return nil, err
-		}
-
-		// Parse templates JSON
-		if templatesStr != "" && templatesStr != "[]" {
-			json.Unmarshal([]byte(templatesStr), &t.TemplatesUsed)
-		}
-
-		tasks = append(tasks, t)
+	result := make([]ScanTask, len(tasks))
+	for i, t := range tasks {
+		result[i] = ScanTask(t)
 	}
-
-	return tasks, nil
+	return result, nil
 }
 
 // GetScanTaskByID returns a single scan task by ID
 func (a *App) GetScanTaskByID(id int) (ScanTask, error) {
-	a.dbMutex.RLock()
-	defer a.dbMutex.RUnlock()
-
-	var t ScanTask
-	var templatesStr string
-
-	err := a.db.QueryRow(`
-		SELECT id, name, target_id, status, strategy, templates_used, started_at, completed_at,
-		       total_templates, executed_templates, progress, current_template, error, created_at
-		FROM scan_tasks
-		WHERE id = ?
-	`, id).Scan(
-		&t.ID, &t.Name, &t.TargetID, &t.Status, &t.Strategy, &templatesStr,
-		&t.StartedAt, &t.CompletedAt, &t.TotalTemplates,
-		&t.ExecutedTemplates, &t.Progress, &t.CurrentTemplate,
-		&t.Error, &t.CreatedAt,
-	)
-
+	task, err := a.scanService.GetByID(id)
 	if err != nil {
 		return ScanTask{}, err
 	}
-
-	// Parse templates JSON
-	if templatesStr != "" && templatesStr != "[]" {
-		json.Unmarshal([]byte(templatesStr), &t.TemplatesUsed)
-	}
-
-	return t, nil
+	return ScanTask(*task), nil
 }
 
 // CreateScanTask creates a new scan task
 func (a *App) CreateScanTask(name string, targetID int, strategy string, templates []string) (int64, error) {
-	a.dbMutex.Lock()
-	defer a.dbMutex.Unlock()
-
-	templatesJSON, _ := json.Marshal(templates)
-	result, err := a.db.Exec(
-		"INSERT INTO scan_tasks (name, target_id, status, strategy, templates_used) VALUES (?, ?, ?, ?, ?)",
-		name, targetID, "pending", strategy, string(templatesJSON),
-	)
-
+	task, err := a.scanService.Create(&name, targetID, strategy, templates)
 	if err != nil {
 		return 0, err
 	}
-
-	id, _ := result.LastInsertId()
 
 	// 异步启动扫描
 	go func() {
 		// 等待一小段时间确保数据库事务完成
 		time.Sleep(100 * time.Millisecond)
-		if err := a.StartScan(int(id)); err != nil {
+		if err := a.StartScan(task.ID); err != nil {
 			println("Failed to start scan:", err.Error())
 		}
 	}()
 
-	return id, nil
+	return int64(task.ID), nil
 }
 
 // UpdateScanTaskStatus updates the status of a scan task
 func (a *App) UpdateScanTaskStatus(id int, status string) error {
-	a.dbMutex.Lock()
-	defer a.dbMutex.Unlock()
-
-	var updateSQL string
-	if status == "running" {
-		updateSQL = "UPDATE scan_tasks SET status = ?, started_at = CURRENT_TIMESTAMP WHERE id = ?"
-	} else if status == "completed" || status == "failed" || status == "cancelled" {
-		updateSQL = "UPDATE scan_tasks SET status = ?, completed_at = CURRENT_TIMESTAMP WHERE id = ?"
-	} else {
-		updateSQL = "UPDATE scan_tasks SET status = ? WHERE id = ?"
-	}
-
-	_, err := a.db.Exec(updateSQL, status, id)
-	return err
+	return a.scanService.UpdateStatus(id, status)
 }
 
 // UpdateScanTaskProgress updates the progress of a scan task
 func (a *App) UpdateScanTaskProgress(id int, progress, total, executed int) error {
-	a.dbMutex.Lock()
-	defer a.dbMutex.Unlock()
-
-	_, err := a.db.Exec(
-		"UPDATE scan_tasks SET progress = ?, total_templates = ?, executed_templates = ? WHERE id = ?",
-		progress, total, executed, id,
-	)
-	return err
+	return a.scanService.UpdateProgress(id, progress, total, executed)
 }
 
 // DeleteScanTask deletes a scan task by ID
 func (a *App) DeleteScanTask(id int) error {
-	a.dbMutex.Lock()
-	defer a.dbMutex.Unlock()
-
-	_, err := a.db.Exec("DELETE FROM scan_tasks WHERE id = ?", id)
-	return err
+	return a.scanService.Delete(id)
 }
 
 // ============ Vulnerability Management ============
 
-// Vulnerability represents a found vulnerability
-type Vulnerability struct {
-	ID             int     `json:"id"`
-	TaskID         int     `json:"task_id"`
-	TemplateID     string  `json:"template_id"`
-	Severity       string  `json:"severity"`
-	Name           string  `json:"name"`
-	Description    string  `json:"description"`
-	URL            string  `json:"url"`
-	MatchedAt      string  `json:"matched_at"`
-	FalsePositive  bool    `json:"false_positive"`
-	Notes          string  `json:"notes"`
-	CVE            string  `json:"cve"`
-	CVSS           float64 `json:"cvss"`
-	CreatedAt      string  `json:"created_at"`
-}
-
 // GetAllVulnerabilities returns all vulnerabilities
 func (a *App) GetAllVulnerabilities() ([]Vulnerability, error) {
-	a.dbMutex.RLock()
-	defer a.dbMutex.RUnlock()
-
-	rows, err := a.db.Query(`
-		SELECT id, task_id, template_id, severity, name, description, url, matched_at,
-		       false_positive, notes, cve, cvss, created_at
-		FROM vulnerabilities
-		ORDER BY created_at DESC
-	`)
+	vulns, err := a.vulnerabilityService.GetAll()
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	var vulns []Vulnerability
-	for rows.Next() {
-		var v Vulnerability
-		if err := rows.Scan(
-			&v.ID, &v.TaskID, &v.TemplateID, &v.Severity, &v.Name, &v.Description,
-			&v.URL, &v.MatchedAt, &v.FalsePositive, &v.Notes, &v.CVE, &v.CVSS, &v.CreatedAt,
-		); err != nil {
-			return nil, err
-		}
-		vulns = append(vulns, v)
+	result := make([]Vulnerability, len(vulns))
+	for i, v := range vulns {
+		result[i] = Vulnerability(v)
 	}
-
-	return vulns, nil
+	return result, nil
 }
 
 // GetVulnerabilitiesByTaskID returns vulnerabilities for a specific scan task
 func (a *App) GetVulnerabilitiesByTaskID(taskID int) ([]Vulnerability, error) {
-	a.dbMutex.RLock()
-	defer a.dbMutex.RUnlock()
-
-	rows, err := a.db.Query(`
-		SELECT id, task_id, template_id, severity, name, description, url, matched_at,
-		       false_positive, notes, cve, cvss, created_at
-		FROM vulnerabilities
-		WHERE task_id = ?
-		ORDER BY created_at DESC
-	`, taskID)
+	vulns, err := a.vulnerabilityService.GetByTaskID(taskID)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	var vulns []Vulnerability
-	for rows.Next() {
-		var v Vulnerability
-		if err := rows.Scan(
-			&v.ID, &v.TaskID, &v.TemplateID, &v.Severity, &v.Name, &v.Description,
-			&v.URL, &v.MatchedAt, &v.FalsePositive, &v.Notes, &v.CVE, &v.CVSS, &v.CreatedAt,
-		); err != nil {
-			return nil, err
-		}
-		vulns = append(vulns, v)
+	result := make([]Vulnerability, len(vulns))
+	for i, v := range vulns {
+		result[i] = Vulnerability(v)
 	}
-
-	return vulns, nil
+	return result, nil
 }
 
 // CreateVulnerability creates a new vulnerability record
 func (a *App) CreateVulnerability(taskID int, templateID, severity, name, description, url, matchedAt, cve string, cvss float64) (int64, error) {
-	a.dbMutex.Lock()
-	defer a.dbMutex.Unlock()
-
-	result, err := a.db.Exec(
-		"INSERT INTO vulnerabilities (task_id, template_id, severity, name, description, url, matched_at, cve, cvss) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-		taskID, templateID, severity, name, description, url, matchedAt, cve, cvss,
-	)
-
+	vuln, err := a.vulnerabilityService.Create(taskID, templateID, severity, name, description, url, matchedAt, cve, cvss)
 	if err != nil {
 		return 0, err
 	}
-
-	return result.LastInsertId()
+	return int64(vuln.ID), nil
 }
 
 // UpdateVulnerability updates an existing vulnerability
 func (a *App) UpdateVulnerability(id int, falsePositive bool, notes string) error {
-	a.dbMutex.Lock()
-	defer a.dbMutex.Unlock()
-
-	_, err := a.db.Exec(
-		"UPDATE vulnerabilities SET false_positive = ?, notes = ? WHERE id = ?",
-		falsePositive, notes, id,
-	)
-
-	return err
+	return a.vulnerabilityService.Update(id, falsePositive, notes)
 }
 
 // DeleteVulnerability deletes a vulnerability by ID
 func (a *App) DeleteVulnerability(id int) error {
-	a.dbMutex.Lock()
-	defer a.dbMutex.Unlock()
-
-	_, err := a.db.Exec("DELETE FROM vulnerabilities WHERE id = ?", id)
-	return err
+	return a.vulnerabilityService.Delete(id)
 }
 
 // ============ Dashboard Statistics ============
 
 // DashboardStats represents dashboard statistics
-type DashboardStats struct {
-	TotalTargets       int `json:"total_targets"`
-	TotalScans         int `json:"total_scans"`
-	RunningScans       int `json:"running_scans"`
-	TotalVulnerabilities int `json:"total_vulnerabilities"`
-	CriticalVulns      int `json:"critical_vulns"`
-	HighVulns          int `json:"high_vulns"`
-	MediumVulns        int `json:"medium_vulns"`
-	LowVulns           int `json:"low_vulns"`
-}
-
 // GetDashboardStats returns dashboard statistics
 func (a *App) GetDashboardStats() (DashboardStats, error) {
 	a.dbMutex.RLock()
@@ -1094,151 +900,49 @@ func (a *App) GetAllConfigs() (map[string]string, error) {
 // ============ HTTP Request/Reply Management ============
 
 // HttpRequest represents an HTTP request for replay
-type HttpRequest struct {
-	ID          int               `json:"id"`
-	Name        string            `json:"name"`
-	Method      string            `json:"method"`
-	URL         string            `json:"url"`
-	Headers     map[string]string `json:"headers"`
-	Body        string            `json:"body"`
-	ContentType string            `json:"content_type"`
-	Tags        []string          `json:"tags"`
-	CreatedAt   string            `json:"created_at"`
-	UpdatedAt   string            `json:"updated_at"`
-}
-
 // GetAllHttpRequests returns all HTTP requests
 func (a *App) GetAllHttpRequests() ([]HttpRequest, error) {
-	a.dbMutex.RLock()
-	defer a.dbMutex.RUnlock()
-
-	rows, err := a.db.Query(`
-		SELECT id, name, method, url, headers, body, content_type, tags, created_at, updated_at
-		FROM http_requests
-		ORDER BY created_at DESC
-	`)
+	requests, err := a.httpService.GetAll()
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	var requests []HttpRequest
-	for rows.Next() {
-		var r HttpRequest
-		var headersJSON, tagsJSON string
-		if err := rows.Scan(
-			&r.ID, &r.Name, &r.Method, &r.URL, &headersJSON, &r.Body,
-			&r.ContentType, &tagsJSON, &r.CreatedAt, &r.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-
-		// Parse JSON fields
-		if headersJSON != "" {
-			json.Unmarshal([]byte(headersJSON), &r.Headers)
-		}
-		if tagsJSON != "" && tagsJSON != "[]" {
-			json.Unmarshal([]byte(tagsJSON), &r.Tags)
-		}
-
-		requests = append(requests, r)
+	result := make([]HttpRequest, len(requests))
+	for i, r := range requests {
+		result[i] = HttpRequest(r)
 	}
-
-	return requests, nil
+	return result, nil
 }
 
 // GetHttpRequestByID returns a single HTTP request by ID
 func (a *App) GetHttpRequestByID(id int) (HttpRequest, error) {
-	a.dbMutex.RLock()
-	defer a.dbMutex.RUnlock()
-
-	var r HttpRequest
-	var headersJSON, tagsJSON string
-
-	err := a.db.QueryRow(`
-		SELECT id, name, method, url, headers, body, content_type, tags, created_at, updated_at
-		FROM http_requests
-		WHERE id = ?
-	`, id).Scan(
-		&r.ID, &r.Name, &r.Method, &r.URL, &headersJSON, &r.Body,
-		&r.ContentType, &tagsJSON, &r.CreatedAt, &r.UpdatedAt,
-	)
-
+	request, err := a.httpService.GetByID(id)
 	if err != nil {
 		return HttpRequest{}, err
 	}
-
-	// Parse JSON fields
-	if headersJSON != "" {
-		json.Unmarshal([]byte(headersJSON), &r.Headers)
-	}
-	if tagsJSON != "" && tagsJSON != "[]" {
-		json.Unmarshal([]byte(tagsJSON), &r.Tags)
-	}
-
-	return r, nil
+	return HttpRequest(*request), nil
 }
 
 // CreateHttpRequest creates a new HTTP request
 func (a *App) CreateHttpRequest(name, method, url string, headers map[string]string, body, contentType string, tags []string) (int64, error) {
-	a.dbMutex.Lock()
-	defer a.dbMutex.Unlock()
-
-	headersJSON, _ := json.Marshal(headers)
-	tagsJSON, _ := json.Marshal(tags)
-
-	result, err := a.db.Exec(
-		"INSERT INTO http_requests (name, method, url, headers, body, content_type, tags) VALUES (?, ?, ?, ?, ?, ?, ?)",
-		name, method, url, string(headersJSON), body, contentType, string(tagsJSON),
-	)
-
+	request, err := a.httpService.Create(name, method, url, headers, body, contentType, tags)
 	if err != nil {
 		return 0, err
 	}
-
-	return result.LastInsertId()
+	return int64(request.ID), nil
 }
 
 // UpdateHttpRequest updates an existing HTTP request
 func (a *App) UpdateHttpRequest(id int, name, method, url string, headers map[string]string, body, contentType string, tags []string) error {
-	a.dbMutex.Lock()
-	defer a.dbMutex.Unlock()
-
-	headersJSON, _ := json.Marshal(headers)
-	tagsJSON, _ := json.Marshal(tags)
-
-	_, err := a.db.Exec(
-		"UPDATE http_requests SET name = ?, method = ?, url = ?, headers = ?, body = ?, content_type = ?, tags = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-		name, method, url, string(headersJSON), body, contentType, string(tagsJSON), id,
-	)
-
-	return err
+	return a.httpService.Update(id, name, method, url, headers, body, contentType, tags)
 }
 
 // DeleteHttpRequest deletes an HTTP request by ID
 func (a *App) DeleteHttpRequest(id int) error {
-	a.dbMutex.Lock()
-	defer a.dbMutex.Unlock()
-
-	_, err := a.db.Exec("DELETE FROM http_requests WHERE id = ?", id)
-	return err
+	return a.httpService.Delete(id)
 }
 
 // HttpResponse represents an HTTP response
-type HttpResponse struct {
-	ID         int               `json:"id"`
-	RequestID  int               `json:"request_id"`
-	StatusCode int               `json:"status_code"`
-	StatusText string            `json:"status_text"`
-	Headers    map[string]string `json:"headers"`
-	Body       string            `json:"body"`
-	BodySize   int               `json:"body_size"`
-	HeaderSize int               `json:"header_size"`
-	Duration   int               `json:"duration"`
-	Timestamp  string            `json:"timestamp"`
-	CreatedAt  string            `json:"created_at"`
-}
-
 // GetHttpResponseHistory returns response history for a request
 func (a *App) GetHttpResponseHistory(requestID int) ([]HttpResponse, error) {
 	a.dbMutex.RLock()
@@ -1279,29 +983,6 @@ func (a *App) GetHttpResponseHistory(requestID int) ([]HttpResponse, error) {
 // ============ Port Scan Management ============
 
 // PortScanTask represents a port scan task
-type PortScanTask struct {
-	ID          int      `json:"id"`
-	Target      string   `json:"target"`
-	Ports       []int    `json:"ports"`
-	Timeout     int      `json:"timeout"`
-	BatchSize   int      `json:"batch_size"`
-	Status      string   `json:"status"`
-	StartedAt   string   `json:"started_at"`
-	CompletedAt string   `json:"completed_at"`
-	CreatedAt   string   `json:"created_at"`
-}
-
-// PortScanResult represents a port scan result
-type PortScanResult struct {
-	ID       int    `json:"id"`
-	TaskID   int    `json:"task_id"`
-	Port     int    `json:"port"`
-	Status   string `json:"status"`
-	Service  string `json:"service"`
-	Banner   string `json:"banner"`
-	Latency  int    `json:"latency"`
-}
-
 // GetAllPortScanTasks returns all port scan tasks
 func (a *App) GetAllPortScanTasks() ([]PortScanTask, error) {
 	a.dbMutex.RLock()
@@ -1387,28 +1068,6 @@ func (a *App) GetPortScanResults(taskID int) ([]PortScanResult, error) {
 // ============ Domain Brute Management ============
 
 // DomainBruteTask represents a domain brute force task
-type DomainBruteTask struct {
-	ID          int      `json:"id"`
-	Domain      string   `json:"domain"`
-	Wordlist    []string `json:"wordlist"`
-	Timeout     int      `json:"timeout"`
-	BatchSize   int      `json:"batch_size"`
-	Status      string   `json:"status"`
-	StartedAt   string   `json:"started_at"`
-	CompletedAt string   `json:"completed_at"`
-	CreatedAt   string   `json:"created_at"`
-}
-
-// DomainBruteResult represents a domain brute force result
-type DomainBruteResult struct {
-	ID       int      `json:"id"`
-	TaskID   int      `json:"task_id"`
-	Subdomain string  `json:"subdomain"`
-	Resolved bool    `json:"resolved"`
-	IPs      []string `json:"ips"`
-	Latency  int      `json:"latency"`
-}
-
 // GetAllDomainBruteTasks returns all domain brute tasks
 func (a *App) GetAllDomainBruteTasks() ([]DomainBruteTask, error) {
 	a.dbMutex.RLock()
@@ -1500,127 +1159,50 @@ func (a *App) GetDomainBruteResults(taskID int) ([]DomainBruteResult, error) {
 // ============ Brute Force Management ============
 
 // BruteTask represents a brute force task
-type BruteTask struct {
-	ID            int      `json:"id"`
-	Name          string   `json:"name"`
-	RequestID     int      `json:"request_id"`
-	Type          string   `json:"type"`
-	Status        string   `json:"status"`
-	TotalPayloads int      `json:"total_payloads"`
-	SentPayloads  int      `json:"sent_payloads"`
-	SuccessCount  int      `json:"success_count"`
-	FailureCount  int      `json:"failure_count"`
-	StartedAt     string   `json:"started_at"`
-	CompletedAt   string   `json:"completed_at"`
-	CreatedAt     string   `json:"created_at"`
-}
-
-// BrutePayloadSet represents a payload set
-type BrutePayloadSet struct {
-	ID        int              `json:"id"`
-	Name      string           `json:"name"`
-	Type      string           `json:"type"`
-	Config    map[string]interface{} `json:"config"`
-	CreatedAt string           `json:"created_at"`
-}
-
 // GetAllBruteTasks returns all brute force tasks
 func (a *App) GetAllBruteTasks() ([]BruteTask, error) {
-	a.dbMutex.RLock()
-	defer a.dbMutex.RUnlock()
-
-	rows, err := a.db.Query(`
-		SELECT id, name, request_id, type, status, total_payloads, sent_payloads, success_count, failure_count, started_at, completed_at, created_at
-		FROM brute_tasks
-		ORDER BY created_at DESC
-	`)
+	tasks, err := a.bruteService.GetAllTasks()
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	var tasks []BruteTask
-	for rows.Next() {
-		var t BruteTask
-		if err := rows.Scan(
-			&t.ID, &t.Name, &t.RequestID, &t.Type, &t.Status,
-			&t.TotalPayloads, &t.SentPayloads, &t.SuccessCount, &t.FailureCount,
-			&t.StartedAt, &t.CompletedAt, &t.CreatedAt,
-		); err != nil {
-			return nil, err
-		}
-		tasks = append(tasks, t)
+	result := make([]BruteTask, len(tasks))
+	for i, t := range tasks {
+		result[i] = BruteTask(t)
 	}
-
-	return tasks, nil
+	return result, nil
 }
 
 // CreateBruteTask creates a new brute force task
 func (a *App) CreateBruteTask(name string, requestID int, taskType string) (int64, error) {
-	a.dbMutex.Lock()
-	defer a.dbMutex.Unlock()
-
-	result, err := a.db.Exec(
-		"INSERT INTO brute_tasks (name, request_id, type, status) VALUES (?, ?, ?, 'pending')",
-		name, requestID, taskType,
-	)
-
+	task, err := a.bruteService.CreateTask(name, requestID, taskType)
 	if err != nil {
 		return 0, err
 	}
-
-	return result.LastInsertId()
+	return int64(task.ID), nil
 }
 
 // GetAllBrutePayloadSets returns all payload sets
 func (a *App) GetAllBrutePayloadSets() ([]BrutePayloadSet, error) {
-	a.dbMutex.RLock()
-	defer a.dbMutex.RUnlock()
-
-	rows, err := a.db.Query(`
-		SELECT id, name, type, config, created_at
-		FROM brute_payload_sets
-		ORDER BY created_at DESC
-	`)
+	sets, err := a.bruteService.GetAllPayloadSets()
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	var sets []BrutePayloadSet
-	for rows.Next() {
-		var s BrutePayloadSet
-		var configJSON string
-		if err := rows.Scan(&s.ID, &s.Name, &s.Type, &configJSON, &s.CreatedAt); err != nil {
-			return nil, err
-		}
-
-		if configJSON != "" && configJSON != "{}" {
-			json.Unmarshal([]byte(configJSON), &s.Config)
-		}
-
-		sets = append(sets, s)
+	result := make([]BrutePayloadSet, len(sets))
+	for i, s := range sets {
+		result[i] = BrutePayloadSet(s)
 	}
-
-	return sets, nil
+	return result, nil
 }
 
 // CreateBrutePayloadSet creates a new payload set
 func (a *App) CreateBrutePayloadSet(name, setType string, config map[string]interface{}) (int64, error) {
-	a.dbMutex.Lock()
-	defer a.dbMutex.Unlock()
-
-	configJSON, _ := json.Marshal(config)
-	result, err := a.db.Exec(
-		"INSERT INTO brute_payload_sets (name, type, config) VALUES (?, ?, ?)",
-		name, setType, string(configJSON),
-	)
-
+	set, err := a.bruteService.CreatePayloadSet(name, setType, config)
 	if err != nil {
 		return 0, err
 	}
-
-	return result.LastInsertId()
+	return int64(set.ID), nil
 }
 
 
@@ -1693,6 +1275,20 @@ func (a *App) StartScan(taskID int) error {
 	var templates []string
 	if templatesStr != "" && templatesStr != "[]" {
 		json.Unmarshal([]byte(templatesStr), &templates)
+	}
+
+	// 检查是否使用场景分组
+	if strings.HasPrefix(task.Strategy, "scenario:") {
+		scenarioGroupId := strings.TrimPrefix(task.Strategy, "scenario:")
+		// 从场景分组加载模板
+		group, err := a.GetScenarioGroupByID(scenarioGroupId)
+		if err != nil {
+			return fmt.Errorf("failed to load scenario group: %w", err)
+		}
+		templates = group.TemplateIDs
+		// 更新任务的 templates_used
+		templatesJSON, _ := json.Marshal(templates)
+		a.db.Exec("UPDATE scan_tasks SET templates_used = ? WHERE id = ?", string(templatesJSON), taskID)
 	}
 
 	// 检查是否已经在运行
@@ -2035,20 +1631,6 @@ func (a *App) StopScan(taskID int) error {
 
 // ============ Nuclei Status ============
 
-// NucleiStatus represents the status of nuclei binary
-type NucleiStatus struct {
-	Available    bool   `json:"available"`
-	Version      string `json:"version"`
-	Path         string `json:"path"`
-	Embedded     bool   `json:"embedded"`
-	Platform     string `json:"platform"`
-	Installed    bool   `json:"installed"`
-	TemplatesDir string `json:"templates_dir,omitempty"`
-	TemplateCount int   `json:"template_count,omitempty"`
-	OfflineMode  bool   `json:"offline_mode"`
-	Ready        bool   `json:"ready"`
-}
-
 // GetNucleiStatus 获取 nuclei 二进制文件状态
 func (a *App) GetNucleiStatus() NucleiStatus {
 	status := NucleiStatus{
@@ -2106,16 +1688,6 @@ func (a *App) InstallNuclei() error {
 }
 
 // ============ Custom Template Management ============
-
-// CustomTemplate represents a custom POC template
-type CustomTemplate struct {
-	ID        int    `json:"id"`
-	Name      string `json:"name"`
-	Path      string `json:"path"`
-	Content   string `json:"content,omitempty"`
-	Enabled   bool   `json:"enabled"`
-	CreatedAt string `json:"created_at"`
-}
 
 // GetCustomTemplatesDir returns the directory for custom POC templates
 func (a *App) GetCustomTemplatesDir() string {
@@ -2369,24 +1941,6 @@ func (a *App) GetCustomTemplatesStats() map[string]interface{} {
 
 // ============ Nuclei Templates Browser ============
 
-// NucleiTemplate represents a nuclei POC template file
-type NucleiTemplate struct {
-	ID          string   `json:"id"`
-	Name        string   `json:"name"`
-	Severity    string   `json:"severity"`
-	Author      string   `json:"author"`
-	Path        string   `json:"path"`
-	Category    string   `json:"category"`
-	Tags        []string `json:"tags"`
-	Enabled     bool     `json:"enabled"`
-	Description string   `json:"description,omitempty"`
-	// 漏洞详细信息
-	Impact      string   `json:"impact,omitempty"`       // 影响范围
-	Remediation string   `json:"remediation,omitempty"`  // 解决方案
-	Reference   []string `json:"reference,omitempty"`    // 参考资料
-	Metadata    map[string]string `json:"metadata,omitempty"` // 其他元数据
-}
-
 // TemplateFilter 模板过滤参数
 type TemplateFilter struct {
 	Page      int    `json:"page"`
@@ -2409,6 +1963,50 @@ type PaginatedTemplatesResult struct {
 	Total          int              `json:"total"`
 	CategoryStats  []CategoryStats  `json:"categoryStats"` // 各分类的模板总数
 	FilteredTotal  int              `json:"filteredTotal"` // 应用过滤条件后的总数（用于分页计算）
+}
+
+// GetScenarioGroups 获取所有场景分组
+func (a *App) GetScenarioGroups() ([]ScenarioGroup, error) {
+	return a.scenarioService.GetAll()
+}
+
+// CreateScenarioGroup 创建场景分组
+func (a *App) CreateScenarioGroup(name, description string) (ScenarioGroup, error) {
+	group, err := a.scenarioService.Create(name, description)
+	if err != nil {
+		return ScenarioGroup{}, err
+	}
+	return *group, nil
+}
+
+// UpdateScenarioGroup 更新场景分组
+func (a *App) UpdateScenarioGroup(id, name, description string, templateIds []string) error {
+	return a.scenarioService.Update(id, name, description, templateIds)
+}
+
+// DeleteScenarioGroup 删除场景分组
+func (a *App) DeleteScenarioGroup(id string) error {
+	return a.scenarioService.Delete(id)
+}
+
+// AddTemplatesToScenarioGroup 添加 POC 到场景分组
+func (a *App) AddTemplatesToScenarioGroup(groupId string, templateIds []string) error {
+	return a.scenarioService.AddTemplates(groupId, templateIds)
+}
+
+// RemoveTemplatesFromScenarioGroup 从场景分组移除 POC
+func (a *App) RemoveTemplatesFromScenarioGroup(groupId string, templateIds []string) error {
+	return a.scenarioService.RemoveTemplates(groupId, templateIds)
+}
+
+// GetScenarioGroupTemplates 获取场景分组中的 POC 列表
+func (a *App) GetScenarioGroupTemplates(groupId string) ([]NucleiTemplate, error) {
+	return a.scenarioService.GetTemplates(groupId, a.GetAllNucleiTemplates)
+}
+
+// GetScenarioGroupByID 根据ID获取场景分组
+func (a *App) GetScenarioGroupByID(groupId string) (*ScenarioGroup, error) {
+	return a.scenarioService.GetByID(groupId)
 }
 
 // GetNucleiTemplatesDir returns the nuclei templates directory

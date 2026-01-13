@@ -71,6 +71,7 @@ export interface CreateScanRequest {
   target_id: number;
   strategy: string;
   templates?: string[];
+  scenarioGroupId?: string;  // 场景分组 ID
 }
 
 export interface ScanConfigOptions {

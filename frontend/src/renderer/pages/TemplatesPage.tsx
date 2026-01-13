@@ -24,10 +24,22 @@ import {
   PowerOff,
   ChevronLeft,
   ChevronRight,
+  Plus,
+  FolderOpen,
 } from 'lucide-react';
 import { Button, Input, Select, Modal, Badge } from '../components/ui';
 import clsx from 'clsx';
-import { GetNucleiTemplatesPaginatedV2, GetNucleiTemplateContent } from '@wailsjs/go/main/App';
+import {
+  GetNucleiTemplatesPaginatedV2,
+  GetNucleiTemplateContent,
+  GetScenarioGroups,
+  CreateScenarioGroup,
+  UpdateScenarioGroup,
+  DeleteScenarioGroup,
+  AddTemplatesToScenarioGroup,
+  RemoveTemplatesFromScenarioGroup,
+  GetScenarioGroupTemplates,
+} from '@wailsjs/go/main/App';
 import { TemplateFilter } from '@wailsjs/go/main/models';
 
 interface NucleiTemplate {
@@ -54,6 +66,15 @@ interface TemplateCategory {
   icon: React.ReactNode;
 }
 
+interface ScenarioGroup {
+  id: string;
+  name: string;
+  description: string;
+  templateIds: string[];
+  createdAt: number;
+  updatedAt: number;
+}
+
 // 模板分类定义
 const templateCategoryDefs: Omit<TemplateCategory, 'count'>[] = [
   { id: 'all', name: '全部模板', icon: <Layers size={16} /> },
@@ -68,6 +89,9 @@ const templateCategoryDefs: Omit<TemplateCategory, 'count'>[] = [
 ];
 
 export const TemplatesPage: React.FC = () => {
+  // 视图模式：'templates' | 'scenarios'
+  const [viewMode, setViewMode] = useState<'templates' | 'scenarios'>('templates');
+
   // 分页状态
   const [templates, setTemplates] = useState<NucleiTemplate[]>([]);
   const [filteredTemplates, setFilteredTemplates] = useState<NucleiTemplate[]>([]);
@@ -90,9 +114,17 @@ export const TemplatesPage: React.FC = () => {
   // 分组管理状态
   const [disabledCategories, setDisabledCategories] = useState<Set<string>>(new Set());
 
+  // 场景分组状态
+  const [scenarioGroups, setScenarioGroups] = useState<ScenarioGroup[]>([]);
+  const [editingScenarioGroup, setEditingScenarioGroup] = useState<ScenarioGroup | null>(null);
+  const [showCreateScenarioModal, setShowCreateScenarioModal] = useState(false);
+  const [selectedScenarioGroupId, setSelectedScenarioGroupId] = useState<string | null>(null);
+  const [scenarioTemplates, setScenarioTemplates] = useState<NucleiTemplate[]>([]);
+
   useEffect(() => {
     loadTemplates();
     loadCategoryPreferences();
+    loadScenarioGroups();
   }, []);
 
   // 当分页或过滤条件变化时重新加载
@@ -149,6 +181,89 @@ export const TemplatesPage: React.FC = () => {
     setDisabledCategories(allCategories);
     saveCategoryPreferences(allCategories);
   };
+
+  // ============ 场景分组管理 ============
+
+  // 加载场景分组
+  const loadScenarioGroups = async () => {
+    try {
+      const groups = await GetScenarioGroups();
+      setScenarioGroups(groups);
+    } catch (error) {
+      console.error('Failed to load scenario groups:', error);
+    }
+  };
+
+  // 创建场景分组
+  const handleCreateScenarioGroup = async (name: string, description: string) => {
+    try {
+      const group = await CreateScenarioGroup(name, description);
+      setScenarioGroups([...scenarioGroups, group]);
+      setShowCreateScenarioModal(false);
+      return group;
+    } catch (error) {
+      console.error('Failed to create scenario group:', error);
+      throw error;
+    }
+  };
+
+  // 更新场景分组
+  const handleUpdateScenarioGroup = async (id: string, name: string, description: string, templateIds: string[]) => {
+    try {
+      await UpdateScenarioGroup(id, name, description, templateIds);
+      await loadScenarioGroups();
+    } catch (error) {
+      console.error('Failed to update scenario group:', error);
+      throw error;
+    }
+  };
+
+  // 删除场景分组
+  const handleDeleteScenarioGroup = async (id: string) => {
+    try {
+      await DeleteScenarioGroup(id);
+      setScenarioGroups(scenarioGroups.filter(g => g.id !== id));
+    } catch (error) {
+      console.error('Failed to delete scenario group:', error);
+      throw error;
+    }
+  };
+
+  // 添加 POC 到场景分组
+  const handleAddTemplatesToGroup = async (groupId: string, templateIds: string[]) => {
+    try {
+      await AddTemplatesToScenarioGroup(groupId, templateIds);
+      await loadScenarioGroups();
+    } catch (error) {
+      console.error('Failed to add templates to group:', error);
+      throw error;
+    }
+  };
+
+  // 从场景分组移除 POC
+  const handleRemoveTemplatesFromGroup = async (groupId: string, templateIds: string[]) => {
+    try {
+      await RemoveTemplatesFromScenarioGroup(groupId, templateIds);
+      await loadScenarioGroups();
+    } catch (error) {
+      console.error('Failed to remove templates from group:', error);
+      throw error;
+    }
+  };
+
+  // 加载场景分组的 POC 列表
+  const loadScenarioGroupTemplates = async (groupId: string) => {
+    try {
+      const groupTemplates = await GetScenarioGroupTemplates(groupId);
+      setScenarioTemplates(groupTemplates);
+      setSelectedScenarioGroupId(groupId);
+      setViewMode('templates');
+    } catch (error) {
+      console.error('Failed to load scenario group templates:', error);
+    }
+  };
+
+  // ============ 原有功能 ============
 
   // 只在前端过滤禁用分类（其他过滤已在后端完成）
   useEffect(() => {
@@ -280,8 +395,166 @@ export const TemplatesPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* 禁用分组提示栏 */}
-      {disabledCategories.size > 0 && (
+      {/* 页面标题和视图切换 */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-100">POC 模板浏览</h1>
+          <p className="text-slate-400 mt-1">浏览和管理 Nuclei 扫描模板库</p>
+        </div>
+        <div className="flex items-center gap-2 bg-slate-800/50 border border-slate-700 rounded-lg p-1">
+          <button
+            onClick={() => setViewMode('templates')}
+            className={clsx(
+              'flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all',
+              viewMode === 'templates'
+                ? 'bg-sky-600 text-white'
+                : 'text-slate-400 hover:bg-slate-700'
+            )}
+          >
+            <Layers size={16} />
+            模板浏览
+          </button>
+          <button
+            onClick={() => setViewMode('scenarios')}
+            className={clsx(
+              'flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all',
+              viewMode === 'scenarios'
+                ? 'bg-sky-600 text-white'
+                : 'text-slate-400 hover:bg-slate-700'
+            )}
+          >
+            <FolderOpen size={16} />
+            场景分组
+          </button>
+        </div>
+      </div>
+
+      {/* 场景分组视图 */}
+      {viewMode === 'scenarios' && (
+        <div className="space-y-6">
+          {/* 操作栏 */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-200">我的场景分组</h2>
+              <p className="text-sm text-slate-400 mt-1">创建自定义 POC 分组，按场景管理扫描模板</p>
+            </div>
+            <Button
+              type="primary"
+              size="sm"
+              icon={<Plus size={14} />}
+              onClick={() => setShowCreateScenarioModal(true)}
+            >
+              创建分组
+            </Button>
+          </div>
+
+          {/* 场景分组列表 */}
+          {scenarioGroups.length === 0 ? (
+            <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-12 text-center">
+              <FolderOpen size={48} className="mx-auto text-slate-600 mb-4" />
+              <p className="text-slate-400 mb-2">还没有创建场景分组</p>
+              <p className="text-sm text-slate-500 mb-4">
+                场景分组可以帮助你按具体用途组织 POC，如"登录接口检测"、"支付接口检测"等
+              </p>
+              <Button
+                type="primary"
+                size="sm"
+                icon={<Plus size={14} />}
+                onClick={() => setShowCreateScenarioModal(true)}
+              >
+                创建第一个分组
+              </Button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {scenarioGroups.map((group) => (
+                <div
+                  key={group.id}
+                  className="bg-slate-800/50 border border-slate-700 rounded-xl p-5 hover:border-sky-500/50 transition-all"
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1">
+                      <h3 className="text-lg font-semibold text-slate-200 mb-1">{group.name}</h3>
+                      <p className="text-sm text-slate-400 line-clamp-2">{group.description || '暂无描述'}</p>
+                    </div>
+                    <div className="flex gap-1">
+                      <Button
+                        type="ghost"
+                        size="sm"
+                        icon={<Eye size={14} />}
+                        onClick={() => loadScenarioGroupTemplates(group.id)}
+                        title="查看 POC"
+                      />
+                      <Button
+                        type="ghost"
+                        size="sm"
+                        icon={<Edit size={14} />}
+                        onClick={() => setEditingScenarioGroup(group)}
+                        title="编辑分组"
+                      />
+                      <Button
+                        type="ghost"
+                        size="sm"
+                        icon={<Trash2 size={14} />}
+                        onClick={() => {
+                          if (confirm(`确定要删除场景分组"${group.name}"吗？`)) {
+                            handleDeleteScenarioGroup(group.id);
+                          }
+                        }}
+                        title="删除分组"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4 text-sm">
+                    <div className="flex items-center gap-1">
+                      <Tag size={14} className="text-slate-400" />
+                      <span className="text-slate-400">POC 数量：</span>
+                      <span className="font-medium text-slate-200">{group.templateIds.length}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 模板浏览视图 */}
+      {viewMode === 'templates' && (
+        <>
+          {/* 场景分组返回提示 */}
+          {selectedScenarioGroupId && (
+            <div className="bg-sky-500/10 border border-sky-500/30 rounded-xl p-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <FolderOpen size={20} className="text-sky-400" />
+                <div>
+                  <p className="text-sm font-medium text-sky-200">
+                    当前显示场景分组的 POC
+                  </p>
+                  <p className="text-xs text-sky-400/70">
+                    共 {scenarioTemplates.length} 个 POC
+                  </p>
+                </div>
+              </div>
+              <Button
+                type="secondary"
+                size="sm"
+                onClick={() => {
+                  setSelectedScenarioGroupId(null);
+                  setScenarioTemplates([]);
+                }}
+              >
+                返回全部模板
+              </Button>
+            </div>
+          )}
+
+          {/* 原有的模板浏览内容 */}
+        </>
+      )}
+
+      {/* 禁用分组提示栏（仅在模板浏览视图显示） */}
+      {viewMode === 'templates' && disabledCategories.size > 0 && (
         <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <PowerOff size={20} className="text-yellow-400" />
@@ -305,47 +578,50 @@ export const TemplatesPage: React.FC = () => {
         </div>
       )}
 
-      {/* 页面标题 */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-100">POC 模板浏览</h1>
-          <p className="text-slate-400 mt-1">浏览和管理 Nuclei 扫描模板库</p>
+      {/* 操作栏（仅在模板浏览视图显示） */}
+      {viewMode === 'templates' && (
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-200">模板分类</h2>
+            <p className="text-sm text-slate-400 mt-1">按分类浏览和管理 POC 模板</p>
+          </div>
+          <div className="flex gap-3">
+            <Button
+              type="secondary"
+              size="sm"
+              icon={<Power size={14} />}
+              onClick={enableAllCategories}
+            >
+              启用所有
+            </Button>
+            <Button
+              type="secondary"
+              size="sm"
+              icon={<PowerOff size={14} />}
+              onClick={disableAllCategories}
+            >
+              禁用所有
+            </Button>
+            <Button
+              type="secondary"
+              size="sm"
+              icon={<RefreshCw size={14} />}
+              onClick={() => {
+                setCurrentPage(1);
+                loadTemplates();
+              }}
+              disabled={loading}
+            >
+              刷新
+            </Button>
+          </div>
         </div>
-        <div className="flex gap-3">
-          <Button
-            type="secondary"
-            size="sm"
-            icon={<Power size={14} />}
-            onClick={enableAllCategories}
-          >
-            启用所有分组
-          </Button>
-          <Button
-            type="secondary"
-            size="sm"
-            icon={<PowerOff size={14} />}
-            onClick={disableAllCategories}
-          >
-            禁用所有分组
-          </Button>
-          <Button
-            type="secondary"
-            size="sm"
-            icon={<RefreshCw size={14} />}
-            onClick={() => {
-              setCurrentPage(1);
-              loadTemplates();
-            }}
-            disabled={loading}
-          >
-            刷新
-          </Button>
-        </div>
-      </div>
+      )}
 
-      {/* 统计卡片 */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-        {getTemplateCategories().map((category) => {
+      {/* 统计卡片（仅在模板浏览视图显示） */}
+      {viewMode === 'templates' && (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+          {getTemplateCategories().map((category) => {
           const isDisabled = category.id !== 'all' && disabledCategories.has(category.id);
           return (
             <div
@@ -407,58 +683,62 @@ export const TemplatesPage: React.FC = () => {
                 </button>
               )}
             </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
-      {/* 过滤和搜索 */}
-      <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-2.5">
-        <div className="flex items-center gap-2">
-          {/* 搜索框 */}
-          <div className="flex-1 min-w-[200px] relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <Input
-              placeholder="搜索模板名称、ID、标签..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 text-sm h-9"
+      {/* 过滤和搜索（仅在模板浏览视图显示） */}
+      {viewMode === 'templates' && (
+        <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-2.5">
+          <div className="flex items-center gap-2">
+            {/* 搜索框 */}
+            <div className="flex-1 min-w-[200px] relative">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Input
+                placeholder="搜索模板名称、ID、标签..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 text-sm h-9"
+              />
+            </div>
+
+            {/* 严重程度选择 */}
+            <Select
+              placeholder="等级"
+              options={[
+                { value: 'all', label: '全部' },
+                { value: 'critical', label: '严重' },
+                { value: 'high', label: '高危' },
+                { value: 'medium', label: '中危' },
+                { value: 'low', label: '低危' },
+                { value: 'info', label: '信息' },
+              ]}
+              value={severityFilter}
+              onChange={setSeverityFilter}
+              size="sm"
+              className="w-24 flex-shrink-0"
+            />
+
+            {/* 作者选择 */}
+            <Select
+              placeholder="作者"
+              options={[
+                { value: 'all', label: '全部作者' },
+                ...getUniqueAuthors().map((author) => ({ value: author, label: author })),
+              ]}
+              value={authorFilter}
+              onChange={setAuthorFilter}
+              size="sm"
+              className="w-32 flex-shrink-0"
             />
           </div>
-
-          {/* 严重程度选择 */}
-          <Select
-            placeholder="等级"
-            options={[
-              { value: 'all', label: '全部' },
-              { value: 'critical', label: '严重' },
-              { value: 'high', label: '高危' },
-              { value: 'medium', label: '中危' },
-              { value: 'low', label: '低危' },
-              { value: 'info', label: '信息' },
-            ]}
-            value={severityFilter}
-            onChange={setSeverityFilter}
-            size="sm"
-            className="w-24 flex-shrink-0"
-          />
-
-          {/* 作者选择 */}
-          <Select
-            placeholder="作者"
-            options={[
-              { value: 'all', label: '全部作者' },
-              ...getUniqueAuthors().map((author) => ({ value: author, label: author })),
-            ]}
-            value={authorFilter}
-            onChange={setAuthorFilter}
-            size="sm"
-            className="w-32 flex-shrink-0"
-          />
         </div>
-      </div>
+      )}
 
-      {/* 模板列表 */}
-      <div className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden">
+      {/* 模板列表（仅在模板浏览视图显示） */}
+      {viewMode === 'templates' && (
+        <div className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden">
         {initialLoading ? (
           <div className="p-8 text-center text-slate-400">
             <RefreshCw size={24} className="mx-auto mb-2 animate-spin" />
@@ -660,6 +940,7 @@ export const TemplatesPage: React.FC = () => {
           </>
         )}
       </div>
+      )}
 
       {/* 模板详情模态框 */}
       {selectedTemplate && (
@@ -783,6 +1064,108 @@ export const TemplatesPage: React.FC = () => {
                   {templateContent || '加载中...'}
                 </pre>
               </div>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* 创建场景分组模态框 */}
+      {showCreateScenarioModal && (
+        <Modal
+          visible={showCreateScenarioModal}
+          title="创建场景分组"
+          onClose={() => setShowCreateScenarioModal(false)}
+          onConfirm={async () => {
+            const nameInput = document.getElementById('scenario-name') as HTMLInputElement;
+            const descInput = document.getElementById('scenario-description') as HTMLInputElement;
+            if (nameInput?.value) {
+              await handleCreateScenarioGroup(nameInput.value, descInput?.value || '');
+            }
+          }}
+          confirmText="创建"
+          width="md"
+        >
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-400 mb-2">
+                分组名称 <span className="text-red-400">*</span>
+              </label>
+              <Input
+                id="scenario-name"
+                placeholder="例如：登录接口检测、支付接口检测"
+                className="w-full"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-400 mb-2">
+                描述
+              </label>
+              <Input
+                id="scenario-description"
+                placeholder="描述该场景分组的用途"
+                className="w-full"
+              />
+            </div>
+            <div className="bg-sky-500/10 border border-sky-500/30 rounded-lg p-3">
+              <p className="text-sm text-sky-300">
+                <FolderOpen size={14} className="inline mr-1" />
+                创建后可以在分组中添加 POC 模板
+              </p>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* 编辑场景分组模态框 */}
+      {editingScenarioGroup && (
+        <Modal
+          visible={!!editingScenarioGroup}
+          title="编辑场景分组"
+          onClose={() => setEditingScenarioGroup(null)}
+          onConfirm={async () => {
+            const nameInput = document.getElementById('edit-scenario-name') as HTMLInputElement;
+            const descInput = document.getElementById('edit-scenario-description') as HTMLInputElement;
+            if (nameInput?.value && editingScenarioGroup) {
+              await handleUpdateScenarioGroup(
+                editingScenarioGroup.id,
+                nameInput.value,
+                descInput?.value || '',
+                editingScenarioGroup.templateIds
+              );
+              setEditingScenarioGroup(null);
+            }
+          }}
+          confirmText="保存"
+          width="md"
+        >
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-400 mb-2">
+                分组名称 <span className="text-red-400">*</span>
+              </label>
+              <Input
+                id="edit-scenario-name"
+                defaultValue={editingScenarioGroup.name}
+                placeholder="例如：登录接口检测、支付接口检测"
+                className="w-full"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-400 mb-2">
+                描述
+              </label>
+              <Input
+                id="edit-scenario-description"
+                defaultValue={editingScenarioGroup.description}
+                placeholder="描述该场景分组的用途"
+                className="w-full"
+              />
+            </div>
+            <div className="bg-slate-700/50 border border-slate-600 rounded-lg p-3">
+              <p className="text-sm text-slate-300">
+                <Tag size={14} className="inline mr-1" />
+                当前包含 {editingScenarioGroup.templateIds.length} 个 POC 模板
+              </p>
             </div>
           </div>
         </Modal>
