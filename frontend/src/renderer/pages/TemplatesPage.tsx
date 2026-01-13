@@ -96,9 +96,13 @@ export const TemplatesPage: React.FC = () => {
   }, []);
 
   // 当分页或过滤条件变化时重新加载
+  // 注意：searchQuery, severityFilter, authorFilter 已在 loadTemplates 的依赖中
+  // 这里只需要监听触发 loadTemplates 的状态变化
   useEffect(() => {
-    loadTemplates();
-  }, [currentPage, pageSize, selectedCategory]);
+    if (!initialLoading) {
+      loadTemplates();
+    }
+  }, [currentPage, pageSize, selectedCategory, searchQuery, severityFilter, authorFilter]);
 
   // 加载分类偏好设置
   const loadCategoryPreferences = () => {
@@ -205,7 +209,7 @@ export const TemplatesPage: React.FC = () => {
       setLoading(false);
       setInitialLoading(false);
     }
-  }, [currentPage, pageSize, selectedCategory, searchQuery, severityFilter, authorFilter, initialLoading]);
+  }, [currentPage, pageSize, selectedCategory, searchQuery, severityFilter, authorFilter]);
 
   const loadTemplateContent = async (path: string) => {
     try {
