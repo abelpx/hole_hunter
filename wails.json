@@ -18,5 +18,6 @@
   },
   "wailsjsdir": "./frontend/wailsjs",
   "version": "2",
-  "outputType": "desktop"
+  "outputType": "desktop",
+  "build:pre": "./build/copy-templates.sh"
 }

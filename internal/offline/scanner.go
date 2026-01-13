@@ -230,40 +230,61 @@ func (s *OfflineScanner) GetTemplateStats() (map[string]int, error) {
 
 // getResourceDir 获取应用资源目录
 func (s *OfflineScanner) getResourceDir() (string, error) {
-	// 1. 检查应用可执行文件所在目录（优先级最高）
+	// 1. 检查应用可执行文件所在目录（生产环境）
 	if exePath, err := os.Executable(); err == nil {
 		exeDir := filepath.Dir(exePath)
 		candidatePaths := []string{
-			filepath.Join(exeDir, "nuclei"),
-			filepath.Join(exeDir, "..", "Resources", "nuclei"),
-			filepath.Join(exeDir, "..", "MacOS", "nuclei"),
+			// Windows/Linux: 直接在可执行文件旁边
+			filepath.Join(exeDir, "nuclei-templates"),
+			// macOS .app 结构
+			filepath.Join(exeDir, "..", "Resources", "nuclei-templates"),
+			filepath.Join(exeDir, "..", "..", "Resources", "nuclei-templates"),
+			// 开发环境
+			filepath.Join(exeDir, "..", "..", "build", "nuclei-templates"),
+			filepath.Join(exeDir, "..", "..", "..", "build", "nuclei-templates"),
 		}
 		for _, path := range candidatePaths {
-			if _, err := os.Stat(path); err == nil {
-				return filepath.Dir(path), nil
+			normalizedPath := filepath.Clean(path)
+			if info, err := os.Stat(normalizedPath); err == nil && info.IsDir() {
+				// 检查目录是否包含 yaml 文件（确认为模板目录）
+				yamlExists := false
+				filepath.Walk(normalizedPath, func(subPath string, info os.FileInfo, err error) error {
+					if !yamlExists && !info.IsDir() && filepath.Ext(subPath) == ".yaml" {
+						yamlExists = true
+					}
+					return nil
+				})
+				if yamlExists {
+					return normalizedPath, nil
+				}
 			}
 		}
 	}
 
-	// 2. 开发模式：项目目录
+	// 2. 开发模式：项目 build 目录
 	possibleDirs := []string{
-		filepath.Join(".", "build", "binaries"),
-		filepath.Join(".", "resources"),
-		filepath.Join(".", "build", "nuclei-binaries", s.platform),
+		filepath.Join(".", "build", "nuclei-templates"),
+		filepath.Join(".", "nuclei-templates"),
+		filepath.Join("..", "nuclei-templates"),
 	}
 
 	for _, dir := range possibleDirs {
-		if _, err := os.Stat(dir); err == nil {
-			return dir, nil
+		if info, err := os.Stat(dir); err == nil && info.IsDir() {
+			// 检查是否包含 yaml 文件
+			yamlExists := false
+			filepath.Walk(dir, func(subPath string, info os.FileInfo, err error) error {
+				if !yamlExists && !info.IsDir() && filepath.Ext(subPath) == ".yaml" {
+					yamlExists = true
+				}
+				return nil
+			})
+			if yamlExists {
+				return dir, nil
+			}
 		}
 	}
 
-	// 3. 用户数据目录的父级（macOS .app 结构）
-	if _, err := os.Stat(filepath.Join(s.userDataDir, "..", "Resources", "nuclei")); err == nil {
-		return filepath.Join(s.userDataDir, "..", "Resources"), nil
-	}
-
-	return "", fmt.Errorf("nuclei not found in any resource directory")
+	return "", fmt.Errorf("nuclei templates not found in any resource directory")
 }
 
 // copyFile 复制文件

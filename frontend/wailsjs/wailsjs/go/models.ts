@@ -280,20 +280,6 @@ export namespace main {
 	        this.metadata = source["metadata"];
 	    }
 	}
-	export class PaginatedTemplatesResult {
-	    templates: NucleiTemplate[];
-	    total: number;
-
-	    static createFrom(source: any = {}) {
-	        return new PaginatedTemplatesResult(source);
-	    }
-
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.templates = source["templates"];
-	        this.total = source["total"];
-	    }
-	}
 	export class PortScanResult {
 	    id: number;
 	    task_id: number;

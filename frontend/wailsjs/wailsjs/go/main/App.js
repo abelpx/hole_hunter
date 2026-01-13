@@ -86,10 +86,6 @@ export function GetAllNucleiTemplates() {
   return window['go']['main']['App']['GetAllNucleiTemplates']();
 }
 
-export function GetNucleiTemplatesPaginated(arg1, arg2) {
-  return window['go']['main']['App']['GetNucleiTemplatesPaginated'](arg1, arg2);
-}
-
 export function GetAllPortScanTasks() {
   return window['go']['main']['App']['GetAllPortScanTasks']();
 }
@@ -160,6 +156,10 @@ export function GetNucleiTemplatesCategories() {
 
 export function GetNucleiTemplatesDir() {
   return window['go']['main']['App']['GetNucleiTemplatesDir']();
+}
+
+export function GetNucleiTemplatesPaginated(arg1, arg2) {
+  return window['go']['main']['App']['GetNucleiTemplatesPaginated'](arg1, arg2);
 }
 
 export function GetPortScanResults(arg1) {

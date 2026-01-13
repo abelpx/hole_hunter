@@ -88,7 +88,7 @@ dev:
 	@"$(WAILS)" dev
 
 ## build: 生产构建（优化）
-build: nuclei-download
+build: nuclei-download prepare-templates
 	@echo "$(GREEN)构建 $(APP_NAME) 桌面应用...$(NC)"
 	@echo "$(BLUE)平台: $(DETECTED_OS)$(NC)"
 	@echo "$(BLUE)模式: 生产（优化）$(NC)"
@@ -99,7 +99,7 @@ build: nuclei-download
 	@$(MAKE) show-build-info
 
 ## build-debug: 调试构建（包含开发者工具）
-build-debug: nuclei-download
+build-debug: nuclei-download prepare-templates
 	@echo "$(GREEN)构建 $(APP_NAME) 桌面应用（调试模式）...$(NC)"
 	@echo "$(BLUE)平台: $(DETECTED_OS)$(NC)"
 	@echo "$(BLUE)模式: 调试（包含开发者工具）$(NC)"
@@ -175,6 +175,16 @@ show-build-info:
 	@echo "$(BLUE)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"
 	@echo ""
 	@echo "$(YELLOW)运行: make run$(NC)"
+
+## prepare-templates: 准备模板文件（清理并复制到 build 目录）
+prepare-templates:
+	@echo "$(BLUE)准备 POC 模板文件...$(NC)"
+	@if [ -d "nuclei-templates" ]; then \
+		./build/copy-templates.sh; \
+	else \
+		echo "$(YELLOW)警告: nuclei-templates 子模块未初始化$(NC)"; \
+		echo "$(YELLOW)运行: git submodule update --init --recursive$(NC)"; \
+	fi
 
 ## run: 运行已构建的应用
 run:
