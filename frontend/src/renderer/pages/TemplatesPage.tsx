@@ -27,7 +27,8 @@ import {
 } from 'lucide-react';
 import { Button, Input, Select, Modal, Badge } from '../components/ui';
 import clsx from 'clsx';
-import { GetNucleiTemplatesPaginated, GetNucleiTemplateContent } from '@wailsjs/go/main/App';
+import { GetNucleiTemplatesPaginatedV2, GetNucleiTemplateContent } from '@wailsjs/go/main/App';
+import { TemplateFilter } from '@wailsjs/go/main/models';
 
 interface NucleiTemplate {
   id: string;
@@ -70,7 +71,9 @@ export const TemplatesPage: React.FC = () => {
   // 分页状态
   const [templates, setTemplates] = useState<NucleiTemplate[]>([]);
   const [filteredTemplates, setFilteredTemplates] = useState<NucleiTemplate[]>([]);
-  const [total, setTotal] = useState(0);
+  const [total, setTotal] = useState(0); // 总模板数
+  const [filteredTotal, setFilteredTotal] = useState(0); // 过滤后的总数
+  const [categoryStats, setCategoryStats] = useState<Map<string, number>>(new Map()); // 后端返回的分类统计
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(50); // 每页50条
   const [loading, setLoading] = useState(false);
@@ -143,9 +146,10 @@ export const TemplatesPage: React.FC = () => {
     saveCategoryPreferences(allCategories);
   };
 
+  // 只在前端过滤禁用分类（其他过滤已在后端完成）
   useEffect(() => {
     filterTemplates();
-  }, [templates, searchQuery, severityFilter, authorFilter, selectedCategory]);
+  }, [templates, disabledCategories]);
 
   const loadTemplates = useCallback(async () => {
     try {
@@ -155,11 +159,21 @@ export const TemplatesPage: React.FC = () => {
         setLoading(true);
       }
 
-      // 使用分页 API
-      const { templates: data, total: totalCount } = await GetNucleiTemplatesPaginated(currentPage, pageSize);
+      // 构建过滤参数
+      const filter: TemplateFilter = {
+        page: currentPage,
+        pageSize: pageSize,
+        category: selectedCategory === 'all' ? '' : selectedCategory,
+        search: searchQuery,
+        severity: severityFilter === 'all' ? '' : severityFilter,
+        author: authorFilter === 'all' ? '' : authorFilter,
+      };
+
+      // 使用支持过滤的新 API
+      const result = await GetNucleiTemplatesPaginatedV2(filter);
 
       // 将后端数据转换为前端格式
-      const transformedTemplates: NucleiTemplate[] = data.map(t => ({
+      const transformedTemplates: NucleiTemplate[] = result.templates.map(t => ({
         id: t.id,
         name: t.name || t.id,
         author: t.author || 'unknown',
@@ -175,15 +189,23 @@ export const TemplatesPage: React.FC = () => {
         metadata: t.metadata,
       }));
 
+      // 存储分类统计（从后端返回的全局统计）
+      const statsMap = new Map<string, number>();
+      result.categoryStats.forEach(stat => {
+        statsMap.set(stat.category, stat.count);
+      });
+      setCategoryStats(statsMap);
+
       setTemplates(transformedTemplates);
-      setTotal(totalCount);
+      setTotal(result.total); // 总模板数（未过滤）
+      setFilteredTotal(result.filteredTotal); // 过滤后的总数（用于分页计算）
     } catch (error) {
       console.error('Failed to load templates:', error);
     } finally {
       setLoading(false);
       setInitialLoading(false);
     }
-  }, [currentPage, pageSize, initialLoading]);
+  }, [currentPage, pageSize, selectedCategory, searchQuery, severityFilter, authorFilter, initialLoading]);
 
   const loadTemplateContent = async (path: string) => {
     try {
@@ -198,37 +220,12 @@ export const TemplatesPage: React.FC = () => {
   const filterTemplates = () => {
     let filtered = [...templates];
 
-    // 过滤掉禁用分类的模板
+    // 只过滤禁用分类的模板（其他过滤已在后端完成）
     if (disabledCategories.size > 0) {
       filtered = filtered.filter((t) => {
         const topCategory = t.category.split('/')[0];
         return !disabledCategories.has(topCategory);
       });
-    }
-
-    // 分类过滤
-    if (selectedCategory !== 'all') {
-      filtered = filtered.filter((t) => t.category === selectedCategory || t.category.startsWith(selectedCategory + '/'));
-    }
-
-    // 搜索过滤
-    if (searchQuery) {
-      filtered = filtered.filter(
-        (template) =>
-          template.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          template.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          template.tags.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase()))
-      );
-    }
-
-    // 严重程度过滤
-    if (severityFilter !== 'all') {
-      filtered = filtered.filter((template) => template.severity === severityFilter);
-    }
-
-    // 作者过滤
-    if (authorFilter !== 'all') {
-      filtered = filtered.filter((template) => template.author === authorFilter);
     }
 
     setFilteredTemplates(filtered);
@@ -263,25 +260,15 @@ export const TemplatesPage: React.FC = () => {
 
   // 动态计算模板分类统计
   const getTemplateCategories = (): TemplateCategory[] => {
-    const categoryMap = new Map<string, number>();
-
-    // 统计每个分类的模板数量（注意：这里只统计当前页的分类统计）
-    // TODO: 如果需要准确的分类总数，需要在后端添加分类统计 API
-    templates.forEach(t => {
-      const topCategory = t.category.split('/')[0];
-      categoryMap.set(topCategory, (categoryMap.get(topCategory) || 0) + 1);
-    });
-
     return [
-      // "全部模板"使用后端返回的总数量 total，而不是当前页的 templates.length
+      // "全部模板"使用后端返回的总数量 total
       { id: 'all', name: '全部模板', count: total, icon: <Layers size={16} /> },
       ...templateCategoryDefs
         .filter(catDef => catDef.id !== 'all')
         .map(catDef => ({
           ...catDef,
-          // 注意：这里显示的是当前页该分类的数量，不是该分类的总数
-          // 实际应用中，分类统计应该从后端获取
-          count: categoryMap.get(catDef.id) || 0,
+          // 使用后端返回的全局分类统计
+          count: categoryStats.get(catDef.id) || 0,
         }))
         .filter(cat => cat.count > 0) // 只显示有模板的分类
     ];
@@ -595,10 +582,11 @@ export const TemplatesPage: React.FC = () => {
             </div>
 
             {/* 分页控件 */}
-            {total > 0 && (
+            {filteredTotal > 0 && (
               <div className="flex items-center justify-between px-4 py-3 bg-slate-900/30 border-t border-slate-700">
                 <div className="text-sm text-slate-400">
-                  显示第 {Math.min((currentPage - 1) * pageSize + 1, total)} - {Math.min(currentPage * pageSize, total)} 条，共 {total} 条
+                  显示第 {Math.min((currentPage - 1) * pageSize + 1, filteredTotal)} - {Math.min(currentPage * pageSize, filteredTotal)} 条，共 {filteredTotal} 条
+                  {filteredTotal !== total && <span className="ml-2 text-slate-500">（总计 {total} 条）</span>}
                 </div>
                 <div className="flex items-center gap-2">
                   <Button
@@ -611,9 +599,9 @@ export const TemplatesPage: React.FC = () => {
                     上一页
                   </Button>
                   <div className="flex items-center gap-1">
-                    {Array.from({ length: Math.min(5, Math.ceil(total / pageSize)) }, (_, i) => {
+                    {Array.from({ length: Math.min(5, Math.ceil(filteredTotal / pageSize)) }, (_, i) => {
                       let pageNum;
-                      const totalPages = Math.ceil(total / pageSize);
+                      const totalPages = Math.ceil(filteredTotal / pageSize);
                       if (totalPages <= 5) {
                         pageNum = i + 1;
                       } else if (currentPage <= 3) {
@@ -646,7 +634,7 @@ export const TemplatesPage: React.FC = () => {
                     size="sm"
                     icon={<ChevronRight size={16} />}
                     onClick={() => setCurrentPage(p => p + 1)}
-                    disabled={currentPage * pageSize >= total || loading}
+                    disabled={currentPage * pageSize >= filteredTotal || loading}
                   >
                     下一页
                   </Button>

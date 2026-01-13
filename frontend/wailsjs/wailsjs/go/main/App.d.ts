@@ -28,6 +28,8 @@ export function DeleteScanTask(arg1:number):Promise<void>;
 
 export function DeleteTarget(arg1:number):Promise<void>;
 
+export function DeleteTemplate(arg1:string):Promise<void>;
+
 export function DeleteVulnerability(arg1:number):Promise<void>;
 
 export function GetAllBrutePayloadSets():Promise<Array<main.BrutePayloadSet>>;
@@ -82,6 +84,8 @@ export function GetNucleiTemplatesDir():Promise<string>;
 
 export function GetNucleiTemplatesPaginated(arg1:number,arg2:number):Promise<main.PaginatedTemplatesResult>;
 
+export function GetNucleiTemplatesPaginatedV2(arg1:main.TemplateFilter):Promise<main.PaginatedTemplatesResult>;
+
 export function GetPortScanResults(arg1:number):Promise<Array<main.PortScanResult>>;
 
 export function GetScanProgress(arg1:number):Promise<main.ScanProgress>;
@@ -90,9 +94,13 @@ export function GetScanTaskByID(arg1:number):Promise<main.ScanTask>;
 
 export function GetTargetByID(arg1:number):Promise<main.Target>;
 
+export function GetTemplateEnabled(arg1:string):Promise<boolean>;
+
 export function GetVulnerabilitiesByTaskID(arg1:number):Promise<Array<main.Vulnerability>>;
 
 export function HealthCheck():Promise<Record<string, any>>;
+
+export function ImportTemplate(arg1:string,arg2:string):Promise<string>;
 
 export function InstallNuclei():Promise<void>;
 
@@ -100,7 +108,11 @@ export function LogFromFrontend(arg1:string,arg2:string):Promise<void>;
 
 export function SearchNucleiTemplates(arg1:string):Promise<Array<main.NucleiTemplate>>;
 
+export function SetCategoryEnabled(arg1:string,arg2:boolean):Promise<void>;
+
 export function SetConfig(arg1:string,arg2:string):Promise<void>;
+
+export function SetTemplateEnabled(arg1:string,arg2:boolean):Promise<void>;
 
 export function StartScan(arg1:number):Promise<void>;
 
@@ -121,17 +133,5 @@ export function UpdateTarget(arg1:number,arg2:string,arg3:string,arg4:string,arg
 export function UpdateVulnerability(arg1:number,arg2:boolean,arg3:string):Promise<void>;
 
 export function ValidateCustomTemplate(arg1:string):Promise<Record<string, any>>;
-
-export function GetNucleiTemplatesPaginatedV2(arg1:main.TemplateFilter):Promise<main.PaginatedTemplatesResult>;
-
-export function SetTemplateEnabled(arg1:string,arg2:boolean):Promise<void>;
-
-export function GetTemplateEnabled(arg1:string):Promise<boolean>;
-
-export function SetCategoryEnabled(arg1:string,arg2:boolean):Promise<void>;
-
-export function ImportTemplate(arg1:string,arg2:string):Promise<string>;
-
-export function DeleteTemplate(arg1:string):Promise<void>;
 
 export function ValidateTemplate(arg1:string):Promise<Record<string, any>>;

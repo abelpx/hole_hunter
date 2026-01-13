@@ -54,6 +54,10 @@ export function DeleteTarget(arg1) {
   return window['go']['main']['App']['DeleteTarget'](arg1);
 }
 
+export function DeleteTemplate(arg1) {
+  return window['go']['main']['App']['DeleteTemplate'](arg1);
+}
+
 export function DeleteVulnerability(arg1) {
   return window['go']['main']['App']['DeleteVulnerability'](arg1);
 }
@@ -162,6 +166,10 @@ export function GetNucleiTemplatesPaginated(arg1, arg2) {
   return window['go']['main']['App']['GetNucleiTemplatesPaginated'](arg1, arg2);
 }
 
+export function GetNucleiTemplatesPaginatedV2(arg1) {
+  return window['go']['main']['App']['GetNucleiTemplatesPaginatedV2'](arg1);
+}
+
 export function GetPortScanResults(arg1) {
   return window['go']['main']['App']['GetPortScanResults'](arg1);
 }
@@ -178,12 +186,20 @@ export function GetTargetByID(arg1) {
   return window['go']['main']['App']['GetTargetByID'](arg1);
 }
 
+export function GetTemplateEnabled(arg1) {
+  return window['go']['main']['App']['GetTemplateEnabled'](arg1);
+}
+
 export function GetVulnerabilitiesByTaskID(arg1) {
   return window['go']['main']['App']['GetVulnerabilitiesByTaskID'](arg1);
 }
 
 export function HealthCheck() {
   return window['go']['main']['App']['HealthCheck']();
+}
+
+export function ImportTemplate(arg1, arg2) {
+  return window['go']['main']['App']['ImportTemplate'](arg1, arg2);
 }
 
 export function InstallNuclei() {
@@ -198,8 +214,16 @@ export function SearchNucleiTemplates(arg1) {
   return window['go']['main']['App']['SearchNucleiTemplates'](arg1);
 }
 
+export function SetCategoryEnabled(arg1, arg2) {
+  return window['go']['main']['App']['SetCategoryEnabled'](arg1, arg2);
+}
+
 export function SetConfig(arg1, arg2) {
   return window['go']['main']['App']['SetConfig'](arg1, arg2);
+}
+
+export function SetTemplateEnabled(arg1, arg2) {
+  return window['go']['main']['App']['SetTemplateEnabled'](arg1, arg2);
 }
 
 export function StartScan(arg1) {
@@ -240,30 +264,6 @@ export function UpdateVulnerability(arg1, arg2, arg3) {
 
 export function ValidateCustomTemplate(arg1) {
   return window['go']['main']['App']['ValidateCustomTemplate'](arg1);
-}
-
-export function GetNucleiTemplatesPaginatedV2(arg1) {
-  return window['go']['main']['App']['GetNucleiTemplatesPaginatedV2'](arg1);
-}
-
-export function SetTemplateEnabled(arg1, arg2) {
-  return window['go']['main']['App']['SetTemplateEnabled'](arg1, arg2);
-}
-
-export function GetTemplateEnabled(arg1) {
-  return window['go']['main']['App']['GetTemplateEnabled'](arg1);
-}
-
-export function SetCategoryEnabled(arg1, arg2) {
-  return window['go']['main']['App']['SetCategoryEnabled'](arg1, arg2);
-}
-
-export function ImportTemplate(arg1, arg2) {
-  return window['go']['main']['App']['ImportTemplate'](arg1, arg2);
-}
-
-export function DeleteTemplate(arg1) {
-  return window['go']['main']['App']['DeleteTemplate'](arg1);
 }
 
 export function ValidateTemplate(arg1) {

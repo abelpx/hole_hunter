@@ -54,6 +54,20 @@ export namespace main {
 	        this.created_at = source["created_at"];
 	    }
 	}
+	export class CategoryStats {
+	    category: string;
+	    count: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new CategoryStats(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.category = source["category"];
+	        this.count = source["count"];
+	    }
+	}
 	export class CustomTemplate {
 	    id: number;
 	    name: string;
@@ -283,6 +297,8 @@ export namespace main {
 	export class PaginatedTemplatesResult {
 	    templates: NucleiTemplate[];
 	    total: number;
+	    categoryStats: CategoryStats[];
+	    filteredTotal: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new PaginatedTemplatesResult(source);
@@ -292,6 +308,8 @@ export namespace main {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.templates = this.convertValues(source["templates"], NucleiTemplate);
 	        this.total = source["total"];
+	        this.categoryStats = this.convertValues(source["categoryStats"], CategoryStats);
+	        this.filteredTotal = source["filteredTotal"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -452,6 +470,28 @@ export namespace main {
 	        this.updated_at = source["updated_at"];
 	    }
 	}
+	export class TemplateFilter {
+	    page: number;
+	    pageSize: number;
+	    category: string;
+	    search: string;
+	    severity: string;
+	    author: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new TemplateFilter(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.page = source["page"];
+	        this.pageSize = source["pageSize"];
+	        this.category = source["category"];
+	        this.search = source["search"];
+	        this.severity = source["severity"];
+	        this.author = source["author"];
+	    }
+	}
 	export class Vulnerability {
 	    id: number;
 	    task_id: number;
@@ -486,60 +526,6 @@ export namespace main {
 	        this.cve = source["cve"];
 	        this.cvss = source["cvss"];
 	        this.created_at = source["created_at"];
-	    }
-	}
-	export class TemplateFilter {
-	    page: number;
-	    pageSize: number;
-	    category: string;
-	    search: string;
-	    severity: string;
-	    author: string;
-
-	    static createFrom(source: any = {}) {
-	        return new TemplateFilter(source);
-	    }
-
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.page = source["page"];
-	        this.pageSize = source["pageSize"];
-	        this.category = source["category"];
-	        this.search = source["search"];
-	        this.severity = source["severity"];
-	        this.author = source["author"];
-	    }
-	}
-	export class CategoryStats {
-	    category: string;
-	    count: number;
-
-	    static createFrom(source: any = {}) {
-	        return new CategoryStats(source);
-	    }
-
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.category = source["category"];
-	        this.count = source["count"];
-	    }
-	}
-	export class PaginatedTemplatesResult {
-	    templates: NucleiTemplate[];
-	    total: number;
-	    categoryStats: CategoryStats[];
-	    filteredTotal: number;
-
-	    static createFrom(source: any = {}) {
-	        return new PaginatedTemplatesResult(source);
-	    }
-
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.templates = source["templates"];
-	        this.total = source["total"];
-	        this.categoryStats = source["categoryStats"];
-	        this.filteredTotal = source["filteredTotal"];
 	    }
 	}
 
