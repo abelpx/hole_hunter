@@ -1,17 +1,12 @@
 package offline
 
 import (
-	"embed"
 	"fmt"
 	"io"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
 )
-
-//go:embed nuclei-templates/*
-var templatesFS embed.FS
 
 // OfflineScanner 离线扫描器
 type OfflineScanner struct {
@@ -109,20 +104,38 @@ func (s *OfflineScanner) extractEmbeddedTemplates() error {
 		return fmt.Errorf("failed to create templates directory: %w", err)
 	}
 
-	// 优先从应用资源目录复制完整模板
+	// 尝试从多个位置复制模板
+	templateSources := []string{}
+
+	// 1. 从应用资源目录复制（生产环境）
 	resourceDir, err := s.getResourceDir()
 	if err == nil {
 		templatesSrc := filepath.Join(resourceDir, "nuclei-templates")
-		if _, err := os.Stat(templatesSrc); err == nil {
-			// 复制模板目录
-			if err := copyDir(templatesSrc, s.templatesDir); err == nil {
+		templateSources = append(templateSources, templatesSrc)
+	}
+
+	// 2. 从项目根目录复制（开发环境，git submodule）
+	templateSources = append(templateSources, filepath.Join(".", "nuclei-templates"))
+	templateSources = append(templateSources, filepath.Join("..", "nuclei-templates"))
+
+	// 3. 尝试从用户数据目录的父级复制（macOS .app 结构）
+	templateSources = append(templateSources, filepath.Join(s.userDataDir, "..", "nuclei-templates"))
+
+	// 尝试所有可能的源
+	for _, src := range templateSources {
+		if src == "" {
+			continue
+		}
+		// 规范化路径
+		src = filepath.Clean(src)
+		if _, err := os.Stat(src); err == nil {
+			if err := copyDir(src, s.templatesDir); err == nil {
 				return nil
 			}
 		}
 	}
 
-	// Fallback: 从 embed.FS 提取基础模板
-	return extractEmbedFS(templatesFS, s.templatesDir, "nuclei-templates")
+	return fmt.Errorf("unable to find nuclei-templates in any location. Please run: git submodule update --init --recursive")
 }
 
 // createNucleiConfig 创建 nuclei 配置文件
@@ -292,41 +305,5 @@ func copyDir(src, dst string) error {
 
 		// 复制文件
 		return copyFile(path, dstPath)
-	})
-}
-
-// extractEmbedFS 从 embed.FS 提取文件到目标目录
-func extractEmbedFS(embedFS embed.FS, destDir, prefix string) error {
-	return fs.WalkDir(embedFS, prefix, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-
-		// 跳过根目录
-		if path == prefix {
-			return nil
-		}
-
-		// 计算相对路径
-		relPath := path
-		if len(path) > len(prefix) {
-			relPath = path[len(prefix)+1:]
-		}
-
-		// 构建目标路径
-		destPath := filepath.Join(destDir, relPath)
-
-		if d.IsDir() {
-			return os.MkdirAll(destPath, 0755)
-		}
-
-		// 读取文件内容
-		data, err := embedFS.ReadFile(path)
-		if err != nil {
-			return err
-		}
-
-		// 写入文件
-		return os.WriteFile(destPath, data, 0644)
 	})
 }

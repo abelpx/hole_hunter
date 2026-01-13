@@ -1,15 +1,10 @@
 package offline
 
 import (
-	"embed"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 )
-
-//go:embed nuclei-templates/*
-var templateFS embed.FS
 
 // TemplateManager 模板管理器
 type TemplateManager struct {
@@ -95,34 +90,31 @@ func (tm *TemplateManager) ExtractEmbeddedTemplates() error {
 		return fmt.Errorf("failed to create templates directory: %w", err)
 	}
 
-	// 遍历嵌入的文件系统
-	err := fs.WalkDir(templateFS, ".", func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
+	// 尝试从多个位置复制模板
+	templateSources := []string{}
+
+	// 1. 从项目根目录复制（开发环境，git submodule）
+	templateSources = append(templateSources, filepath.Join(".", "nuclei-templates"))
+	templateSources = append(templateSources, filepath.Join("..", "nuclei-templates"))
+
+	// 2. 从应用资源目录复制（生产环境）
+	templateSources = append(templateSources, filepath.Join(tm.templatesDir, "..", "nuclei-templates"))
+
+	// 尝试所有可能的源
+	for _, src := range templateSources {
+		if src == "" {
+			continue
 		}
-
-		// 跳过根目录
-		if path == "." {
-			return nil
+		// 规范化路径
+		src = filepath.Clean(src)
+		if _, err := os.Stat(src); err == nil {
+			if err := copyDir(src, tm.templatesDir); err == nil {
+				return nil
+			}
 		}
+	}
 
-		destPath := filepath.Join(tm.templatesDir, path)
-
-		if d.IsDir() {
-			return os.MkdirAll(destPath, 0755)
-		}
-
-		// 读取文件内容
-		data, err := templateFS.ReadFile(path)
-		if err != nil {
-			return err
-		}
-
-		// 写入文件
-		return os.WriteFile(destPath, data, 0644)
-	})
-
-	return err
+	return fmt.Errorf("unable to find nuclei-templates in any location. Please run: git submodule update --init --recursive")
 }
 
 // ValidateTemplates 验证模板完整性

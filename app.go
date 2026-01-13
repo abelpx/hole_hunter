@@ -2362,4 +2362,251 @@ func (a *App) GetCustomTemplatesStats() map[string]interface{} {
 	return stats
 }
 
+// ============ Nuclei Templates Browser ============
+
+// NucleiTemplate represents a nuclei POC template file
+type NucleiTemplate struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Severity string `json:"severity"`
+	Author   string `json:"author"`
+	Path     string `json:"path"`
+	Category string `json:"category"`
+	Tags     []string `json:"tags"`
+	Enabled  bool   `json:"enabled"`
+}
+
+// GetNucleiTemplatesDir returns the nuclei templates directory
+func (a *App) GetNucleiTemplatesDir() string {
+	// 尝试从项目根目录获取（开发环境，git submodule）
+	templateSources := []string{
+		filepath.Join(".", "nuclei-templates"),
+		filepath.Join("..", "nuclei-templates"),
+	}
+
+	for _, src := range templateSources {
+		if info, err := os.Stat(src); err == nil && info.IsDir() {
+			return src
+		}
+	}
+
+	// 回退到用户数据目录
+	return filepath.Join(a.userDataDir, "nuclei-templates")
+}
+
+// GetAllNucleiTemplates scans the nuclei templates directory and returns all templates
+func (a *App) GetAllNucleiTemplates() ([]NucleiTemplate, error) {
+	templatesDir := a.GetNucleiTemplatesDir()
+
+	// 如果目录不存在，返回空列表
+	if _, err := os.Stat(templatesDir); os.IsNotExist(err) {
+		return []NucleiTemplate{}, nil
+	}
+
+	var templates []NucleiTemplate
+
+	// 遍历所有 YAML 文件
+	walkErr := filepath.Walk(templatesDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// 跳过目录和非 YAML 文件
+		if info.IsDir() || !strings.HasSuffix(path, ".yaml") {
+			return nil
+		}
+
+		// 读取并解析模板文件
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return nil // 跳过读取失败的文件
+		}
+
+		// 基本解析
+		template := parseNucleiTemplate(content, path, templatesDir)
+		if template != nil {
+			templates = append(templates, *template)
+		}
+
+		return nil
+	})
+
+	if walkErr != nil {
+		return nil, walkErr
+	}
+
+	return templates, nil
+}
+
+// parseNucleiTemplate 解析单个 nuclei 模板文件
+func parseNucleiTemplate(content []byte, path, baseDir string) *NucleiTemplate {
+	lines := strings.Split(string(content), "\n")
+
+	template := &NucleiTemplate{
+		Path:    path,
+		Enabled: true, // 默认启用
+	}
+
+	// 提取相对路径作为 ID
+	relPath, _ := filepath.Rel(baseDir, path)
+	template.ID = strings.TrimSuffix(relPath, ".yaml")
+
+	// 提取分类
+	parts := strings.Split(relPath, string(filepath.Separator))
+	if len(parts) > 0 {
+		template.Category = parts[0]
+	}
+
+	// 解析 YAML 内容
+	inInfo := false
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+
+		// 解析 id
+		if strings.HasPrefix(line, "id:") {
+			template.ID = strings.TrimSpace(strings.TrimPrefix(line, "id:"))
+			template.ID = strings.Trim(template.ID, "\"")
+		}
+
+		// 解析 info 字段
+		if strings.HasPrefix(line, "info:") {
+			inInfo = true
+			continue
+		}
+
+		// 解析 name
+		if strings.HasPrefix(line, "name:") && inInfo {
+			template.Name = strings.TrimSpace(strings.TrimPrefix(line, "name:"))
+			template.Name = strings.Trim(template.Name, "\"")
+		}
+
+		// 解析 severity
+		if strings.HasPrefix(line, "severity:") && inInfo {
+			template.Severity = strings.TrimSpace(strings.TrimPrefix(line, "severity:"))
+			template.Severity = strings.Trim(template.Severity, "\"")
+		}
+
+		// 解析 author
+		if strings.HasPrefix(line, "author:") && inInfo {
+			template.Author = strings.TrimSpace(strings.TrimPrefix(line, "author:"))
+			template.Author = strings.Trim(template.Author, "\"")
+		}
+
+		// 解析 tags
+		if strings.HasPrefix(line, "tags:") && inInfo {
+			tagsLine := strings.TrimSpace(strings.TrimPrefix(line, "tags:"))
+			tagsLine = strings.Trim(tagsLine, `"`)
+			tagsLine = strings.Trim(tagsLine, "[")
+			tagsLine = strings.Trim(tagsLine, "]")
+			if tagsLine != "" {
+				template.Tags = strings.Split(tagsLine, ",")
+				for i := range template.Tags {
+					template.Tags[i] = strings.TrimSpace(template.Tags[i])
+				}
+			}
+			continue
+		}
+
+		// 退出 info 块
+		if inInfo && (strings.HasPrefix(line, "http:") || strings.HasPrefix(line, "dns:") || strings.HasPrefix(line, "network:")) {
+			inInfo = false
+		}
+	}
+
+	// 如果没有 name，使用文件名
+	if template.Name == "" {
+		template.Name = filepath.Base(path)
+	}
+
+	return template
+}
+
+// GetNucleiTemplateContent 读取模板文件内容
+func (a *App) GetNucleiTemplateContent(path string) (string, error) {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	return string(content), nil
+}
+
+// GetNucleiTemplatesCategories 获取模板分类统计
+func (a *App) GetNucleiTemplatesCategories() (map[string]interface{}, error) {
+	templates, err := a.GetAllNucleiTemplates()
+	if err != nil {
+		return nil, err
+	}
+
+	categories := make(map[string][]string)
+	totalCount := 0
+
+	for _, t := range templates {
+		if t.Category != "" {
+			categories[t.Category] = append(categories[t.Category], t.ID)
+			totalCount++
+		}
+	}
+
+	// 转换为统计信息
+	result := make(map[string]interface{})
+	for cat, temps := range categories {
+		result[cat] = map[string]interface{}{
+			"count": len(temps),
+			"ids":   temps,
+		}
+	}
+	result["total"] = totalCount
+	result["categories"] = len(categories)
+
+	return result, nil
+}
+
+// GetNucleiTemplateBySeverity 按严重性筛选模板
+func (a *App) GetNucleiTemplateBySeverity(severity string) ([]NucleiTemplate, error) {
+	templates, err := a.GetAllNucleiTemplates()
+	if err != nil {
+		return nil, err
+	}
+
+	var result []NucleiTemplate
+	for _, t := range templates {
+		if strings.EqualFold(t.Severity, severity) {
+			result = append(result, t)
+		}
+	}
+
+	return result, nil
+}
+
+// SearchNucleiTemplates 搜索模板
+func (a *App) SearchNucleiTemplates(query string) ([]NucleiTemplate, error) {
+	templates, err := a.GetAllNucleiTemplates()
+	if err != nil {
+		return nil, err
+	}
+
+	query = strings.ToLower(query)
+	var result []NucleiTemplate
+
+	for _, t := range templates {
+		// 搜索 ID、名称、标签
+		if strings.Contains(strings.ToLower(t.ID), query) ||
+			strings.Contains(strings.ToLower(t.Name), query) ||
+			strings.Contains(strings.ToLower(t.Severity), query) {
+			result = append(result, t)
+			continue
+		}
+
+		// 搜索标签
+		for _, tag := range t.Tags {
+			if strings.Contains(strings.ToLower(tag), query) {
+				result = append(result, t)
+				break
+			}
+		}
+	}
+
+	return result, nil
+}
+
 
