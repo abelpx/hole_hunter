@@ -413,17 +413,19 @@ export const TemplatesPage: React.FC = () => {
 
       {/* 过滤和搜索 */}
       <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
-        <div className="flex items-center gap-4">
-          <div className="flex-1 relative">
+        <div className="flex flex-wrap items-center gap-3">
+          {/* 搜索框 - 占据更多空间 */}
+          <div className="flex-[3] min-w-[200px] relative">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <Input
               placeholder="搜索模板名称、ID、标签..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
+              className="pl-10 w-full"
             />
           </div>
 
+          {/* 严重程度选择 */}
           <Select
             placeholder="严重程度"
             options={[
@@ -436,9 +438,10 @@ export const TemplatesPage: React.FC = () => {
             ]}
             value={severityFilter}
             onChange={setSeverityFilter}
-            className="w-40"
+            className="w-36 min-w-[120px]"
           />
 
+          {/* 作者选择 */}
           <Select
             placeholder="作者"
             options={[
@@ -447,7 +450,7 @@ export const TemplatesPage: React.FC = () => {
             ]}
             value={authorFilter}
             onChange={setAuthorFilter}
-            className="w-40"
+            className="w-40 min-w-[140px]"
           />
         </div>
       </div>
