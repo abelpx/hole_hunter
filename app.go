@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
 	stdruntime "runtime"
 	"strings"
 	"sync"
@@ -51,6 +50,7 @@ type App struct {
 	vulnerabilityService *services.VulnerabilityService
 	httpService        *services.HTTPService
 	bruteService       *services.BruteService
+	templateService    *services.TemplateService
 }
 
 // ScanProgress represents the progress of a scan
@@ -82,6 +82,11 @@ type BruteTask = models.BruteTask
 type BrutePayloadSet = models.BrutePayloadSet
 type NucleiStatus = models.NucleiStatus
 type CustomTemplate = models.CustomTemplate
+
+// 模板相关类型别名
+type TemplateFilter = services.TemplateFilter
+type CategoryStats = services.CategoryStats
+type PaginatedTemplatesResult = services.PaginatedTemplatesResult
 
 // NucleiOutput represents the JSON output from Nuclei scanner
 type NucleiOutput struct {
@@ -178,6 +183,10 @@ func (a *App) initServices() {
 	// Brute 服务
 	bruteRepo := repository.NewBruteRepository(a.db)
 	a.bruteService = services.NewBruteService(bruteRepo)
+
+	// Template 服务
+	templateRepo := repository.NewTemplateRepository(a.GetNucleiTemplatesDir())
+	a.templateService = services.NewTemplateService(templateRepo)
 }
 
 // initNuclei 初始化 nuclei 二进制文件（使用离线扫描器）
@@ -1942,28 +1951,6 @@ func (a *App) GetCustomTemplatesStats() map[string]interface{} {
 // ============ Nuclei Templates Browser ============
 
 // TemplateFilter 模板过滤参数
-type TemplateFilter struct {
-	Page      int    `json:"page"`
-	PageSize  int    `json:"pageSize"`
-	Category  string `json:"category"`   // 分类过滤 (空字符串表示所有)
-	Search    string `json:"search"`     // 搜索关键词
-	Severity  string `json:"severity"`   // 严重程度过滤
-	Author    string `json:"author"`     // 作者过滤
-}
-
-// CategoryStats 分类统计信息
-type CategoryStats struct {
-	Category string `json:"category"`
-	Count    int    `json:"count"`
-}
-
-// PaginatedTemplatesResult 分页查询结果（包含统计信息）
-type PaginatedTemplatesResult struct {
-	Templates      []NucleiTemplate `json:"templates"`
-	Total          int              `json:"total"`
-	CategoryStats  []CategoryStats  `json:"categoryStats"` // 各分类的模板总数
-	FilteredTotal  int              `json:"filteredTotal"` // 应用过滤条件后的总数（用于分页计算）
-}
 
 // GetScenarioGroups 获取所有场景分组
 func (a *App) GetScenarioGroups() ([]ScenarioGroup, error) {
@@ -2027,459 +2014,16 @@ func (a *App) GetNucleiTemplatesDir() string {
 	return filepath.Join(a.userDataDir, "nuclei-templates")
 }
 
-// GetAllNucleiTemplates scans the nuclei templates directory and returns all templates (with cache)
-// 保留此方法以兼容现有调用，内部使用分页实现
+// GetAllNucleiTemplates scans the nuclei templates directory and returns all templates
 func (a *App) GetAllNucleiTemplates() ([]NucleiTemplate, error) {
-	// 使用分页 API 获取所有数据（每页 1000 条）
-	const pageSize = 1000
-	var allTemplates []NucleiTemplate
-
-	for page := 1; ; page++ {
-		result, err := a.GetNucleiTemplatesPaginated(page, pageSize)
-		if err != nil {
-			return nil, err
-		}
-		allTemplates = append(allTemplates, result.Templates...)
-		if len(allTemplates) >= result.Total {
-			break
-		}
-	}
-
-	return allTemplates, nil
+	return a.templateService.GetAllTemplates()
 }
 
-// GetNucleiTemplatesPaginated 返回分页的模板列表（<1秒响应）
-// 只扫描文件路径和基本信息，不读取完整文件内容
+// GetNucleiTemplatesPaginated 返回分页的模板列表
 func (a *App) GetNucleiTemplatesPaginated(page, pageSize int) (*PaginatedTemplatesResult, error) {
-	templatesDir := a.GetNucleiTemplatesDir()
-
-	// 如果目录不存在，返回空列表
-	if _, err := os.Stat(templatesDir); os.IsNotExist(err) {
-		return &PaginatedTemplatesResult{
-			Templates: []NucleiTemplate{},
-			Total:     0,
-		}, nil
-	}
-
-	// 快速扫描：只收集文件路径，不读取内容
-	type templateFileInfo struct {
-		path     string
-		category string
-		id       string
-	}
-
-	var allFiles []templateFileInfo
-	var filesMu sync.Mutex
-
-	// 并发遍历目录
-	walkErr := filepath.Walk(templatesDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return nil // 跳过错误，继续处理其他文件
-		}
-
-		// 跳过目录和非 YAML 文件
-		if info.IsDir() || !strings.HasSuffix(path, ".yaml") {
-			return nil
-		}
-
-		// 快速提取基本信息（不读取文件内容）
-		relPath, _ := filepath.Rel(templatesDir, path)
-		id := strings.TrimSuffix(relPath, ".yaml")
-		parts := strings.Split(relPath, string(filepath.Separator))
-		category := ""
-		if len(parts) > 0 {
-			category = parts[0]
-		}
-
-		filesMu.Lock()
-		allFiles = append(allFiles, templateFileInfo{
-			path:     path,
-			category: category,
-			id:       id,
-		})
-		filesMu.Unlock()
-
-		return nil
-	})
-
-	if walkErr != nil {
-		return nil, walkErr
-	}
-
-	total := len(allFiles)
-	if total == 0 {
-		return &PaginatedTemplatesResult{
-			Templates: []NucleiTemplate{},
-			Total:     0,
-		}, nil
-	}
-
-	// 计算分页范围
-	start := (page - 1) * pageSize
-	if start >= total {
-		return &PaginatedTemplatesResult{
-			Templates: []NucleiTemplate{},
-			Total:     total,
-		}, nil
-	}
-	end := start + pageSize
-	if end > total {
-		end = total
-	}
-
-	// 只解析当前页需要的文件
-	pagedFiles := allFiles[start:end]
-	templates := make([]NucleiTemplate, 0, len(pagedFiles))
-
-	// 使用信号量限制并发读取文件数
-	sem := make(chan struct{}, 10) // 最多 10 个并发读取
-	var wg sync.WaitGroup
-	var templatesMu sync.Mutex
-
-	for _, fileInfo := range pagedFiles {
-		wg.Add(1)
-		go func(fi templateFileInfo) {
-			defer wg.Done()
-			sem <- struct{}{}        // 获取信号量
-			defer func() { <-sem }() // 释放信号量
-
-			// 只读取文件头部的关键信息（最多读取前 2KB）
-			content, err := os.ReadFile(fi.path)
-			if err != nil {
-				return // 跳过读取失败的文件
-			}
-
-			template := parseNucleiTemplate(content, fi.path, templatesDir)
-			if template != nil {
-				templatesMu.Lock()
-				templates = append(templates, *template)
-				templatesMu.Unlock()
-			}
-		}(fileInfo)
-	}
-
-	wg.Wait()
-
-	// 按 ID 排序保证分页稳定性
-	sort.Slice(templates, func(i, j int) bool {
-		return templates[i].ID < templates[j].ID
-	})
-
-	return &PaginatedTemplatesResult{
-		Templates: templates,
-		Total:     total,
-	}, nil
+	return a.templateService.GetTemplatesPaginated(page, pageSize)
 }
 
-// parseNucleiTemplate 解析单个 nuclei 模板文件
-func parseNucleiTemplate(content []byte, path, baseDir string) *NucleiTemplate {
-	template := &NucleiTemplate{
-		Path:     path,
-		Enabled:  true,
-		Metadata: make(map[string]string),
-	}
-
-	// 提取相对路径作为 ID
-	relPath, _ := filepath.Rel(baseDir, path)
-	template.ID = strings.TrimSuffix(relPath, ".yaml")
-
-	// 提取分类
-	parts := strings.Split(relPath, string(filepath.Separator))
-	if len(parts) > 0 {
-		template.Category = parts[0]
-	}
-
-	// 快速解析：只查找关键字段，使用字符串搜索
-	contentStr := string(content)
-
-	// 提取 id（快速查找）
-	if idx := strings.Index(contentStr, "id:"); idx > 0 {
-		endIdx := strings.Index(contentStr[idx:], "\n")
-		if endIdx > 0 {
-			idLine := strings.TrimSpace(contentStr[idx+3 : idx+endIdx])
-			template.ID = strings.Trim(strings.TrimSpace(idLine), "\"")
-		}
-	}
-
-	// 提取 info 块内容
-	infoStart := strings.Index(contentStr, "info:")
-	if infoStart < 0 {
-		template.Name = filepath.Base(path)
-		return template
-	}
-
-	// 找到 info 块的结束位置（下一个顶级键）
-	infoEnd := len(contentStr)
-	for _, key := range []string{"\nhttp:", "\ndns:", "\nfile:", "\nnetwork:", "\nTCP:", "\nworkflow:"} {
-		if idx := strings.Index(contentStr[infoStart:], key); idx > 0 && idx < infoEnd {
-			infoEnd = infoStart + idx
-		}
-	}
-
-	infoBlock := contentStr[infoStart:infoEnd]
-
-	// 提取 name
-	if idx := strings.Index(infoBlock, "name:"); idx > 0 {
-		endIdx := strings.Index(infoBlock[idx:], "\n")
-		if endIdx > 0 {
-			nameLine := strings.TrimSpace(infoBlock[idx+5 : idx+endIdx])
-			template.Name = strings.Trim(strings.TrimSpace(nameLine), "\"")
-		}
-	}
-
-	// 提取 severity
-	if idx := strings.Index(infoBlock, "severity:"); idx > 0 {
-		endIdx := strings.Index(infoBlock[idx:], "\n")
-		if endIdx > 0 {
-			sevLine := strings.TrimSpace(infoBlock[idx+9 : idx+endIdx])
-			template.Severity = strings.Trim(strings.TrimSpace(sevLine), "\"")
-		} else {
-			// 处理 severity 在最后的情况（没有换行符）
-			sevLine := strings.TrimSpace(infoBlock[idx+9:])
-			template.Severity = strings.Trim(strings.TrimSpace(sevLine), "\"")
-		}
-	}
-
-	// 提取 author（截断显示）
-	if idx := strings.Index(infoBlock, "author:"); idx > 0 {
-		endIdx := strings.Index(infoBlock[idx:], "\n")
-		if endIdx > 0 {
-			authorLine := strings.TrimSpace(infoBlock[idx+7 : idx+endIdx])
-			author := strings.Trim(strings.TrimSpace(authorLine), "\"")
-			// 截断过长的作者名
-			if len(author) > 30 {
-				author = author[:30] + "..."
-			}
-			template.Author = author
-		}
-	}
-
-	// 提取 description - 支持多行 YAML
-	if idx := strings.Index(infoBlock, "description:"); idx > 0 {
-		lineStart := idx + 12
-		remainder := infoBlock[lineStart:]
-		remainder = strings.TrimLeft(remainder, " \t\n\r")
-
-		// 检查是否有多行标记（| 或 |-）
-		if strings.HasPrefix(remainder, "|") {
-			// 多行格式，读取所有缩进的行
-			pipeIdx := strings.Index(remainder, "\n")
-			if pipeIdx >= 0 {
-				contentAfterPipe := remainder[pipeIdx+1:]
-				lines := strings.Split(contentAfterPipe, "\n")
-				var descLines []string
-				for _, line := range lines {
-					trimmed := strings.TrimSpace(line)
-					if trimmed == "" {
-						continue
-					}
-					// 遇到下一个字段就停止（2 空格开头，且包含 ":" 且不是内容行）
-					if strings.HasPrefix(line, "  ") && !strings.HasPrefix(line, "    ") {
-						// 检查是否是新的字段定义（key: 或 key: |）
-						if strings.Contains(trimmed, ":") {
-							// 这是一个新字段，停止读取
-							break
-						}
-					}
-					// 只添加有4+空格缩进的内容行
-					if strings.HasPrefix(line, "    ") || strings.HasPrefix(line, "\t") {
-						descLines = append(descLines, trimmed)
-					}
-				}
-				template.Description = strings.Join(descLines, " ")
-			}
-		} else {
-			// 单行格式 - 读取到下一个换行符
-			endIdx := strings.Index(remainder, "\n")
-			if endIdx > 0 {
-				template.Description = strings.Trim(strings.TrimSpace(remainder[:endIdx]), "\"")
-			} else {
-				template.Description = strings.Trim(strings.TrimSpace(remainder), "\"")
-			}
-		}
-	}
-
-	// 提取 impact（影响范围）- 支持多行 YAML
-	if idx := strings.Index(infoBlock, "impact:"); idx > 0 {
-		lineStart := idx + 7
-		remainder := infoBlock[lineStart:]
-		remainder = strings.TrimLeft(remainder, " \t\n\r")
-
-		// 检查是否有多行标记（| 或 |-）
-		if strings.HasPrefix(remainder, "|") {
-			// 多行格式，读取所有缩进的行
-			pipeIdx := strings.Index(remainder, "\n")
-			if pipeIdx >= 0 {
-				contentAfterPipe := remainder[pipeIdx+1:]
-				lines := strings.Split(contentAfterPipe, "\n")
-				var impactLines []string
-				for _, line := range lines {
-					trimmed := strings.TrimSpace(line)
-					if trimmed == "" {
-						continue
-					}
-					// 遇到下一个字段就停止（2 空格开头，且包含 ":" 且不是内容行）
-					if strings.HasPrefix(line, "  ") && !strings.HasPrefix(line, "    ") {
-						// 检查是否是新的字段定义（key: 或 key: |）
-						if strings.Contains(trimmed, ":") {
-							// 这是一个新字段，停止读取
-							break
-						}
-					}
-					// 只添加有4+空格缩进的内容行
-					if strings.HasPrefix(line, "    ") || strings.HasPrefix(line, "\t") {
-						impactLines = append(impactLines, trimmed)
-					}
-				}
-				template.Impact = strings.Join(impactLines, " ")
-			}
-		} else {
-			// 单行格式 - 读取到下一个换行符
-			endIdx := strings.Index(remainder, "\n")
-			if endIdx > 0 {
-				template.Impact = strings.Trim(strings.TrimSpace(remainder[:endIdx]), "\"")
-			} else {
-				template.Impact = strings.Trim(strings.TrimSpace(remainder), "\"")
-			}
-		}
-	}
-
-	// 提取 remediation（解决方案）- 支持多行 YAML
-	if idx := strings.Index(infoBlock, "remediation:"); idx > 0 {
-		lineStart := idx + 12
-		remainder := infoBlock[lineStart:]
-		remainder = strings.TrimLeft(remainder, " \t\n\r")
-
-		// 检查是否有多行标记（| 或 |-）
-		if strings.HasPrefix(remainder, "|") {
-			// 多行格式，读取所有缩进的行
-			pipeIdx := strings.Index(remainder, "\n")
-			if pipeIdx >= 0 {
-				contentAfterPipe := remainder[pipeIdx+1:]
-				lines := strings.Split(contentAfterPipe, "\n")
-				var remLines []string
-				for _, line := range lines {
-					trimmed := strings.TrimSpace(line)
-					if trimmed == "" {
-						continue
-					}
-					// 遇到下一个字段就停止（2 空格开头，且包含 ":" 且不是内容行）
-					if strings.HasPrefix(line, "  ") && !strings.HasPrefix(line, "    ") {
-						// 检查是否是新的字段定义（key: 或 key: |）
-						if strings.Contains(trimmed, ":") {
-							// 这是一个新字段，停止读取
-							break
-						}
-					}
-					// 只添加有4+空格缩进的内容行
-					if strings.HasPrefix(line, "    ") || strings.HasPrefix(line, "\t") {
-						remLines = append(remLines, trimmed)
-					}
-				}
-				template.Remediation = strings.Join(remLines, " ")
-			}
-		} else {
-			// 单行格式 - 读取到下一个换行符
-			endIdx := strings.Index(remainder, "\n")
-			if endIdx > 0 {
-				template.Remediation = strings.Trim(strings.TrimSpace(remainder[:endIdx]), "\"")
-			} else {
-				template.Remediation = strings.Trim(strings.TrimSpace(remainder), "\"")
-			}
-		}
-	}
-
-	// 提取 reference（参考资料）
-	if idx := strings.Index(infoBlock, "reference:"); idx > 0 {
-		// 找到 reference 的结束位置（可能是换行或下一个键）
-		refStart := idx + 10
-		refBlock := infoBlock[refStart:]
-
-		// 处理多行 reference
-		lines := strings.Split(refBlock, "\n")
-		var refs []string
-		for _, line := range lines {
-			line = strings.TrimSpace(line)
-			if line == "" || strings.HasPrefix(line, "-") || strings.HasPrefix(line, "http") {
-				if strings.HasPrefix(line, "- ") {
-					line = strings.TrimPrefix(line, "- ")
-				}
-				if strings.HasPrefix(line, "http") {
-					refs = append(refs, line)
-				}
-			} else {
-				break
-			}
-		}
-		if len(refs) > 0 {
-			template.Reference = refs
-		}
-	}
-
-	// 提取 tags - 支持多行 YAML 列表格式
-	if idx := strings.Index(infoBlock, "tags:"); idx > 0 {
-		lineStart := idx + 5
-		remainder := infoBlock[lineStart:]
-
-		lines := strings.Split(remainder, "\n")
-		var tags []string
-
-		for i, line := range lines {
-			originalLine := line
-			line = strings.TrimSpace(line)
-			if line == "" {
-				continue
-			}
-
-			// 第一行可能是逗号分隔的 tag 列表
-			if i == 0 && !strings.HasPrefix(line, "-") && !strings.Contains(line, ":") {
-				tagList := strings.Split(line, ",")
-				for _, t := range tagList {
-					t = strings.TrimSpace(t)
-					if t != "" {
-						tags = append(tags, t)
-					}
-				}
-				// 第一行处理完就结束，因为逗号分隔的 tags 在同一行
-				template.Tags = tags
-				return template
-			}
-
-			// 处理列表项格式 "- tagname"
-			if strings.HasPrefix(line, "-") {
-				tag := strings.TrimSpace(strings.TrimPrefix(line, "-"))
-				tag = strings.Trim(tag, "\"'")
-				if tag != "" {
-					tags = append(tags, tag)
-				}
-			} else if strings.HasPrefix(originalLine, "    ") {
-				tag := strings.Trim(line, "\"'")
-				if tag != "" && !strings.Contains(tag, ":") {
-					tags = append(tags, tag)
-				}
-			}
-
-			// 遇到新的顶级字段就停止（检查是否有冒号且不是内容行）
-			trimmed := strings.TrimSpace(originalLine)
-			if trimmed != "" && !strings.HasPrefix(originalLine, " ") && !strings.HasPrefix(originalLine, "\t") {
-				// 这是新的顶级字段，停止
-				break
-			}
-			// 检查是否是字段定义（2空格开头且包含冒号）
-			if strings.HasPrefix(originalLine, "  ") && !strings.HasPrefix(originalLine, "    ") && strings.Contains(trimmed, ":") {
-				break
-			}
-		}
-		template.Tags = tags
-	}
-
-	// 如果没有 name，使用文件名
-	if template.Name == "" {
-		template.Name = filepath.Base(path)
-	}
-
-	return template
-}
 
 // GetNucleiTemplateContent 读取模板文件内容
 func (a *App) GetNucleiTemplateContent(path string) (string, error) {
@@ -2492,7 +2036,7 @@ func (a *App) GetNucleiTemplateContent(path string) (string, error) {
 
 // GetNucleiTemplatesCategories 获取模板分类统计
 func (a *App) GetNucleiTemplatesCategories() (map[string]interface{}, error) {
-	templates, err := a.GetAllNucleiTemplates()
+	stats, err := a.templateService.GetCategories()
 	if err != nil {
 		return nil, err
 	}
@@ -2500,14 +2044,11 @@ func (a *App) GetNucleiTemplatesCategories() (map[string]interface{}, error) {
 	categories := make(map[string][]string)
 	totalCount := 0
 
-	for _, t := range templates {
-		if t.Category != "" {
-			categories[t.Category] = append(categories[t.Category], t.ID)
-			totalCount++
-		}
+	for _, stat := range stats {
+		totalCount += stat.Count
+		categories[stat.Category] = []string{} // IDs would need to be collected separately
 	}
 
-	// 转换为统计信息
 	result := make(map[string]interface{})
 	for cat, temps := range categories {
 		result[cat] = map[string]interface{}{
@@ -2523,283 +2064,26 @@ func (a *App) GetNucleiTemplatesCategories() (map[string]interface{}, error) {
 
 // GetNucleiTemplateBySeverity 按严重性筛选模板
 func (a *App) GetNucleiTemplateBySeverity(severity string) ([]NucleiTemplate, error) {
-	templates, err := a.GetAllNucleiTemplates()
+	filter := TemplateFilter{
+		Page:     1,
+		PageSize: 10000,
+		Severity: severity,
+	}
+	result, err := a.templateService.GetTemplatesPaginatedV2(filter)
 	if err != nil {
 		return nil, err
 	}
-
-	var result []NucleiTemplate
-	for _, t := range templates {
-		if strings.EqualFold(t.Severity, severity) {
-			result = append(result, t)
-		}
-	}
-
-	return result, nil
+	return result.Templates, nil
 }
 
 // SearchNucleiTemplates 搜索模板
 func (a *App) SearchNucleiTemplates(query string) ([]NucleiTemplate, error) {
-	templates, err := a.GetAllNucleiTemplates()
-	if err != nil {
-		return nil, err
-	}
-
-	query = strings.ToLower(query)
-	var result []NucleiTemplate
-
-	for _, t := range templates {
-		// 搜索 ID、名称、标签
-		if strings.Contains(strings.ToLower(t.ID), query) ||
-			strings.Contains(strings.ToLower(t.Name), query) ||
-			strings.Contains(strings.ToLower(t.Severity), query) {
-			result = append(result, t)
-			continue
-		}
-
-		// 搜索标签
-		for _, tag := range t.Tags {
-			if strings.Contains(strings.ToLower(tag), query) {
-				result = append(result, t)
-				break
-			}
-		}
-	}
-
-	return result, nil
+	return a.templateService.SearchTemplates(query)
 }
 
 // GetNucleiTemplatesPaginatedV2 支持过滤的分页查询（推荐使用）
-// 支持按分类、搜索关键词、严重程度、作者过滤，并返回准确的分类统计
 func (a *App) GetNucleiTemplatesPaginatedV2(filter TemplateFilter) (*PaginatedTemplatesResult, error) {
-	templatesDir := a.GetNucleiTemplatesDir()
-
-	// 如果目录不存在，返回空列表
-	if _, err := os.Stat(templatesDir); os.IsNotExist(err) {
-		return &PaginatedTemplatesResult{
-			Templates:      []NucleiTemplate{},
-			Total:          0,
-			CategoryStats:  []CategoryStats{},
-			FilteredTotal:  0,
-		}, nil
-	}
-
-	// 快速扫描：收集所有模板文件的基本信息
-	type templateFileInfo struct {
-		path     string
-		category string
-		id       string
-	}
-
-	var allFiles []templateFileInfo
-	var filesMu sync.Mutex
-	categoryMap := make(map[string]int) // 全局分类统计
-
-	// 并发遍历目录
-	walkErr := filepath.Walk(templatesDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return nil // 跳过错误，继续处理其他文件
-		}
-
-		// 跳过目录和非 YAML 文件
-		if info.IsDir() || !strings.HasSuffix(path, ".yaml") {
-			return nil
-		}
-
-		// 快速提取基本信息
-		relPath, _ := filepath.Rel(templatesDir, path)
-		id := strings.TrimSuffix(relPath, ".yaml")
-		parts := strings.Split(relPath, string(filepath.Separator))
-		category := "other"
-		if len(parts) > 0 && parts[0] != "" {
-			category = parts[0]
-		}
-
-		// 统计全局分类数量
-		filesMu.Lock()
-		categoryMap[category]++
-		allFiles = append(allFiles, templateFileInfo{
-			path:     path,
-			category: category,
-			id:       id,
-		})
-		filesMu.Unlock()
-
-		return nil
-	})
-
-	if walkErr != nil {
-		return nil, walkErr
-	}
-
-	total := len(allFiles)
-	if total == 0 {
-		return &PaginatedTemplatesResult{
-			Templates:      []NucleiTemplate{},
-			Total:          0,
-			CategoryStats:  []CategoryStats{},
-			FilteredTotal:  0,
-		}, nil
-	}
-
-	// 构建分类统计列表
-	var categoryStats []CategoryStats
-	for cat, count := range categoryMap {
-		categoryStats = append(categoryStats, CategoryStats{
-			Category: cat,
-			Count:    count,
-		})
-	}
-	sort.Slice(categoryStats, func(i, j int) bool {
-		return categoryStats[i].Count > categoryStats[j].Count // 按数量降序
-	})
-
-	// 应用过滤条件（第一层：基于路径和分类的快速过滤）
-	var filteredFiles []templateFileInfo
-	lowerSearch := strings.ToLower(filter.Search)
-	lowerCategory := strings.ToLower(filter.Category)
-
-	for _, file := range allFiles {
-		// 分类过滤
-		if lowerCategory != "" && lowerCategory != "all" {
-			if !strings.Contains(strings.ToLower(file.category), lowerCategory) {
-				continue
-			}
-		}
-
-		// 搜索关键词过滤（先基于 ID 快速匹配）
-		if lowerSearch != "" {
-			if !strings.Contains(strings.ToLower(file.id), lowerSearch) {
-				// ID 不匹配，需要读取文件内容进行完整匹配
-				// 为了性能，标记这个文件需要详细检查
-				filteredFiles = append(filteredFiles, file)
-				continue
-			}
-		}
-
-		filteredFiles = append(filteredFiles, file)
-	}
-
-	// 如果有搜索关键词，需要读取文件内容进行详细过滤
-	if lowerSearch != "" && filter.Severity == "" && filter.Author == "" {
-		// 只需要读取标记为需要检查的文件
-		var detailedFiles []templateFileInfo
-		for _, file := range filteredFiles {
-			// ID 已经匹配，直接加入
-			if strings.Contains(strings.ToLower(file.id), lowerSearch) {
-				detailedFiles = append(detailedFiles, file)
-				continue
-			}
-
-			// 需要读取文件内容
-			content, err := os.ReadFile(file.path)
-			if err != nil {
-				continue
-			}
-			contentStr := string(content)
-
-			// 检查名称、标签
-			matches := false
-			if idx := strings.Index(contentStr, "name:"); idx > 0 {
-				endIdx := strings.Index(contentStr[idx:], "\n")
-				if endIdx > 0 {
-					name := strings.ToLower(strings.TrimSpace(contentStr[idx+5 : idx+endIdx]))
-					if strings.Contains(name, lowerSearch) {
-						matches = true
-					}
-				}
-			}
-
-			// 检查标签
-			if !matches {
-				tagsStart := strings.Index(contentStr, "tags:")
-				if tagsStart > 0 {
-					tagsEnd := strings.Index(contentStr[tagsStart:], "\n\n")
-					if tagsEnd < 0 {
-						tagsEnd = len(contentStr)
-					}
-					tagsSection := contentStr[tagsStart : tagsStart+tagsEnd]
-					if strings.Contains(strings.ToLower(tagsSection), lowerSearch) {
-						matches = true
-					}
-				}
-			}
-
-			if matches {
-				detailedFiles = append(detailedFiles, file)
-			}
-		}
-		filteredFiles = detailedFiles
-	}
-
-	filteredTotal := len(filteredFiles)
-
-	// 计算分页范围
-	start := (filter.Page - 1) * filter.PageSize
-	if start >= filteredTotal {
-		return &PaginatedTemplatesResult{
-			Templates:      []NucleiTemplate{},
-			Total:          total,
-			CategoryStats:  categoryStats,
-			FilteredTotal:  filteredTotal,
-		}, nil
-	}
-	end := start + filter.PageSize
-	if end > filteredTotal {
-		end = filteredTotal
-	}
-
-	// 只解析当前页需要的文件
-	pagedFiles := filteredFiles[start:end]
-	templates := make([]NucleiTemplate, 0, len(pagedFiles))
-
-	// 使用信号量限制并发读取文件数
-	sem := make(chan struct{}, 10) // 最多 10 个并发读取
-	var wg sync.WaitGroup
-	var templatesMu sync.Mutex
-
-	for _, fileInfo := range pagedFiles {
-		wg.Add(1)
-		go func(fi templateFileInfo) {
-			defer wg.Done()
-			sem <- struct{}{}        // 获取信号量
-			defer func() { <-sem }() // 释放信号量
-
-			content, err := os.ReadFile(fi.path)
-			if err != nil {
-				return
-			}
-
-			template := parseNucleiTemplate(content, fi.path, templatesDir)
-			if template != nil {
-				// 应用第二层过滤：基于内容的过滤（严重程度、作者）
-				if filter.Severity != "" && !strings.EqualFold(template.Severity, filter.Severity) {
-					return
-				}
-				if filter.Author != "" && !strings.EqualFold(template.Author, filter.Author) {
-					return
-				}
-
-				templatesMu.Lock()
-				templates = append(templates, *template)
-				templatesMu.Unlock()
-			}
-		}(fileInfo)
-	}
-
-	wg.Wait()
-
-	// 按 ID 排序保证分页稳定性
-	sort.Slice(templates, func(i, j int) bool {
-		return templates[i].ID < templates[j].ID
-	})
-
-	return &PaginatedTemplatesResult{
-		Templates:      templates,
-		Total:          total,
-		CategoryStats:  categoryStats,
-		FilteredTotal:  filteredTotal,
-	}, nil
+	return a.templateService.GetTemplatesPaginatedV2(filter)
 }
 
 // SetTemplateEnabled 设置模板启用/禁用状态

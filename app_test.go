@@ -365,6 +365,12 @@ func TestScenarioGroupTemplates(t *testing.T) {
 		templateIDs := []string{"tpl-1", "tpl-2", "tpl-3"}
 		app.AddTemplatesToScenarioGroup(testGroup.ID, templateIDs)
 
+		// 初始化 templateService 以避免 nil 指针
+		templateDir := filepath.Join(tmpDir, "templates")
+		os.MkdirAll(templateDir, 0755)
+		templateRepo := repository.NewTemplateRepository(templateDir)
+		app.templateService = services.NewTemplateService(templateRepo)
+
 		// 获取分组的模板
 		templates, err := app.GetScenarioGroupTemplates(testGroup.ID)
 		if err != nil {
