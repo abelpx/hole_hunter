@@ -42,8 +42,14 @@ export const DashboardPage: React.FC = () => {
     try {
       const service = getService();
 
-      // 获取统计信息
-      const statsData = await service.getDatabaseStats();
+      // 并发加载所有数据，提升性能
+      const [statsData, vulns, scans] = await Promise.all([
+        service.getDatabaseStats(),
+        service.getAllVulnerabilities(),
+        service.getAllScans(),
+      ]);
+
+      // 设置统计信息
       setStats({
         totalTargets: statsData.total_targets || 0,
         totalScans: statsData.total_scans || 0,
@@ -52,9 +58,6 @@ export const DashboardPage: React.FC = () => {
         criticalVulns: statsData.critical_vulns || 0,
         highVulns: statsData.high_vulns || 0,
       });
-
-      // 获取漏洞数据用于图表
-      const vulns = await service.getAllVulnerabilities();
 
       // 按严重等级分组
       const severityCounts = vulns.reduce((acc: any, vuln: any) => {
@@ -70,9 +73,6 @@ export const DashboardPage: React.FC = () => {
         { severity: 'low', count: severityCounts.low || 0, label: '低危' },
         { severity: 'info', count: severityCounts.info || 0, label: '信息' },
       ]);
-
-      // 获取扫描数据用于趋势图
-      const scans = await service.getAllScans();
 
       // 按日期分组（最近7天）
       const scanGroups = scans.reduce((acc: any, scan: any) => {

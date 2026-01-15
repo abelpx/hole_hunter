@@ -3,7 +3,7 @@
  * 漏洞列表页面
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   Search,
   Filter,
@@ -21,6 +21,7 @@ import { VulnFiltersPanel, VulnFilters } from '../components/special/VulnFilters
 import { useVulnStore } from '../store/vulnStore';
 import { useTargetStore } from '../store/targetStore';
 import { Vulnerability } from '../types';
+import { useDebounce } from '../hooks/useDebounce';
 
 export const VulnPage: React.FC = () => {
   const {
@@ -45,8 +46,18 @@ export const VulnPage: React.FC = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
 
-  // 计算统计数据（直接从 vulnerabilities 计算，而不是使用 selector）
-  const stats = React.useMemo(() => {
+  // 搜索防抖 - 减少不必要的 API 调用和重新渲染
+  const debouncedSearch = useDebounce(filters.search, 300);
+
+  // 当搜索值变化时，重新获取数据（使用防抖后的值）
+  useEffect(() => {
+    if (debouncedSearch !== undefined) {
+      fetchVulnerabilities({ ...filters, search: debouncedSearch });
+    }
+  }, [debouncedSearch]); // 只依赖 debouncedSearch
+
+  // 计算统计数据
+  const stats = useMemo(() => {
     const stats = {
       critical: 0,
       high: 0,
@@ -74,7 +85,7 @@ export const VulnPage: React.FC = () => {
   }, [vulnerabilities]);
 
   // 计算所有标签
-  const allTags = React.useMemo(() => {
+  const allTags = useMemo(() => {
     const tags = new Set<string>();
     vulnerabilities.forEach((vuln) => {
       vuln.tags.forEach((tag) => tags.add(tag));
@@ -83,7 +94,7 @@ export const VulnPage: React.FC = () => {
   }, [vulnerabilities]);
 
   useEffect(() => {
-    loadVulnerabilities();
+    fetchVulnerabilities();
   }, []);
 
   const loadVulnerabilities = async () => {

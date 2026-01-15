@@ -151,15 +151,29 @@ export const useVulnStore = create<VulnState>()(
         set({ loading: true, error: null });
         try {
           const service = getService();
-          await Promise.all(
+          // 使用 Promise.allSettled 确保部分失败不影响其他操作
+          const results = await Promise.allSettled(
             ids.map((id) => service.markVulnerabilityAsFalsePositive(id, isFalsePositive))
           );
+
+          // 记录失败的操作
+          const failures = results.filter(r => r.status === 'rejected');
+          if (failures.length > 0) {
+            console.warn(`[vulnStore] batchMarkFalsePositive: ${failures.length}/${ids.length} failed`);
+          }
+
+          // 只更新成功的项
+          const successIds = new Set(
+            results
+              .map((r, i) => (r.status === 'fulfilled' ? ids[i] : null))
+              .filter(Boolean)
+          );
+
           // 更新本地状态
           const { vulnerabilities } = get();
-          const idsSet = new Set(ids);
           set({
             vulnerabilities: vulnerabilities.map((v) =>
-              idsSet.has(v.id) ? { ...v, false_positive: isFalsePositive } : v
+              successIds.has(v.id) ? { ...v, false_positive: isFalsePositive } : v
             ),
             loading: false,
           });

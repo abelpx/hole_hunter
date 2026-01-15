@@ -17,6 +17,7 @@ import { Button, Input, Modal, Select, Badge, Tag } from '../components/ui';
 import { ScanConfigModal } from '../components/special/ScanConfigModal';
 import { useTargetStore, selectFilteredTargets, selectAllTags } from '../store/targetStore';
 import { useScanStore } from '../store/scanStore';
+import { useDebounce } from '../hooks/useDebounce';
 import clsx from 'clsx';
 
 interface TargetsPageProps {
@@ -44,7 +45,22 @@ export const TargetsPage: React.FC<TargetsPageProps> = ({ onNavigate }) => {
 
   const { createScan } = useScanStore();
 
-  const filteredTargets = selectFilteredTargets(useTargetStore());
+  // 搜索防抖 - 减少不必要的重新渲染
+  const debouncedSearch = useDebounce(filters.search, 300);
+
+  // 使用防抖后的搜索值进行过滤
+  const baseFilteredTargets = selectFilteredTargets(useTargetStore());
+  const filteredTargets = React.useMemo(() => {
+    if (!debouncedSearch) {
+      return baseFilteredTargets;
+    }
+    const searchLower = debouncedSearch.toLowerCase();
+    return baseFilteredTargets.filter(target =>
+      target.name.toLowerCase().includes(searchLower) ||
+      target.url.toLowerCase().includes(searchLower)
+    );
+  }, [baseFilteredTargets, debouncedSearch]);
+
   const allTags = selectAllTags(useTargetStore());
 
   const [showAddModal, setShowAddModal] = useState(false);
@@ -233,7 +249,7 @@ export const TargetsPage: React.FC<TargetsPageProps> = ({ onNavigate }) => {
 
         {/* 搜索和过滤栏 */}
         <div className="flex items-center gap-3">
-          {/* 搜索框 */}
+          {/* 搜索框 - 使用防抖优化性能 */}
           <div className="flex-1 max-w-md">
             <Input
               placeholder="搜索目标名称或 URL..."
@@ -241,6 +257,9 @@ export const TargetsPage: React.FC<TargetsPageProps> = ({ onNavigate }) => {
               value={filters.search}
               onChange={(e) => setFilters({ search: e.target.value })}
             />
+            {filters.search !== debouncedSearch && (
+              <span className="text-xs text-slate-500 ml-2">搜索中...</span>
+            )}
           </div>
 
           {/* 过滤器 */}
