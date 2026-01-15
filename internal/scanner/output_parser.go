@@ -87,8 +87,8 @@ func parseTemplateProgress(line string) (ScanProgress, bool) {
 	}
 
 	var current, total int
-	fmt.Sscanf(progressParts[0], "%d", &current)
-	fmt.Sscanf(progressParts[1], "%d", &total)
+	_, _ = fmt.Sscanf(progressParts[0], "%d", &current)
+	_, _ = fmt.Sscanf(progressParts[1], "%d", &total)
 
 	// 提取模板名称
 	templateName := strings.TrimSpace(strings.TrimPrefix(parts[0], "[INF] Current template:"))
@@ -117,7 +117,7 @@ func parseStatsProgress(line string) (ScanProgress, bool) {
 	}
 
 	var findings int
-	fmt.Sscanf(strings.TrimSpace(strings.Fields(parts[1])[0]), "%d", &findings)
+	_, _ = fmt.Sscanf(strings.TrimSpace(strings.Fields(parts[1])[0]), "%d", &findings)
 
 	return ScanProgress{
 		Status:    "running",

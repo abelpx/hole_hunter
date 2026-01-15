@@ -145,7 +145,7 @@ func TestFindNucleiBinary(t *testing.T) {
 
 	// 设置可执行权限
 	if runtime.GOOS != "windows" {
-		os.Chmod(fakeBinary, 0755)
+		_ = os.Chmod(fakeBinary, 0755)
 	}
 
 	os.Setenv("NUCLEI_PATH", fakeBinary)

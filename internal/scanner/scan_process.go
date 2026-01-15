@@ -274,7 +274,7 @@ func (m *ScanProcessManager) StopAll() {
 	defer m.mu.RUnlock()
 
 	for _, p := range m.processes {
-		p.Stop()
+		_ = p.Stop()
 	}
 }
 

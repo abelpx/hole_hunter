@@ -45,7 +45,6 @@ import {
   // RemoveTemplatesFromScenarioGroup,
   // GetScenarioGroupTemplates,
 } from '@wailsjs/go/app/App';
-import { TemplateFilter } from '@wailsjs/go/app/models';
 
 interface NucleiTemplate {
   id: string;

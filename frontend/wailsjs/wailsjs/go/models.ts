@@ -1,5 +1,61 @@
 export namespace models {
 	
+	export class BrutePayloadSet {
+	    id: number;
+	    name: string;
+	    type: string;
+	    config: Record<string, any>;
+	    created_at: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new BrutePayloadSet(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.type = source["type"];
+	        this.config = source["config"];
+	        this.created_at = source["created_at"];
+	    }
+	}
+	export class BruteTask {
+	    id: number;
+	    name: string;
+	    request_id: number;
+	    type: string;
+	    status: string;
+	    total_payloads: number;
+	    sent_payloads: number;
+	    success_count: number;
+	    failure_count: number;
+	    started_at: string;
+	    completed_at: string;
+	    created_at: string;
+	    updated_at: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new BruteTask(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.request_id = source["request_id"];
+	        this.type = source["type"];
+	        this.status = source["status"];
+	        this.total_payloads = source["total_payloads"];
+	        this.sent_payloads = source["sent_payloads"];
+	        this.success_count = source["success_count"];
+	        this.failure_count = source["failure_count"];
+	        this.started_at = source["started_at"];
+	        this.completed_at = source["completed_at"];
+	        this.created_at = source["created_at"];
+	        this.updated_at = source["updated_at"];
+	    }
+	}
 	export class DashboardStats {
 	    total_targets: number;
 	    total_scans: number;
@@ -24,6 +80,92 @@ export namespace models {
 	        this.high_vulns = source["high_vulns"];
 	        this.medium_vulns = source["medium_vulns"];
 	        this.low_vulns = source["low_vulns"];
+	    }
+	}
+	export class DomainBruteResult {
+	    id: number;
+	    task_id: number;
+	    subdomain: string;
+	    resolved: boolean;
+	    ips: string[];
+	    latency: number;
+	    created_at: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new DomainBruteResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.task_id = source["task_id"];
+	        this.subdomain = source["subdomain"];
+	        this.resolved = source["resolved"];
+	        this.ips = source["ips"];
+	        this.latency = source["latency"];
+	        this.created_at = source["created_at"];
+	    }
+	}
+	export class HttpRequest {
+	    id: number;
+	    name: string;
+	    method: string;
+	    url: string;
+	    headers: Record<string, string>;
+	    body: string;
+	    content_type: string;
+	    tags: string[];
+	    created_at: string;
+	    updated_at: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new HttpRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.method = source["method"];
+	        this.url = source["url"];
+	        this.headers = source["headers"];
+	        this.body = source["body"];
+	        this.content_type = source["content_type"];
+	        this.tags = source["tags"];
+	        this.created_at = source["created_at"];
+	        this.updated_at = source["updated_at"];
+	    }
+	}
+	export class HttpResponse {
+	    id: number;
+	    request_id: number;
+	    status_code: number;
+	    status_text: string;
+	    headers: Record<string, string>;
+	    body: string;
+	    body_size: number;
+	    header_size: number;
+	    duration: number;
+	    timestamp: string;
+	    created_at: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new HttpResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.request_id = source["request_id"];
+	        this.status_code = source["status_code"];
+	        this.status_text = source["status_text"];
+	        this.headers = source["headers"];
+	        this.body = source["body"];
+	        this.body_size = source["body_size"];
+	        this.header_size = source["header_size"];
+	        this.duration = source["duration"];
+	        this.timestamp = source["timestamp"];
+	        this.created_at = source["created_at"];
 	    }
 	}
 	export class NucleiStatus {
@@ -92,6 +234,58 @@ export namespace models {
 	        this.metadata = source["metadata"];
 	    }
 	}
+	export class PortScanResult {
+	    id: number;
+	    task_id: number;
+	    port: number;
+	    status: string;
+	    service: string;
+	    banner: string;
+	    latency: number;
+	    created_at: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new PortScanResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.task_id = source["task_id"];
+	        this.port = source["port"];
+	        this.status = source["status"];
+	        this.service = source["service"];
+	        this.banner = source["banner"];
+	        this.latency = source["latency"];
+	        this.created_at = source["created_at"];
+	    }
+	}
+	export class ScanProgress {
+	    task_id: number;
+	    status: string;
+	    total_templates: number;
+	    executed_templates: number;
+	    progress: number;
+	    current_template: string;
+	    vuln_count: number;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ScanProgress(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.task_id = source["task_id"];
+	        this.status = source["status"];
+	        this.total_templates = source["total_templates"];
+	        this.executed_templates = source["executed_templates"];
+	        this.progress = source["progress"];
+	        this.current_template = source["current_template"];
+	        this.vuln_count = source["vuln_count"];
+	        this.error = source["error"];
+	    }
+	}
 	export class ScanTask {
 	    id: number;
 	    name?: string;
@@ -128,6 +322,28 @@ export namespace models {
 	        this.current_template = source["current_template"];
 	        this.error = source["error"];
 	        this.created_at = source["created_at"];
+	    }
+	}
+	export class ScenarioGroup {
+	    id: string;
+	    name: string;
+	    description: string;
+	    templateIds: string[];
+	    createdAt: number;
+	    updatedAt: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ScenarioGroup(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.description = source["description"];
+	        this.templateIds = source["templateIds"];
+	        this.createdAt = source["createdAt"];
+	        this.updatedAt = source["updatedAt"];
 	    }
 	}
 	export class Target {

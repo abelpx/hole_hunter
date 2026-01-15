@@ -69,13 +69,13 @@ func (r *migrationRunner) Run(db *sql.DB) error {
 
 		// 执行迁移
 		if err := m.Up(tx); err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			return errors.DBError(fmt.Sprintf("migration %d failed", m.Version()), err)
 		}
 
 		// 记录迁移
 		if err := recordMigration(tx, m); err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			return errors.DBError(fmt.Sprintf("failed to record migration %d", m.Version()), err)
 		}
 

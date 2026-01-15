@@ -66,7 +66,7 @@ func (r *DomainBruteRepository) GetTaskByID(ctx context.Context, id int) (*model
 		return nil, err
 	}
 
-	json.Unmarshal([]byte(wordlistJSON), &task.Wordlist)
+	_ = json.Unmarshal([]byte(wordlistJSON), &task.Wordlist)
 	return &task, nil
 }
 
@@ -96,7 +96,7 @@ func (r *DomainBruteRepository) GetAllTasks(ctx context.Context) ([]*models.Doma
 			return nil, err
 		}
 
-		json.Unmarshal([]byte(wordlistJSON), &task.Wordlist)
+		_ = json.Unmarshal([]byte(wordlistJSON), &task.Wordlist)
 		tasks = append(tasks, &task)
 	}
 

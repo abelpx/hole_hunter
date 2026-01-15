@@ -31,7 +31,6 @@ import {
   GetTemplatesByCategory,
   GetTemplatesBySeverity,
 } from '@wailsjs/go/app/App';
-import { TemplateFilter } from '@wailsjs/go/app/models';
 import { getService } from '../services/WailsService';
 
 // 统一的 PoC 类型，包含来源标识
@@ -147,11 +146,9 @@ export const PoCPage: React.FC = () => {
       if (categoryFilter === 'all' && sourceFilter !== 'custom') {
         templates = await GetAllTemplates();
       } else if (severityFilter !== 'all') {
-        const filter = TemplateFilter({ severity: severityFilter });
-        templates = await GetTemplatesBySeverity(filter);
+        templates = await GetTemplatesBySeverity(severityFilter);
       } else if (categoryFilter !== 'all' && categoryFilter !== 'custom') {
-        const filter = TemplateFilter({ category: categoryFilter });
-        templates = await GetTemplatesByCategory(filter);
+        templates = await GetTemplatesByCategory(categoryFilter);
       } else {
         templates = await GetAllTemplates();
       }

@@ -68,7 +68,7 @@ func TestOrchestrator_Scan_ConcurrentLimit(t *testing.T) {
 		t.Fatal(err)
 	}
 	file.Close()
-	os.Chmod(fakeNuclei, 0755)
+	_ = os.Chmod(fakeNuclei, 0755)
 
 	client := &NucleiClient{binaryPath: fakeNuclei, templatesDir: tmpDir}
 	bus := event.NewBus()

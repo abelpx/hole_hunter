@@ -166,7 +166,7 @@ func (r *BruteRepository) GetAllPayloadSets(ctx context.Context) ([]*models.Brut
 			return nil, err
 		}
 
-		json.Unmarshal([]byte(configJSON), &set.Config)
+		_ = json.Unmarshal([]byte(configJSON), &set.Config)
 		sets = append(sets, &set)
 	}
 

@@ -54,11 +54,7 @@ func isValidURL(urlStr string) bool {
 
 	// 检查主机名是否为内网地址
 	host := u.Hostname()
-	if isPrivateIP(host) {
-		return false
-	}
-
-	return true
+	return !isPrivateIP(host)
 }
 
 // isPrivateIP 检查是否为私有IP地址

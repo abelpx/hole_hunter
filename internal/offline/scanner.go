@@ -251,13 +251,12 @@ func (s *OfflineScanner) getResourceDir() (string, error) {
 			if info, err := os.Stat(normalizedPath); err == nil && info.IsDir() {
 				// 检查目录是否包含 yaml 文件（确认为模板目录）
 				yamlExists := false
-				filepath.Walk(normalizedPath, func(subPath string, info os.FileInfo, err error) error {
+				if err := filepath.Walk(normalizedPath, func(subPath string, info os.FileInfo, err error) error {
 					if !yamlExists && !info.IsDir() && filepath.Ext(subPath) == ".yaml" {
 						yamlExists = true
 					}
 					return nil
-				})
-				if yamlExists {
+				}); err == nil && yamlExists {
 					return normalizedPath, nil
 				}
 			}
@@ -275,13 +274,12 @@ func (s *OfflineScanner) getResourceDir() (string, error) {
 		if info, err := os.Stat(dir); err == nil && info.IsDir() {
 			// 检查是否包含 yaml 文件
 			yamlExists := false
-			filepath.Walk(dir, func(subPath string, info os.FileInfo, err error) error {
+			if err := filepath.Walk(dir, func(subPath string, info os.FileInfo, err error) error {
 				if !yamlExists && !info.IsDir() && filepath.Ext(subPath) == ".yaml" {
 					yamlExists = true
 				}
 				return nil
-			})
-			if yamlExists {
+			}); err == nil && yamlExists {
 				return dir, nil
 			}
 		}

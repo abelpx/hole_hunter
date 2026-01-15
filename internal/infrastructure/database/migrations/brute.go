@@ -62,8 +62,9 @@ func (m *Brute_001_Initial) Up(tx *sql.Tx) error {
 }
 
 func (m *Brute_001_Initial) Down(tx *sql.Tx) error {
-	tx.Exec("DROP TABLE IF EXISTS brute_results")
-	tx.Exec("DROP TABLE IF EXISTS brute_payload_sets")
-	tx.Exec("DROP TABLE IF EXISTS brute_tasks")
+	// DROP TABLE IF EXISTS 不需要检查错误
+	_, _ = tx.Exec("DROP TABLE IF EXISTS brute_results")
+	_, _ = tx.Exec("DROP TABLE IF EXISTS brute_payload_sets")
+	_, _ = tx.Exec("DROP TABLE IF EXISTS brute_tasks")
 	return nil
 }

@@ -168,7 +168,7 @@ func (r *ScanRepository) UpdateStatus(ctx context.Context, id int, status string
 	if err != nil {
 		return errors.DBError("failed to begin transaction", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	// 更新状态
 	_, err = tx.ExecContext(ctx,
