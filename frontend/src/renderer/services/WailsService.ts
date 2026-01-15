@@ -21,8 +21,8 @@ import {
 } from '../types';
 
 // 导入 Wails 自动生成的绑定
-// 使用相对路径，从 src/renderer/services 导入 wailsjs
-import * as WailsApp from '../../../wailsjs/wailsjs/go/main/App';
+// 使用 vite 别名导入 wailsjs
+import * as WailsApp from '@wailsjs/go/app/App';
 
 // 运行环境类型
 type RuntimeEnvironment = 'wails' | 'electron' | 'browser';
@@ -51,6 +51,7 @@ interface WailsBindings {
   CreateHttpRequest(name: string, method: string, url: string, headers: any, body: string, contentType: string, tags: string[]): Promise<number>;
   UpdateHttpRequest(id: number, name: string, method: string, url: string, headers: any, body: string, contentType: string, tags: string[]): Promise<void>;
   DeleteHttpRequest(id: number): Promise<void>;
+  SendHttpRequest(requestId: number, timeoutSec: number): Promise<any>;
   GetHttpResponseHistory(requestId: number): Promise<any[]>;
   GetAllBruteTasks(): Promise<any[]>;
   CreateBruteTask(name: string, requestId: number, type: string): Promise<number>;
@@ -321,8 +322,8 @@ class WailsServiceImpl {
       cve: v.cve ? [v.cve] : [],
       cvss: v.cvss,
       description: v.description || '',
-      reference: [],
-      tags: [], // Go 后端暂不支持 tags
+      reference: v.reference || [],
+      tags: v.tags || [], // 从后端获取 tags
       target_id: v.task_id || 0,
       scan_id: v.task_id || 0,
       discovered_at: v.matched_at || v.created_at,
@@ -596,16 +597,21 @@ class WailsServiceImpl {
     await App.DeleteHttpRequest(id);
   }
 
-  async sendHttpRequest(id: number): Promise<HttpResponse> {
+  async sendHttpRequest(id: number, timeoutSec: number = 30): Promise<HttpResponse> {
+    const App = this.getApp();
+    if (!App) throw new Error('Wails bindings not available');
+    const resp = await App.SendHttpRequest(id, timeoutSec);
     return {
-      id: 0,
-      request_id: id,
-      status_code: 200,
-      status_text: 'OK',
-      headers: {},
-      body: '',
-      response_time: 0,
-      timestamp: new Date().toISOString()
+      id: String(resp.id),
+      request_id: resp.request_id,
+      status_code: resp.status_code,
+      status_text: resp.status_text,
+      headers: resp.headers || {},
+      body: resp.body || '',
+      body_size: resp.body_size,
+      header_size: resp.header_size,
+      response_time: resp.duration,
+      timestamp: resp.timestamp || new Date().toISOString()
     };
   }
 

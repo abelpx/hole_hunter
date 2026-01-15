@@ -1,95 +1,5 @@
-export namespace main {
+export namespace models {
 	
-	export class BrutePayloadSet {
-	    id: number;
-	    name: string;
-	    type: string;
-	    config: Record<string, any>;
-	    created_at: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new BrutePayloadSet(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.id = source["id"];
-	        this.name = source["name"];
-	        this.type = source["type"];
-	        this.config = source["config"];
-	        this.created_at = source["created_at"];
-	    }
-	}
-	export class BruteTask {
-	    id: number;
-	    name: string;
-	    request_id: number;
-	    type: string;
-	    status: string;
-	    total_payloads: number;
-	    sent_payloads: number;
-	    success_count: number;
-	    failure_count: number;
-	    started_at: string;
-	    completed_at: string;
-	    created_at: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new BruteTask(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.id = source["id"];
-	        this.name = source["name"];
-	        this.request_id = source["request_id"];
-	        this.type = source["type"];
-	        this.status = source["status"];
-	        this.total_payloads = source["total_payloads"];
-	        this.sent_payloads = source["sent_payloads"];
-	        this.success_count = source["success_count"];
-	        this.failure_count = source["failure_count"];
-	        this.started_at = source["started_at"];
-	        this.completed_at = source["completed_at"];
-	        this.created_at = source["created_at"];
-	    }
-	}
-	export class CategoryStats {
-	    category: string;
-	    count: number;
-	
-	    static createFrom(source: any = {}) {
-	        return new CategoryStats(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.category = source["category"];
-	        this.count = source["count"];
-	    }
-	}
-	export class CustomTemplate {
-	    id: number;
-	    name: string;
-	    path: string;
-	    content?: string;
-	    enabled: boolean;
-	    created_at: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new CustomTemplate(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.id = source["id"];
-	        this.name = source["name"];
-	        this.path = source["path"];
-	        this.content = source["content"];
-	        this.enabled = source["enabled"];
-	        this.created_at = source["created_at"];
-	    }
-	}
 	export class DashboardStats {
 	    total_targets: number;
 	    total_scans: number;
@@ -114,118 +24,6 @@ export namespace main {
 	        this.high_vulns = source["high_vulns"];
 	        this.medium_vulns = source["medium_vulns"];
 	        this.low_vulns = source["low_vulns"];
-	    }
-	}
-	export class DomainBruteResult {
-	    id: number;
-	    task_id: number;
-	    subdomain: string;
-	    resolved: boolean;
-	    ips: string[];
-	    latency: number;
-	
-	    static createFrom(source: any = {}) {
-	        return new DomainBruteResult(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.id = source["id"];
-	        this.task_id = source["task_id"];
-	        this.subdomain = source["subdomain"];
-	        this.resolved = source["resolved"];
-	        this.ips = source["ips"];
-	        this.latency = source["latency"];
-	    }
-	}
-	export class DomainBruteTask {
-	    id: number;
-	    domain: string;
-	    wordlist: string[];
-	    timeout: number;
-	    batch_size: number;
-	    status: string;
-	    started_at: string;
-	    completed_at: string;
-	    created_at: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new DomainBruteTask(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.id = source["id"];
-	        this.domain = source["domain"];
-	        this.wordlist = source["wordlist"];
-	        this.timeout = source["timeout"];
-	        this.batch_size = source["batch_size"];
-	        this.status = source["status"];
-	        this.started_at = source["started_at"];
-	        this.completed_at = source["completed_at"];
-	        this.created_at = source["created_at"];
-	    }
-	}
-	export class HttpRequest {
-	    id: number;
-	    name: string;
-	    method: string;
-	    url: string;
-	    headers: Record<string, string>;
-	    body: string;
-	    content_type: string;
-	    tags: string[];
-	    created_at: string;
-	    updated_at: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new HttpRequest(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.id = source["id"];
-	        this.name = source["name"];
-	        this.method = source["method"];
-	        this.url = source["url"];
-	        this.headers = source["headers"];
-	        this.body = source["body"];
-	        this.content_type = source["content_type"];
-	        this.tags = source["tags"];
-	        this.created_at = source["created_at"];
-	        this.updated_at = source["updated_at"];
-	    }
-	}
-	export class HttpResponse {
-	    id: number;
-	    request_id: number;
-	    status_code: number;
-	    status_text: string;
-	    headers: Record<string, string>;
-	    body: string;
-	    body_size: number;
-	    header_size: number;
-	    duration: number;
-	    timestamp: string;
-	    created_at: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new HttpResponse(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.id = source["id"];
-	        this.request_id = source["request_id"];
-	        this.status_code = source["status_code"];
-	        this.status_text = source["status_text"];
-	        this.headers = source["headers"];
-	        this.body = source["body"];
-	        this.body_size = source["body_size"];
-	        this.header_size = source["header_size"];
-	        this.duration = source["duration"];
-	        this.timestamp = source["timestamp"];
-	        this.created_at = source["created_at"];
 	    }
 	}
 	export class NucleiStatus {
@@ -294,120 +92,6 @@ export namespace main {
 	        this.metadata = source["metadata"];
 	    }
 	}
-	export class PaginatedTemplatesResult {
-	    templates: NucleiTemplate[];
-	    total: number;
-	    categoryStats: CategoryStats[];
-	    filteredTotal: number;
-	
-	    static createFrom(source: any = {}) {
-	        return new PaginatedTemplatesResult(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.templates = this.convertValues(source["templates"], NucleiTemplate);
-	        this.total = source["total"];
-	        this.categoryStats = this.convertValues(source["categoryStats"], CategoryStats);
-	        this.filteredTotal = source["filteredTotal"];
-	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
-	}
-	export class PortScanResult {
-	    id: number;
-	    task_id: number;
-	    port: number;
-	    status: string;
-	    service: string;
-	    banner: string;
-	    latency: number;
-	
-	    static createFrom(source: any = {}) {
-	        return new PortScanResult(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.id = source["id"];
-	        this.task_id = source["task_id"];
-	        this.port = source["port"];
-	        this.status = source["status"];
-	        this.service = source["service"];
-	        this.banner = source["banner"];
-	        this.latency = source["latency"];
-	    }
-	}
-	export class PortScanTask {
-	    id: number;
-	    target: string;
-	    ports: number[];
-	    timeout: number;
-	    batch_size: number;
-	    status: string;
-	    started_at: string;
-	    completed_at: string;
-	    created_at: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new PortScanTask(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.id = source["id"];
-	        this.target = source["target"];
-	        this.ports = source["ports"];
-	        this.timeout = source["timeout"];
-	        this.batch_size = source["batch_size"];
-	        this.status = source["status"];
-	        this.started_at = source["started_at"];
-	        this.completed_at = source["completed_at"];
-	        this.created_at = source["created_at"];
-	    }
-	}
-	export class ScanProgress {
-	    task_id: number;
-	    status: string;
-	    total_templates: number;
-	    executed_templates: number;
-	    progress: number;
-	    current_template: string;
-	    vuln_count: number;
-	    error?: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new ScanProgress(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.task_id = source["task_id"];
-	        this.status = source["status"];
-	        this.total_templates = source["total_templates"];
-	        this.executed_templates = source["executed_templates"];
-	        this.progress = source["progress"];
-	        this.current_template = source["current_template"];
-	        this.vuln_count = source["vuln_count"];
-	        this.error = source["error"];
-	    }
-	}
 	export class ScanTask {
 	    id: number;
 	    name?: string;
@@ -446,28 +130,6 @@ export namespace main {
 	        this.created_at = source["created_at"];
 	    }
 	}
-	export class ScenarioGroup {
-	    id: string;
-	    name: string;
-	    description: string;
-	    templateIds: string[];
-	    createdAt: number;
-	    updatedAt: number;
-	
-	    static createFrom(source: any = {}) {
-	        return new ScenarioGroup(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.id = source["id"];
-	        this.name = source["name"];
-	        this.description = source["description"];
-	        this.templateIds = source["templateIds"];
-	        this.createdAt = source["createdAt"];
-	        this.updatedAt = source["updatedAt"];
-	    }
-	}
 	export class Target {
 	    id: number;
 	    name: string;
@@ -492,28 +154,6 @@ export namespace main {
 	        this.updated_at = source["updated_at"];
 	    }
 	}
-	export class TemplateFilter {
-	    page: number;
-	    pageSize: number;
-	    category: string;
-	    search: string;
-	    severity: string;
-	    author: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new TemplateFilter(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.page = source["page"];
-	        this.pageSize = source["pageSize"];
-	        this.category = source["category"];
-	        this.search = source["search"];
-	        this.severity = source["severity"];
-	        this.author = source["author"];
-	    }
-	}
 	export class Vulnerability {
 	    id: number;
 	    task_id: number;
@@ -523,10 +163,13 @@ export namespace main {
 	    description: string;
 	    url: string;
 	    matched_at: string;
+	    tags?: string[];
+	    reference?: string[];
+	    request_response?: string;
 	    false_positive: boolean;
-	    notes: string;
-	    cve: string;
-	    cvss: number;
+	    notes?: string;
+	    cve?: string;
+	    cvss?: number;
 	    created_at: string;
 	
 	    static createFrom(source: any = {}) {
@@ -543,6 +186,9 @@ export namespace main {
 	        this.description = source["description"];
 	        this.url = source["url"];
 	        this.matched_at = source["matched_at"];
+	        this.tags = source["tags"];
+	        this.reference = source["reference"];
+	        this.request_response = source["request_response"];
 	        this.false_positive = source["false_positive"];
 	        this.notes = source["notes"];
 	        this.cve = source["cve"];

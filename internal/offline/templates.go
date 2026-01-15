@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/holehunter/holehunter/internal/infrastructure/errors"
 )
 
 // TemplateManager 模板管理器
@@ -40,7 +42,7 @@ func (tm *TemplateManager) GetTemplateInfo() (*TemplateInfo, error) {
 
 	// 检查模板目录
 	if _, err := os.Stat(tm.templatesDir); err != nil {
-		return info, fmt.Errorf("templates directory not found: %w", err)
+		return info, errors.Internal("templates directory not found", err)
 	}
 
 	// 遍历模板目录
@@ -87,7 +89,7 @@ func (tm *TemplateManager) ExtractEmbeddedTemplates() error {
 
 	// 创建目标目录
 	if err := os.MkdirAll(tm.templatesDir, 0755); err != nil {
-		return fmt.Errorf("failed to create templates directory: %w", err)
+		return errors.Internal("failed to create templates directory", err)
 	}
 
 	// 尝试从多个位置复制模板
@@ -114,7 +116,7 @@ func (tm *TemplateManager) ExtractEmbeddedTemplates() error {
 		}
 	}
 
-	return fmt.Errorf("unable to find nuclei-templates in any location. Please run: git submodule update --init --recursive")
+	return errors.Internal("unable to find nuclei-templates in any location. Please run: git submodule update --init --recursive", nil)
 }
 
 // ValidateTemplates 验证模板完整性
@@ -123,7 +125,7 @@ func (tm *TemplateManager) ValidateTemplates() ([]string, error) {
 
 	// 检查模板目录
 	if _, err := os.Stat(tm.templatesDir); err != nil {
-		return nil, fmt.Errorf("templates directory not found: %w", err)
+		return nil, errors.Internal("templates directory not found", err)
 	}
 
 	// 检查是否有模板文件

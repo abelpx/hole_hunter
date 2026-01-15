@@ -30,17 +30,22 @@ import {
 import { Button, Input, Select, Modal, Badge } from '../components/ui';
 import clsx from 'clsx';
 import {
-  GetNucleiTemplatesPaginatedV2,
-  GetNucleiTemplateContent,
-  GetScenarioGroups,
-  CreateScenarioGroup,
-  UpdateScenarioGroup,
-  DeleteScenarioGroup,
-  AddTemplatesToScenarioGroup,
-  RemoveTemplatesFromScenarioGroup,
-  GetScenarioGroupTemplates,
-} from '@wailsjs/go/main/App';
-import { TemplateFilter } from '@wailsjs/go/main/models';
+  GetAllTemplates,
+  GetTemplatesByCategory,
+  GetTemplatesBySeverity,
+  GetTemplateByID,
+  // TODO: Following methods not implemented in backend yet
+  // GetNucleiTemplatesPaginatedV2,
+  // GetNucleiTemplateContent,
+  // GetScenarioGroups,
+  // CreateScenarioGroup,
+  // UpdateScenarioGroup,
+  // DeleteScenarioGroup,
+  // AddTemplatesToScenarioGroup,
+  // RemoveTemplatesFromScenarioGroup,
+  // GetScenarioGroupTemplates,
+} from '@wailsjs/go/app/App';
+import { TemplateFilter } from '@wailsjs/go/app/models';
 
 interface NucleiTemplate {
   id: string;
@@ -187,7 +192,9 @@ export const TemplatesPage: React.FC = () => {
   // 加载场景分组
   const loadScenarioGroups = async () => {
     try {
-      const groups = await GetScenarioGroups();
+      // TODO: GetScenarioGroups not implemented in backend yet
+      // const groups = await GetScenarioGroups();
+      const groups: ScenarioGroup[] = [];
       setScenarioGroups(groups);
     } catch (error) {
       console.error('Failed to load scenario groups:', error);
@@ -197,10 +204,10 @@ export const TemplatesPage: React.FC = () => {
   // 创建场景分组
   const handleCreateScenarioGroup = async (name: string, description: string) => {
     try {
-      const group = await CreateScenarioGroup(name, description);
-      setScenarioGroups([...scenarioGroups, group]);
-      setShowCreateScenarioModal(false);
-      return group;
+      // TODO: CreateScenarioGroup not implemented in backend yet
+      // const group = await CreateScenarioGroup(name, description);
+      alert('场景分组功能暂未实现');
+      throw new Error('Not implemented');
     } catch (error) {
       console.error('Failed to create scenario group:', error);
       throw error;
@@ -210,7 +217,8 @@ export const TemplatesPage: React.FC = () => {
   // 更新场景分组
   const handleUpdateScenarioGroup = async (id: string, name: string, description: string, templateIds: string[]) => {
     try {
-      await UpdateScenarioGroup(id, name, description, templateIds);
+      // TODO: UpdateScenarioGroup not implemented in backend yet
+      // await UpdateScenarioGroup(id, name, description, templateIds);
       await loadScenarioGroups();
     } catch (error) {
       console.error('Failed to update scenario group:', error);
@@ -221,8 +229,10 @@ export const TemplatesPage: React.FC = () => {
   // 删除场景分组
   const handleDeleteScenarioGroup = async (id: string) => {
     try {
-      await DeleteScenarioGroup(id);
-      setScenarioGroups(scenarioGroups.filter(g => g.id !== id));
+      // TODO: DeleteScenarioGroup not implemented in backend yet
+      // await DeleteScenarioGroup(id);
+      alert('场景分组功能暂未实现');
+      throw new Error('Not implemented');
     } catch (error) {
       console.error('Failed to delete scenario group:', error);
       throw error;
@@ -232,8 +242,10 @@ export const TemplatesPage: React.FC = () => {
   // 添加 POC 到场景分组
   const handleAddTemplatesToGroup = async (groupId: string, templateIds: string[]) => {
     try {
-      await AddTemplatesToScenarioGroup(groupId, templateIds);
-      await loadScenarioGroups();
+      // TODO: AddTemplatesToScenarioGroup not implemented in backend yet
+      // await AddTemplatesToScenarioGroup(groupId, templateIds);
+      alert('场景分组功能暂未实现');
+      throw new Error('Not implemented');
     } catch (error) {
       console.error('Failed to add templates to group:', error);
       throw error;
@@ -243,8 +255,10 @@ export const TemplatesPage: React.FC = () => {
   // 从场景分组移除 POC
   const handleRemoveTemplatesFromGroup = async (groupId: string, templateIds: string[]) => {
     try {
-      await RemoveTemplatesFromScenarioGroup(groupId, templateIds);
-      await loadScenarioGroups();
+      // TODO: RemoveTemplatesFromScenarioGroup not implemented in backend yet
+      // await RemoveTemplatesFromScenarioGroup(groupId, templateIds);
+      alert('场景分组功能暂未实现');
+      throw new Error('Not implemented');
     } catch (error) {
       console.error('Failed to remove templates from group:', error);
       throw error;
@@ -254,7 +268,9 @@ export const TemplatesPage: React.FC = () => {
   // 加载场景分组的 POC 列表
   const loadScenarioGroupTemplates = async (groupId: string) => {
     try {
-      const groupTemplates = await GetScenarioGroupTemplates(groupId);
+      // TODO: GetScenarioGroupTemplates not implemented in backend yet
+      // const groupTemplates = await GetScenarioGroupTemplates(groupId);
+      const groupTemplates: NucleiTemplate[] = [];
       setScenarioTemplates(groupTemplates);
       setSelectedScenarioGroupId(groupId);
       setViewMode('templates');
@@ -278,46 +294,72 @@ export const TemplatesPage: React.FC = () => {
         setLoading(true);
       }
 
-      // 构建过滤参数
-      const filter: TemplateFilter = {
-        page: currentPage,
-        pageSize: pageSize,
-        category: selectedCategory === 'all' ? '' : selectedCategory,
-        search: searchQuery,
-        severity: severityFilter === 'all' ? '' : severityFilter,
-        author: authorFilter === 'all' ? '' : authorFilter,
-      };
+      // TODO: Backend doesn't support pagination and advanced filtering yet
+      // Using GetAllTemplates instead
+      let allTemplates: NucleiTemplate[] = [];
 
-      // 使用支持过滤的新 API
-      const result = await GetNucleiTemplatesPaginatedV2(filter);
+      if (selectedCategory === 'all' && !searchQuery && severityFilter === 'all') {
+        // Load all templates
+        const result = await GetAllTemplates();
+        allTemplates = result.map(t => ({
+          id: t.id,
+          name: t.name || t.id,
+          author: t.author || 'unknown',
+          severity: (t.severity || 'info') as NucleiTemplate['severity'],
+          tags: t.tags || [],
+          description: t.description || '',
+          path: t.path || '',
+          category: t.category || 'other',
+          enabled: true,
+        }));
+      } else if (selectedCategory !== 'all') {
+        // Filter by category
+        const result = await GetTemplatesByCategory(selectedCategory);
+        allTemplates = result.map(t => ({
+          id: t.id,
+          name: t.name || t.id,
+          author: t.author || 'unknown',
+          severity: (t.severity || 'info') as NucleiTemplate['severity'],
+          tags: t.tags || [],
+          description: t.description || '',
+          path: t.path || '',
+          category: t.category || 'other',
+          enabled: true,
+        }));
+      } else if (severityFilter !== 'all') {
+        // Filter by severity
+        const result = await GetTemplatesBySeverity(severityFilter);
+        allTemplates = result.map(t => ({
+          id: t.id,
+          name: t.name || t.id,
+          author: t.author || 'unknown',
+          severity: (t.severity || 'info') as NucleiTemplate['severity'],
+          tags: t.tags || [],
+          description: t.description || '',
+          path: t.path || '',
+          category: t.category || 'other',
+          enabled: true,
+        }));
+      }
 
-      // 将后端数据转换为前端格式
-      const transformedTemplates: NucleiTemplate[] = result.templates.map(t => ({
-        id: t.id,
-        name: t.name || t.id,
-        author: t.author || 'unknown',
-        severity: (t.severity || 'info') as NucleiTemplate['severity'],
-        tags: t.tags || [],
-        description: t.description || '',
-        path: t.path,
-        category: t.category || 'other',
-        enabled: t.enabled,
-        impact: t.impact,
-        remediation: t.remediation,
-        reference: t.reference,
-        metadata: t.metadata,
-      }));
+      // Apply client-side filtering for search query
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        allTemplates = allTemplates.filter(t =>
+          t.name.toLowerCase().includes(query) ||
+          t.id.toLowerCase().includes(query) ||
+          t.description.toLowerCase().includes(query)
+        );
+      }
 
-      // 存储分类统计（从后端返回的全局统计）
-      const statsMap = new Map<string, number>();
-      result.categoryStats.forEach(stat => {
-        statsMap.set(stat.category, stat.count);
-      });
-      setCategoryStats(statsMap);
+      // Client-side pagination
+      const startIndex = (currentPage - 1) * pageSize;
+      const endIndex = startIndex + pageSize;
+      const paginatedTemplates = allTemplates.slice(startIndex, endIndex);
 
-      setTemplates(transformedTemplates);
-      setTotal(result.total); // 总模板数（未过滤）
-      setFilteredTotal(result.filteredTotal); // 过滤后的总数（用于分页计算）
+      setTemplates(paginatedTemplates);
+      setTotal(allTemplates.length);
+      setFilteredTotal(allTemplates.length);
     } catch (error) {
       console.error('Failed to load templates:', error);
     } finally {
@@ -328,8 +370,9 @@ export const TemplatesPage: React.FC = () => {
 
   const loadTemplateContent = async (path: string) => {
     try {
-      const content = await GetNucleiTemplateContent(path);
-      setTemplateContent(content);
+      // TODO: GetNucleiTemplateContent not implemented in backend yet
+      // const content = await GetNucleiTemplateContent(path);
+      setTemplateContent('// 模板内容查看功能暂未实现');
     } catch (error) {
       console.error('Failed to load template content:', error);
       setTemplateContent('// 无法加载模板内容');

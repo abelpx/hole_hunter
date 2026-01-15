@@ -1,5 +1,14 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { IPC_CHANNELS, IPCEvents } from '../main/ipc/types';
+import type {
+  CreateTargetRequest,
+  UpdateTargetRequest,
+  CreateScanRequest,
+  CreateHttpRequest,
+  Vulnerability,
+  CreateBruteTaskRequest,
+  CreatePayloadSetRequest,
+} from '../renderer/types';
 
 // 日志：preload 脚本已加载
 console.log('[Preload] Preload script loaded');
@@ -17,15 +26,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   target: {
     getAll: () => ipcRenderer.invoke(IPC_CHANNELS.TARGET_GET_ALL),
     getById: (id: number) => ipcRenderer.invoke(IPC_CHANNELS.TARGET_GET_BY_ID, id),
-    create: (data: any) => ipcRenderer.invoke(IPC_CHANNELS.TARGET_CREATE, data),
-    update: (id: number, data: any) => ipcRenderer.invoke(IPC_CHANNELS.TARGET_UPDATE, id, data),
+    create: (data: CreateTargetRequest) => ipcRenderer.invoke(IPC_CHANNELS.TARGET_CREATE, data),
+    update: (id: number, data: UpdateTargetRequest) => ipcRenderer.invoke(IPC_CHANNELS.TARGET_UPDATE, id, data),
     delete: (id: number) => ipcRenderer.invoke(IPC_CHANNELS.TARGET_DELETE, id),
     batchDelete: (ids: number[]) => ipcRenderer.invoke(IPC_CHANNELS.TARGET_BATCH_DELETE, ids),
   },
 
   // 扫描管理
   scan: {
-    create: (request: any) => ipcRenderer.invoke(IPC_CHANNELS.SCAN_CREATE, request),
+    create: (request: CreateScanRequest) => ipcRenderer.invoke(IPC_CHANNELS.SCAN_CREATE, request),
     cancel: (id: number) => ipcRenderer.invoke(IPC_CHANNELS.SCAN_CANCEL, id),
     delete: (id: number) => ipcRenderer.invoke(IPC_CHANNELS.SCAN_DELETE, id),
     getAll: () => ipcRenderer.invoke(IPC_CHANNELS.SCAN_GET_ALL),
@@ -45,7 +54,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   vulnerability: {
     getAll: () => ipcRenderer.invoke(IPC_CHANNELS.VULN_GET_ALL),
     getById: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.VULN_GET_BY_ID, id),
-    update: (id: string, data: any) => ipcRenderer.invoke(IPC_CHANNELS.VULN_UPDATE, id, data),
+    update: (id: string, data: Partial<Vulnerability>) => ipcRenderer.invoke(IPC_CHANNELS.VULN_UPDATE, id, data),
     markFalsePositive: (id: string, isFalsePositive: boolean) =>
       ipcRenderer.invoke(IPC_CHANNELS.VULN_MARK_FALSE_POSITIVE, id, isFalsePositive),
     delete: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.VULN_DELETE, id),
@@ -61,8 +70,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   replay: {
     getAll: () => ipcRenderer.invoke(IPC_CHANNELS.REPLAY_GET_ALL),
     getById: (id: number) => ipcRenderer.invoke(IPC_CHANNELS.REPLAY_GET_BY_ID, id),
-    create: (data: any) => ipcRenderer.invoke(IPC_CHANNELS.REPLAY_CREATE, data),
-    update: (id: number, data: any) => ipcRenderer.invoke(IPC_CHANNELS.REPLAY_UPDATE, id, data),
+    create: (data: CreateHttpRequest) => ipcRenderer.invoke(IPC_CHANNELS.REPLAY_CREATE, data),
+    update: (id: number, data: Partial<CreateHttpRequest>) => ipcRenderer.invoke(IPC_CHANNELS.REPLAY_UPDATE, id, data),
     delete: (id: number) => ipcRenderer.invoke(IPC_CHANNELS.REPLAY_DELETE, id),
     send: (id: number) => ipcRenderer.invoke(IPC_CHANNELS.REPLAY_SEND, id),
     getResponses: (requestId: number) => ipcRenderer.invoke(IPC_CHANNELS.REPLAY_GET_RESPONSES, requestId),
@@ -73,13 +82,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   brute: {
     getAll: () => ipcRenderer.invoke(IPC_CHANNELS.BRUTE_GET_ALL),
     getById: (id: number) => ipcRenderer.invoke(IPC_CHANNELS.BRUTE_GET_BY_ID, id),
-    create: (data: any) => ipcRenderer.invoke(IPC_CHANNELS.BRUTE_CREATE, data),
+    create: (data: CreateBruteTaskRequest) => ipcRenderer.invoke(IPC_CHANNELS.BRUTE_CREATE, data),
     start: (id: number) => ipcRenderer.invoke(IPC_CHANNELS.BRUTE_START, id),
     cancel: (id: number) => ipcRenderer.invoke(IPC_CHANNELS.BRUTE_CANCEL, id),
     delete: (id: number) => ipcRenderer.invoke(IPC_CHANNELS.BRUTE_DELETE, id),
     getResults: (id: number) => ipcRenderer.invoke(IPC_CHANNELS.BRUTE_GET_RESULTS, id),
     getAllPayloadSets: () => ipcRenderer.invoke(IPC_CHANNELS.BRUTE_GET_ALL_PAYLOAD_SETS),
-    createPayloadSet: (data: any) => ipcRenderer.invoke(IPC_CHANNELS.BRUTE_CREATE_PAYLOAD_SET, data),
+    createPayloadSet: (data: CreatePayloadSetRequest) => ipcRenderer.invoke(IPC_CHANNELS.BRUTE_CREATE_PAYLOAD_SET, data),
     importPayloads: (data: { set_id: number; file: string }) => ipcRenderer.invoke(IPC_CHANNELS.BRUTE_IMPORT_PAYLOADS, data),
   },
 
@@ -96,7 +105,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
 
   // 事件监听
-  on: (channel: keyof IPCEvents, callback: (data: any) => void) => {
+  on: (channel: keyof IPCEvents, callback: (data: unknown) => void) => {
     const validChannels = Object.keys(IPC_CHANNELS);
     if (validChannels.includes(channel)) {
       ipcRenderer.on(channel, (_event, data) => callback(data));
@@ -104,8 +113,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
 
   // 移除监听
-  off: (channel: keyof IPCEvents, callback: (data: any) => void) => {
-    ipcRenderer.removeListener(channel, callback as any);
+  off: (channel: keyof IPCEvents, callback: (data: unknown) => void) => {
+    ipcRenderer.removeListener(channel, callback as (_event: unknown, data: unknown) => void);
   },
 });
 

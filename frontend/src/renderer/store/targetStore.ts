@@ -4,9 +4,10 @@
  */
 
 import { create } from 'zustand';
-import { devtools, persist } from 'zustand/middleware';
+import { devtools } from 'zustand/middleware';
 import { Target, CreateTargetRequest, UpdateTargetRequest } from '../types';
 import { getService } from '../services/WailsService';
+import { ApiError, ErrorHandler, withErrorHandling } from '../services/ErrorHandler';
 
 // 过滤器类型
 export interface TargetFilters {
@@ -14,6 +15,24 @@ export interface TargetFilters {
   search?: string;
   tags?: string[];
 }
+
+// Action 类型定义
+export type TargetAction =
+  | { type: 'FETCH_START' }
+  | { type: 'FETCH_SUCCESS'; targets: Target[] }
+  | { type: 'FETCH_ERROR'; error: ApiError }
+  | { type: 'ADD_SUCCESS'; target: Target }
+  | { type: 'UPDATE_SUCCESS'; id: number; data: Partial<Target> }
+  | { type: 'DELETE_SUCCESS'; id: number }
+  | { type: 'BATCH_DELETE_SUCCESS'; ids: number[] }
+  | { type: 'SET_LOADING'; loading: boolean }
+  | { type: 'SET_ERROR'; error: ApiError | null }
+  | { type: 'CLEAR_ERROR' }
+  | { type: 'TOGGLE_SELECT'; id: number }
+  | { type: 'SELECT_ALL'; ids: number[] }
+  | { type: 'CLEAR_SELECTION' }
+  | { type: 'SET_FILTERS'; filters: Partial<TargetFilters> }
+  | { type: 'CLEAR_FILTERS' };
 
 // Store 状态
 interface TargetState {
@@ -24,7 +43,7 @@ interface TargetState {
 
   // 加载状态
   loading: boolean;
-  error: string | null;
+  error: ApiError | null;
 
   // Actions
   fetchTargets: () => Promise<void>;
@@ -42,9 +61,10 @@ interface TargetState {
   setFilters: (filters: Partial<TargetFilters>) => void;
   clearFilters: () => void;
 
-  // UI
+  // UI 状态管理
   setLoading: (loading: boolean) => void;
-  setError: (error: string | null) => void;
+  setError: (error: ApiError | null) => void;
+  clearError: () => void;
 }
 
 // 初始过滤器
@@ -68,11 +88,18 @@ export const useTargetStore = create<TargetState>()(
         fetchTargets: async () => {
           set({ loading: true, error: null });
           try {
-            const service = getService();
-            const targets = await service.getAllTargets();
+            const targets = await withErrorHandling(
+              async () => {
+                const service = getService();
+                return await service.getAllTargets();
+              },
+              'fetchTargets'
+            );
             set({ targets, loading: false });
-          } catch (error: any) {
-            set({ error: error.message, loading: false });
+          } catch (error) {
+            const apiError = ErrorHandler.handle(error);
+            ErrorHandler.log(apiError, 'fetchTargets');
+            set({ error: apiError, loading: false });
           }
         },
 
@@ -80,14 +107,27 @@ export const useTargetStore = create<TargetState>()(
         addTarget: async (data: CreateTargetRequest) => {
           set({ loading: true, error: null });
           try {
-            const service = getService();
-            await service.createTarget(data);
+            await withErrorHandling(
+              async () => {
+                const service = getService();
+                await service.createTarget(data);
+              },
+              'addTarget'
+            );
             // 重新获取列表
-            const targets = await service.getAllTargets();
+            const targets = await withErrorHandling(
+              async () => {
+                const service = getService();
+                return await service.getAllTargets();
+              },
+              'addTarget-refresh'
+            );
             set({ targets, loading: false });
-          } catch (error: any) {
-            set({ error: error.message, loading: false });
-            throw error;
+          } catch (error) {
+            const apiError = ErrorHandler.handle(error);
+            ErrorHandler.log(apiError, 'addTarget');
+            set({ error: apiError, loading: false });
+            throw apiError;
           }
         },
 
@@ -95,17 +135,24 @@ export const useTargetStore = create<TargetState>()(
         updateTarget: async (id: number, data: UpdateTargetRequest) => {
           set({ loading: true, error: null });
           try {
-            const service = getService();
-            await service.updateTarget(id, data);
+            await withErrorHandling(
+              async () => {
+                const service = getService();
+                await service.updateTarget(id, data);
+              },
+              'updateTarget'
+            );
             // 更新本地状态
             const { targets } = get();
             const updatedTargets = targets.map((t) =>
               t.id === id ? { ...t, ...data } : t
             );
             set({ targets: updatedTargets, loading: false });
-          } catch (error: any) {
-            set({ error: error.message, loading: false });
-            throw error;
+          } catch (error) {
+            const apiError = ErrorHandler.handle(error);
+            ErrorHandler.log(apiError, 'updateTarget');
+            set({ error: apiError, loading: false });
+            throw apiError;
           }
         },
 
@@ -113,8 +160,13 @@ export const useTargetStore = create<TargetState>()(
         deleteTarget: async (id: number) => {
           set({ loading: true, error: null });
           try {
-            const service = getService();
-            await service.deleteTarget(id);
+            await withErrorHandling(
+              async () => {
+                const service = getService();
+                await service.deleteTarget(id);
+              },
+              'deleteTarget'
+            );
             // 从本地状态移除
             const { targets, selectedIds } = get();
             set({
@@ -122,9 +174,11 @@ export const useTargetStore = create<TargetState>()(
               selectedIds: selectedIds.filter((sid) => sid !== id),
               loading: false,
             });
-          } catch (error: any) {
-            set({ error: error.message, loading: false });
-            throw error;
+          } catch (error) {
+            const apiError = ErrorHandler.handle(error);
+            ErrorHandler.log(apiError, 'deleteTarget');
+            set({ error: apiError, loading: false });
+            throw apiError;
           }
         },
 
@@ -132,8 +186,13 @@ export const useTargetStore = create<TargetState>()(
         batchDeleteTargets: async (ids: number[]) => {
           set({ loading: true, error: null });
           try {
-            const service = getService();
-            await service.batchDeleteTargets(ids);
+            await withErrorHandling(
+              async () => {
+                const service = getService();
+                await service.batchDeleteTargets(ids);
+              },
+              'batchDeleteTargets'
+            );
             // 从本地状态移除
             const { targets, selectedIds } = get();
             const idsSet = new Set(ids);
@@ -142,9 +201,11 @@ export const useTargetStore = create<TargetState>()(
               selectedIds: selectedIds.filter((sid) => !idsSet.has(sid)),
               loading: false,
             });
-          } catch (error: any) {
-            set({ error: error.message, loading: false });
-            throw error;
+          } catch (error) {
+            const apiError = ErrorHandler.handle(error);
+            ErrorHandler.log(apiError, 'batchDeleteTargets');
+            set({ error: apiError, loading: false });
+            throw apiError;
           }
         },
 
@@ -202,8 +263,13 @@ export const useTargetStore = create<TargetState>()(
         },
 
         // 设置错误
-        setError: (error: string | null) => {
+        setError: (error: ApiError | null) => {
           set({ error });
+        },
+
+        // 清除错误
+        clearError: () => {
+          set({ error: null });
         },
       }),
       {

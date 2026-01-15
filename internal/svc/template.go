@@ -1,0 +1,82 @@
+package svc
+
+import (
+	"context"
+
+	"github.com/holehunter/holehunter/internal/models"
+	"github.com/holehunter/holehunter/internal/repo"
+)
+
+// TemplateService 模板服务
+type TemplateService struct {
+	repo *repo.TemplateRepository
+}
+
+// NewTemplateService 创建模板服务
+func NewTemplateService(repo *repo.TemplateRepository) *TemplateService {
+	return &TemplateService{repo: repo}
+}
+
+// GetAll 获取所有模板
+func (s *TemplateService) GetAll(ctx context.Context) ([]*models.NucleiTemplate, error) {
+	return s.repo.GetAll(ctx)
+}
+
+// GetByCategory 根据分类获取模板
+func (s *TemplateService) GetByCategory(ctx context.Context, category string) ([]*models.NucleiTemplate, error) {
+	return s.repo.GetByCategory(ctx, category)
+}
+
+// GetBySeverity 根据严重级别获取模板
+func (s *TemplateService) GetBySeverity(ctx context.Context, severity string) ([]*models.NucleiTemplate, error) {
+	return s.repo.GetBySeverity(ctx, severity)
+}
+
+// GetByID 根据 ID 获取模板
+func (s *TemplateService) GetByID(ctx context.Context, id string) (*models.NucleiTemplate, error) {
+	return s.repo.GetByID(ctx, id)
+}
+
+// GetCategories 获取所有分类
+func (s *TemplateService) GetCategories(ctx context.Context) ([]string, error) {
+	templates, err := s.repo.GetAll(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	categoryMap := make(map[string]bool)
+	for _, t := range templates {
+		if t.Category != "" {
+			categoryMap[t.Category] = true
+		}
+	}
+
+	categories := make([]string, 0, len(categoryMap))
+	for cat := range categoryMap {
+		categories = append(categories, cat)
+	}
+
+	return categories, nil
+}
+
+// GetSeverities 获取所有严重级别
+func (s *TemplateService) GetSeverities(ctx context.Context) ([]string, error) {
+	templates, err := s.repo.GetAll(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	severityMap := make(map[string]bool)
+	for _, t := range templates {
+		if t.Severity != "" {
+			severityMap[t.Severity] = true
+		}
+	}
+
+	severities := make([]string, 0, len(severityMap))
+	for sev := range severityMap {
+		severities = append(severities, sev)
+	}
+
+	return severities, nil
+}

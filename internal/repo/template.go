@@ -1,0 +1,239 @@
+package repo
+
+import (
+	"context"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/holehunter/holehunter/internal/infrastructure/errors"
+	"github.com/holehunter/holehunter/internal/models"
+	"gopkg.in/yaml.v3"
+)
+
+// TemplateRepository 模板仓储
+type TemplateRepository struct {
+	templatesDir string
+}
+
+// NewTemplateRepository 创建模板仓储
+func NewTemplateRepository(templatesDir string) *TemplateRepository {
+	return &TemplateRepository{templatesDir: templatesDir}
+}
+
+// GetAll 获取所有模板
+func (r *TemplateRepository) GetAll(ctx context.Context) ([]*models.NucleiTemplate, error) {
+	var templates []*models.NucleiTemplate
+
+	err := r.walkTemplatesDir(func(path, category, id string) error {
+		content, err := r.readTemplateFile(path)
+		if err != nil {
+			return nil // 跳过读取失败的文件
+		}
+
+		template := r.parseTemplate(content, id, category, path)
+		templates = append(templates, template)
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, errors.Internal("failed to walk templates directory", err)
+	}
+
+	return templates, nil
+}
+
+// GetByCategory 根据分类获取模板
+func (r *TemplateRepository) GetByCategory(ctx context.Context, category string) ([]*models.NucleiTemplate, error) {
+	var templates []*models.NucleiTemplate
+
+	err := r.walkTemplatesDir(func(path, cat, id string) error {
+		if cat != category {
+			return nil
+		}
+
+		content, err := r.readTemplateFile(path)
+		if err != nil {
+			return nil
+		}
+
+		template := r.parseTemplate(content, id, category, path)
+		templates = append(templates, template)
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, errors.Internal("failed to walk templates directory", err)
+	}
+
+	return templates, nil
+}
+
+// GetBySeverity 根据严重级别获取模板
+func (r *TemplateRepository) GetBySeverity(ctx context.Context, severity string) ([]*models.NucleiTemplate, error) {
+	templates, err := r.GetAll(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var result []*models.NucleiTemplate
+	for _, t := range templates {
+		if t.Severity == severity {
+			result = append(result, t)
+		}
+	}
+
+	return result, nil
+}
+
+// GetByID 根据 ID 获取模板
+func (r *TemplateRepository) GetByID(ctx context.Context, id string) (*models.NucleiTemplate, error) {
+	var found *models.NucleiTemplate
+
+	err := r.walkTemplatesDir(func(path, category, templateID string) error {
+		if templateID == id {
+			content, err := r.readTemplateFile(path)
+			if err != nil {
+				return err
+			}
+
+			template := r.parseTemplate(content, id, category, path)
+			found = template
+		}
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	if found == nil {
+		return nil, errors.NotFound("template not found")
+	}
+
+	return found, nil
+}
+
+// GetTemplatesDir 获取模板目录
+func (r *TemplateRepository) GetTemplatesDir() string {
+	return r.templatesDir
+}
+
+// walkTemplatesDir 遍历模板目录
+func (r *TemplateRepository) walkTemplatesDir(callback func(path, category, id string) error) error {
+	if _, err := os.Stat(r.templatesDir); os.IsNotExist(err) {
+		return nil // 目录不存在，返回空
+	}
+
+	return filepath.Walk(r.templatesDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+
+		if info.IsDir() || !strings.HasSuffix(path, ".yaml") {
+			return nil
+		}
+
+		relPath, _ := filepath.Rel(r.templatesDir, path)
+		id := strings.TrimSuffix(relPath, ".yaml")
+		parts := strings.Split(relPath, string(filepath.Separator))
+		category := "other"
+		if len(parts) > 0 && parts[0] != "" {
+			category = parts[0]
+		}
+
+		return callback(path, category, id)
+	})
+}
+
+// readTemplateFile 读取模板文件
+func (r *TemplateRepository) readTemplateFile(path string) ([]byte, error) {
+	return os.ReadFile(path)
+}
+
+// parseTemplate 解析模板 YAML 内容
+func (r *TemplateRepository) parseTemplate(content []byte, id, category, path string) *models.NucleiTemplate {
+	// 定义 Nuclei 模板的 YAML 结构
+	// 注意：tags 在 Nuclei 中是逗号分隔的字符串，不是数组
+	var template struct {
+		ID   string `yaml:"id"`
+		Info struct {
+			Name        string   `yaml:"name"`
+			Severity    string   `yaml:"severity"`
+			Description string   `yaml:"description"`
+			Author      string   `yaml:"author"`
+			Tags        string   `yaml:"tags"` // 逗号分隔的字符串
+			Reference   []string `yaml:"reference"`
+		} `yaml:"info"`
+		Severity string `yaml:"severity"` // 某些模板可能在顶层定义 severity
+	}
+
+	// 解析 YAML
+	if err := yaml.Unmarshal(content, &template); err != nil {
+		// 解析失败，返回最小信息
+		return &models.NucleiTemplate{
+			ID:       id,
+			Name:     id,
+			Severity: "unknown",
+			Author:   "",
+			Path:     path,
+			Category: category,
+			Tags:     []string{},
+			Enabled:  true,
+		}
+	}
+
+	// 提取信息
+	name := template.Info.Name
+	if name == "" {
+		name = template.ID
+	}
+	if name == "" {
+		name = id
+	}
+
+	severity := template.Info.Severity
+	if severity == "" {
+		severity = template.Severity
+	}
+	if severity == "" {
+		severity = "unknown"
+	}
+
+	author := template.Info.Author
+	description := template.Info.Description
+
+	// 解析 tags（逗号分隔的字符串）
+	var tags []string
+	if template.Info.Tags != "" {
+		for _, tag := range strings.Split(template.Info.Tags, ",") {
+			tag = strings.TrimSpace(tag)
+			if tag != "" {
+				tags = append(tags, tag)
+			}
+		}
+	}
+	if tags == nil {
+		tags = []string{}
+	}
+
+	reference := template.Info.Reference
+	if reference == nil {
+		reference = []string{}
+	}
+
+	return &models.NucleiTemplate{
+		ID:          id,
+		Name:        name,
+		Severity:    severity,
+		Author:      author,
+		Description: description,
+		Path:        path,
+		Category:    category,
+		Tags:        tags,
+		Reference:   reference,
+		Enabled:     true,
+	}
+}

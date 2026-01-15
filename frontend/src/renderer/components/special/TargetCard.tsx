@@ -3,7 +3,7 @@
  * 显示目标信息的卡片组件
  */
 
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
   Globe,
@@ -63,7 +63,7 @@ const severityColors = {
   info: 'bg-slate-400',
 };
 
-export const TargetCard: React.FC<TargetCardProps> = ({
+export const TargetCard: React.FC<TargetCardProps> = React.memo(({
   target,
   onScan,
   onEdit,
@@ -73,9 +73,44 @@ export const TargetCard: React.FC<TargetCardProps> = ({
   onToggleSelect,
 }) => {
   const [showMenu, setShowMenu] = useState(false);
-  const totalVulns = target.vuln_count
-    ? Object.values(target.vuln_count).reduce((sum, count) => sum + count, 0)
-    : 0;
+
+  // 使用 useMemo 缓存计算结果
+  const totalVulns = useMemo(() => {
+    return target.vuln_count
+      ? Object.values(target.vuln_count).reduce((sum, count) => sum + count, 0)
+      : 0;
+  }, [target.vuln_count]);
+
+  // 使用 useCallback 缓存事件处理器
+  const handleToggleSelect = useCallback(() => {
+    onToggleSelect?.(target.id);
+  }, [target.id, onToggleSelect]);
+
+  const handleUrlClick = useCallback(() => {
+    onUrlClick?.(target.url);
+  }, [target.url, onUrlClick]);
+
+  const handleMenuToggle = useCallback(() => {
+    setShowMenu(prev => !prev);
+  }, []);
+
+  const handleEdit = useCallback(() => {
+    onEdit?.(target.id);
+    setShowMenu(false);
+  }, [target.id, onEdit]);
+
+  const handleDelete = useCallback(() => {
+    onDelete?.(target.id);
+    setShowMenu(false);
+  }, [target.id, onDelete]);
+
+  const handleScan = useCallback(() => {
+    onScan?.(target.id);
+  }, [target.id, onScan]);
+
+  const handleMenuClose = useCallback(() => {
+    setShowMenu(false);
+  }, []);
 
   return (
     <motion.div
@@ -94,7 +129,7 @@ export const TargetCard: React.FC<TargetCardProps> = ({
           {/* 选择框 */}
           {onToggleSelect && (
             <button
-              onClick={() => onToggleSelect(target.id)}
+              onClick={handleToggleSelect}
               className={clsx(
                 'flex-shrink-0 w-5 h-5 rounded border-2 transition-colors',
                 'flex items-center justify-center',
@@ -116,7 +151,7 @@ export const TargetCard: React.FC<TargetCardProps> = ({
               {target.name}
             </h3>
             <button
-              onClick={() => onUrlClick?.(target.url)}
+              onClick={handleUrlClick}
               className="flex items-center gap-1 text-sm text-slate-400 hover:text-sky-400 transition-colors"
             >
               <Globe size={14} />
@@ -131,7 +166,7 @@ export const TargetCard: React.FC<TargetCardProps> = ({
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={() => setShowMenu(!showMenu)}
+            onClick={handleMenuToggle}
             className="p-1.5 rounded-lg hover:bg-slate-700 transition-colors"
           >
             <MoreVertical size={16} className="text-slate-400" />
@@ -141,7 +176,7 @@ export const TargetCard: React.FC<TargetCardProps> = ({
             <>
               <div
                 className="fixed inset-0 z-10"
-                onClick={() => setShowMenu(false)}
+                onClick={handleMenuClose}
               />
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
@@ -149,20 +184,14 @@ export const TargetCard: React.FC<TargetCardProps> = ({
                 className="absolute right-0 top-8 z-20 w-40 bg-slate-900 border border-slate-700 rounded-lg shadow-xl overflow-hidden"
               >
                 <button
-                  onClick={() => {
-                    onEdit?.(target.id);
-                    setShowMenu(false);
-                  }}
+                  onClick={handleEdit}
                   className="w-full px-3 py-2 text-left text-sm text-slate-300 hover:bg-slate-800 flex items-center gap-2"
                 >
                   <Edit size={14} />
                   编辑
                 </button>
                 <button
-                  onClick={() => {
-                    onDelete?.(target.id);
-                    setShowMenu(false);
-                  }}
+                  onClick={handleDelete}
                   className="w-full px-3 py-2 text-left text-sm text-red-400 hover:bg-slate-800 flex items-center gap-2"
                 >
                   <Trash2 size={14} />
@@ -253,7 +282,7 @@ export const TargetCard: React.FC<TargetCardProps> = ({
             type="secondary"
             size="sm"
             icon={<Play size={14} />}
-            onClick={() => onScan?.(target.id)}
+            onClick={handleScan}
           >
             扫描
           </Button>
@@ -261,4 +290,4 @@ export const TargetCard: React.FC<TargetCardProps> = ({
       </div>
     </motion.div>
   );
-};
+});

@@ -46,8 +46,9 @@ export const useScanStore = create<ScanState>()(
           const service = getService();
           const scans = await service.getAllScans();
           set({ scans, loading: false });
-        } catch (error: any) {
-          set({ error: error.message, loading: false });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Unknown error';
+          set({ error: message, loading: false });
         }
       },
 
@@ -77,8 +78,9 @@ export const useScanStore = create<ScanState>()(
           set({ scans });
 
           return scan.id;
-        } catch (error: any) {
-          set({ error: error.message, loading: false });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Unknown error';
+          set({ error: message, loading: false });
           throw error;
         }
       },
@@ -95,8 +97,9 @@ export const useScanStore = create<ScanState>()(
             s.id === id ? { ...s, status: 'cancelled' as const } : s
           );
           set({ scans: updatedScans, loading: false });
-        } catch (error: any) {
-          set({ error: error.message, loading: false });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Unknown error';
+          set({ error: message, loading: false });
           throw error;
         }
       },
@@ -107,8 +110,9 @@ export const useScanStore = create<ScanState>()(
           const service = getService();
           const scan = await service.getScanById(id);
           return scan;
-        } catch (error: any) {
-          set({ error: error.message });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Unknown error';
+          set({ error: message });
           return null;
         }
       },

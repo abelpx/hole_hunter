@@ -15,10 +15,11 @@ type DomainBruteTask struct {
 
 // DomainBruteResult represents a domain brute force result
 type DomainBruteResult struct {
-	ID       int      `json:"id"`
-	TaskID   int      `json:"task_id"`
-	Subdomain string  `json:"subdomain"`
-	Resolved bool     `json:"resolved"`
-	IPs      []string `json:"ips"`
-	Latency  int      `json:"latency"`
+	ID        int      `json:"id"`
+	TaskID    int      `json:"task_id"`
+	Subdomain string   `json:"subdomain"`
+	Resolved  bool     `json:"resolved"`
+	IPs       []string `json:"ips"`
+	Latency   int      `json:"latency"`
+	CreatedAt string   `json:"created_at"`
 }

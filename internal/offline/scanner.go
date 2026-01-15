@@ -6,6 +6,9 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
+
+	"github.com/holehunter/holehunter/internal/infrastructure/errors"
 )
 
 // OfflineScanner 离线扫描器
@@ -32,17 +35,17 @@ func NewOfflineScanner(userDataDir string) *OfflineScanner {
 func (s *OfflineScanner) Setup() error {
 	// 1. 确保 nuclei 二进制文件存在
 	if err := s.ensureNucleiBinary(); err != nil {
-		return fmt.Errorf("failed to setup nuclei binary: %w", err)
+		return errors.Internal("failed to setup nuclei binary", err)
 	}
 
 	// 2. 提取内嵌的模板
 	if err := s.extractEmbeddedTemplates(); err != nil {
-		return fmt.Errorf("failed to extract templates: %w", err)
+		return errors.Internal("failed to extract templates", err)
 	}
 
 	// 3. 创建配置文件
 	if err := s.createNucleiConfig(); err != nil {
-		return fmt.Errorf("failed to create config: %w", err)
+		return errors.Internal("failed to create config", err)
 	}
 
 	return nil
@@ -64,7 +67,7 @@ func (s *OfflineScanner) ensureNucleiBinary() error {
 	// 从应用的资源目录复制
 	resourceDir, err := s.getResourceDir()
 	if err != nil {
-		return fmt.Errorf("failed to get resource directory: %w", err)
+		return errors.Internal("failed to get resource directory", err)
 	}
 
 	srcBinary := filepath.Join(resourceDir, "nuclei")
@@ -74,17 +77,17 @@ func (s *OfflineScanner) ensureNucleiBinary() error {
 
 	// 检查源文件是否存在
 	if _, err := os.Stat(srcBinary); err != nil {
-		return fmt.Errorf("nuclei binary not found in resources: %s", srcBinary)
+		return errors.Internal("nuclei binary not found in resources: "+srcBinary, nil)
 	}
 
 	// 复制二进制文件
 	if err := copyFile(srcBinary, nucleiPath); err != nil {
-		return fmt.Errorf("failed to copy nuclei binary: %w", err)
+		return errors.Internal("failed to copy nuclei binary", err)
 	}
 
 	// 设置可执行权限
 	if err := os.Chmod(nucleiPath, 0755); err != nil {
-		return fmt.Errorf("failed to set executable permission: %w", err)
+		return errors.Internal("failed to set executable permission", err)
 	}
 
 	s.nucleiBinary = nucleiPath
@@ -101,7 +104,7 @@ func (s *OfflineScanner) extractEmbeddedTemplates() error {
 
 	// 创建模板目录
 	if err := os.MkdirAll(s.templatesDir, 0755); err != nil {
-		return fmt.Errorf("failed to create templates directory: %w", err)
+		return errors.Internal("failed to create templates directory", err)
 	}
 
 	// 尝试从多个位置复制模板
@@ -135,7 +138,7 @@ func (s *OfflineScanner) extractEmbeddedTemplates() error {
 		}
 	}
 
-	return fmt.Errorf("unable to find nuclei-templates in any location. Please run: git submodule update --init --recursive")
+	return errors.Internal("unable to find nuclei-templates in any location. Please run: git submodule update --init --recursive", nil)
 }
 
 // createNucleiConfig 创建 nuclei 配置文件
@@ -284,7 +287,7 @@ func (s *OfflineScanner) getResourceDir() (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf("nuclei templates not found in any resource directory")
+	return "", errors.Internal("nuclei templates not found in any resource directory", nil)
 }
 
 // copyFile 复制文件
@@ -307,6 +310,15 @@ func copyFile(src, dst string) error {
 
 // copyDir 递归复制目录
 func copyDir(src, dst string) error {
+	// 验证源路径
+	if !isSafePath(src) {
+		return errors.Internal("unsafe source path: "+src, nil)
+	}
+	// 验证目标路径
+	if !isSafePath(dst) {
+		return errors.Internal("unsafe destination path: "+dst, nil)
+	}
+
 	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -318,6 +330,11 @@ func copyDir(src, dst string) error {
 			return err
 		}
 
+		// 防止路径遍历攻击
+		if strings.Contains(relPath, "..") {
+			return errors.Internal("path traversal attempt detected: "+relPath, nil)
+		}
+
 		dstPath := filepath.Join(dst, relPath)
 
 		if info.IsDir() {
@@ -327,4 +344,33 @@ func copyDir(src, dst string) error {
 		// 复制文件
 		return copyFile(path, dstPath)
 	})
+}
+
+// isSafePath 检查路径是否安全
+func isSafePath(path string) bool {
+	// 规范化路径
+	cleanPath := filepath.Clean(path)
+
+	// 检查是否包含路径遍历
+	if strings.Contains(cleanPath, "..") {
+		return false
+	}
+
+	// 检查是否为绝对路径（如果是，需要额外验证）
+	if filepath.IsAbs(cleanPath) {
+		// 允许的绝对路径前缀
+		allowedPrefixes := []string{
+			"/usr/local/bin",
+			"/opt/homebrew/bin",
+			os.TempDir(),
+		}
+		for _, prefix := range allowedPrefixes {
+			if strings.HasPrefix(cleanPath, prefix) {
+				return true
+			}
+		}
+		// 其他绝对路径需要特殊处理
+	}
+
+	return true
 }

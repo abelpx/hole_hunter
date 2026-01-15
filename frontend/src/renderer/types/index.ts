@@ -62,7 +62,7 @@ export interface ScanTask {
   started_at?: string;
   completed_at?: string;
   error?: string;
-  config?: any;
+  config?: ScanConfigOptions;
   created_at?: string;
 }
 

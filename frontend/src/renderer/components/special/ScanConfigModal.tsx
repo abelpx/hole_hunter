@@ -6,7 +6,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Modal, Input, Select, Button, Badge } from '../ui';
-import { GetScenarioGroups } from '@wailsjs/go/main/App';
+// TODO: GetScenarioGroups not implemented in backend yet
+// import { GetScenarioGroups } from '@wailsjs/go/app/App';
 
 // 场景分组接口
 interface ScenarioGroup {
@@ -117,10 +118,13 @@ export const ScanConfigModal: React.FC<ScanConfigModalProps> = ({
   useEffect(() => {
     const loadScenarioGroups = async () => {
       try {
-        const groups = await GetScenarioGroups();
+        // TODO: GetScenarioGroups not implemented in backend yet
+        // const groups = await GetScenarioGroups();
+        const groups: ScenarioGroup[] = [];
         setScenarioGroups(groups);
       } catch (error) {
         console.error('Failed to load scenario groups:', error);
+        setScenarioGroups([]);
       }
     };
     loadScenarioGroups();

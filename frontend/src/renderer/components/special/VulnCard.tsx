@@ -3,15 +3,13 @@
  * 漏洞卡片展示组件
  */
 
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
   AlertTriangle,
   ExternalLink,
   Copy,
   Check,
-  X,
-  Tag,
   Calendar,
   FileText,
   Shield,
@@ -83,7 +81,7 @@ const getCVSSRating = (cvss?: number) => {
   return null;
 };
 
-export const VulnCard: React.FC<VulnCardProps> = ({
+export const VulnCard: React.FC<VulnCardProps> = React.memo(({
   vuln,
   onViewDetails,
   onMarkFalsePositive,
@@ -92,16 +90,46 @@ export const VulnCard: React.FC<VulnCardProps> = ({
   onToggleSelect,
 }) => {
   const [copied, setCopied] = useState(false);
-  const config = severityConfig[vuln.severity];
-  const cvssRating = getCVSSRating(vuln.cvss);
 
-  const handleCopy = () => {
+  // 使用 useMemo 缓存配置
+  const config = useMemo(() => severityConfig[vuln.severity], [vuln.severity]);
+  const cvssRating = useMemo(() => getCVSSRating(vuln.cvss), [vuln.cvss]);
+
+  // 使用 useCallback 缓存事件处理器
+  const handleCopy = useCallback(() => {
     if (onCopy) {
       onCopy(vuln.url);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
-  };
+  }, [onCopy, vuln.url]);
+
+  const handleToggleSelect = useCallback(() => {
+    onToggleSelect?.(vuln.id);
+  }, [vuln.id, onToggleSelect]);
+
+  const handleUrlClick = useCallback(() => {
+    window.open(vuln.url, '_blank');
+  }, [vuln.url]);
+
+  const handleMarkFalsePositive = useCallback(() => {
+    onMarkFalsePositive?.(vuln.id, !vuln.is_false_positive);
+  }, [vuln.id, vuln.is_false_positive, onMarkFalsePositive]);
+
+  const handleViewDetails = useCallback(() => {
+    onViewDetails?.(vuln);
+  }, [vuln, onViewDetails]);
+
+  // 使用 useMemo 缓存格式化的时间
+  const formattedDate = useMemo(() => {
+    return new Date(vuln.discovered_at).toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  }, [vuln.discovered_at]);
 
   return (
     <motion.div
@@ -130,7 +158,7 @@ export const VulnCard: React.FC<VulnCardProps> = ({
         {/* 选择框 */}
         {onToggleSelect && (
           <button
-            onClick={() => onToggleSelect(vuln.id)}
+            onClick={handleToggleSelect}
             className={clsx(
               'flex-shrink-0 w-5 h-5 rounded border-2 transition-colors mt-1',
               'flex items-center justify-center',
@@ -165,7 +193,7 @@ export const VulnCard: React.FC<VulnCardProps> = ({
 
           {/* URL */}
           <button
-            onClick={() => window.open(vuln.url, '_blank')}
+            onClick={handleUrlClick}
             className="flex items-center gap-1 text-sm text-slate-400 hover:text-sky-400 transition-colors mt-1 group"
           >
             <span className="truncate">{vuln.url}</span>
@@ -214,15 +242,7 @@ export const VulnCard: React.FC<VulnCardProps> = ({
         {/* 时间戳 */}
         <div className="flex items-center gap-1.5 text-xs text-slate-500">
           <Calendar size={14} />
-          <span>
-            {new Date(vuln.discovered_at).toLocaleString('zh-CN', {
-              year: 'numeric',
-              month: '2-digit',
-              day: '2-digit',
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
-          </span>
+          <span>{formattedDate}</span>
         </div>
 
         {/* 操作按钮 */}
@@ -243,7 +263,7 @@ export const VulnCard: React.FC<VulnCardProps> = ({
             <Button
               type={vuln.is_false_positive ? 'secondary' : 'ghost'}
               size="sm"
-              onClick={() => onMarkFalsePositive(vuln.id, !vuln.is_false_positive)}
+              onClick={handleMarkFalsePositive}
             >
               {vuln.is_false_positive ? '取消误报' : '标记误报'}
             </Button>
@@ -254,7 +274,7 @@ export const VulnCard: React.FC<VulnCardProps> = ({
             <Button
               type="primary"
               size="sm"
-              onClick={() => onViewDetails(vuln)}
+              onClick={handleViewDetails}
             >
               详情
             </Button>
@@ -263,7 +283,7 @@ export const VulnCard: React.FC<VulnCardProps> = ({
       </div>
     </motion.div>
   );
-};
+});
 
 // 简单的 clsx 工具
 function clsx(...classes: (string | boolean | undefined | null)[]) {
