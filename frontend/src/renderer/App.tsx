@@ -9,14 +9,13 @@ import { ReplayPage } from './pages/ReplayPage';
 import { BrutePage } from './pages/BrutePage';
 import { ReportsPage } from './pages/ReportsPage';
 import { ToolsPage } from './pages/ToolsPage';
-import { TemplatesPage } from './pages/TemplatesPage';
-import { CustomTemplatesPage } from './pages/CustomTemplatesPage';
+import { PoCPage } from './pages/PoCPage';
 import { Button, Input, Select, Modal, Badge, Tag } from './components/ui';
 import { ErrorBoundary } from './components/common';
 import { Play, Plus, Trash2, Target as TargetIcon, Shield, Bell } from 'lucide-react';
 import { getService } from './services/WailsService';
 
-type PageKey = 'dashboard' | 'targets' | 'tasks' | 'vulnerabilities' | 'settings' | 'replay' | 'brute' | 'reports' | 'tools' | 'templates' | 'custom-templates';
+type PageKey = 'dashboard' | 'targets' | 'tasks' | 'vulnerabilities' | 'settings' | 'replay' | 'brute' | 'reports' | 'tools' | 'poc';
 
 interface EnvironmentInfo {
   runtimeType: string;
@@ -109,10 +108,8 @@ function App() {
         return <ReportsPage />;
       case 'tools':
         return <ToolsPage />;
-      case 'templates':
-        return <TemplatesPage />;
-      case 'custom-templates':
-        return <CustomTemplatesPage />;
+      case 'poc':
+        return <PoCPage />;
       default:
         return renderWelcomePage();
     }
@@ -127,7 +124,7 @@ function App() {
           </div>
           <h1 className="text-5xl font-bold text-slate-100">HoleHunter</h1>
         </div>
-        <p className="text-xl text-slate-400 mb-4">基于 Nuclei 的现代化安全测试工具</p>
+        <p className="text-xl text-slate-400 mb-4">现代化安全测试工具</p>
         <div className="flex items-center justify-center gap-2 mb-6">
           <Badge variant={envInfo.runtimeType === 'Wails' ? 'success' : envInfo.runtimeType === 'Electron' ? 'info' : 'default'}>
             {envInfo.runtimeType}

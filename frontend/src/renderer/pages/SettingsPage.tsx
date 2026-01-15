@@ -42,7 +42,7 @@ export const SettingsPage: React.FC = () => {
 
   const categories = [
     { id: 'general' as SettingsCategory, name: '通用设置', icon: SettingsIcon },
-    { id: 'nuclei' as SettingsCategory, name: 'Nuclei 配置', icon: SettingsIcon },
+    { id: 'nuclei' as SettingsCategory, name: '扫描引擎配置', icon: SettingsIcon },
     { id: 'database' as SettingsCategory, name: '数据库管理', icon: SettingsIcon },
     { id: 'appearance' as SettingsCategory, name: '外观设置', icon: SettingsIcon },
   ];

@@ -60,7 +60,7 @@ export interface ElectronAPI {
     getStats: () => Promise<{ success: boolean; data: any }>;
   };
 
-  // Nuclei 管理
+  // 扫描引擎管理
   nuclei: {
     checkAvailability: () => Promise<{ success: boolean; data: boolean }>;
     getVersion: () => Promise<{ success: boolean; data: string }>;

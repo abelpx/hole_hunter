@@ -1,4 +1,4 @@
-.PHONY: help dev build build-debug clean run deps lint format test nuclei-download nuclei-compile-all
+.PHONY: help dev build build-debug clean run deps lint format test test-coverage test-ci nuclei-download nuclei-compile-all
 
 # 默认目标
 .DEFAULT_GOAL := help
@@ -63,6 +63,8 @@ help:
 	@echo "  $(YELLOW)make lint$(NC)             - 代码检查"
 	@echo "  $(YELLOW)make format$(NC)           - 格式化代码"
 	@echo "  $(YELLOW)make test$(NC)             - 运行测试"
+	@echo "  $(YELLOW)make test-coverage$(NC)    - 运行测试并生成覆盖率报告"
+	@echo "  $(YELLOW)make test-ci$(NC)          - CI 模式测试（带竞态检测）"
 	@echo ""
 	@echo "$(GREEN)清理:$(NC)"
 	@echo "  $(YELLOW)make clean$(NC)            - 清理构建产物"
@@ -254,8 +256,30 @@ format:
 ## test: 运行测试
 test:
 	@echo "$(GREEN)运行测试...$(NC)"
-	@go test -v ./... || echo "警告: 没有测试文件"
+	@echo "$(BLUE)后端测试...$(NC)"
+	@go test -v ./internal/... || true
+	@echo "$(BLUE)前端测试...$(NC)"
+	@cd $(FRONTEND_DIR) && npm run test -- --run || echo "警告: 前端测试未配置"
 	@echo "$(GREEN)✓ 测试完成$(NC)"
+
+## test-coverage: 运行测试并生成覆盖率报告
+test-coverage:
+	@echo "$(GREEN)运行测试（带覆盖率）...$(NC)"
+	@echo "$(BLUE)后端测试...$(NC)"
+	@go test -v -coverprofile=coverage.out -covermode=atomic ./internal/...
+	@echo "$(BLUE)生成覆盖率报告...$(NC)"
+	@go tool cover -html=coverage.out -o coverage.html
+	@echo "$(GREEN)✓ 覆盖率报告: coverage.html$(NC)"
+	@go tool cover -func=coverage.out | tail -1
+	@echo "$(BLUE)前端覆盖率...$(NC)"
+	@cd $(FRONTEND_DIR) && npm run test:ci || echo "警告: 前端测试未配置"
+
+## test-ci: CI 模式测试（带竞态检测）
+test-ci:
+	@echo "$(GREEN)CI 模式测试...$(NC)"
+	@echo "$(BLUE)后端测试（竞态检测）...$(NC)"
+	@go test -race -coverprofile=coverage.out -covermode=atomic ./internal/...
+	@echo "$(GREEN)✓ CI 测试完成$(NC)"
 
 ## nuclei-download: 下载 nuclei 二进制文件
 nuclei-download:

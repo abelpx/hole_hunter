@@ -61,7 +61,7 @@ export class ScanService {
     this.db.updateScanStatus(taskId, 'running');
     this.db.updateScanProgress(taskId, 0, 0, 'Initializing...');
 
-    // 创建 Nuclei 服务实例
+    // 创建扫描引擎服务实例
     const nuclei = new NucleiService();
     this.activeScans.set(taskId, nuclei);
 

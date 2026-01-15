@@ -1,7 +1,7 @@
 /**
- * NucleiService - Nuclei CLI 集成服务（一期桌面版）
+ * NucleiService - 扫描引擎 CLI 集成服务（一期桌面版）
  *
- * 使用 node:child_process 调用 Nuclei CLI，实时解析 JSON 输出
+ * 使用 node:child_process 调用扫描引擎 CLI，实时解析 JSON 输出
  */
 
 import { spawn, ChildProcess } from 'node:child_process';
@@ -68,7 +68,7 @@ export interface ScanProgress {
 }
 
 /**
- * Nuclei 服务类
+ * 扫描引擎服务类
  *
  * @example
  * ```typescript
@@ -111,12 +111,12 @@ export class NucleiService extends EventEmitter {
 
     return new Promise((resolve, reject) => {
       try {
-        // 构建 Nuclei 命令参数
+        // 构建扫描引擎命令参数
         const args = this.buildArgs(options);
 
         console.log('Starting Nuclei with args:', args);
 
-        // 启动 Nuclei 进程
+        // 启动扫描引擎进程
         this.process = spawn('nuclei', args, {
           env: { ...process.env },
         });
@@ -226,7 +226,7 @@ export class NucleiService extends EventEmitter {
   }
 
   /**
-   * 构建 Nuclei 命令参数
+   * 构建扫描引擎命令参数
    */
   private buildArgs(options: NucleiOptions): string[] {
     const args: string[] = [];
@@ -272,7 +272,7 @@ export class NucleiService extends EventEmitter {
   }
 
   /**
-   * 检查 Nuclei 是否已安装
+   * 检查扫描引擎是否已安装
    */
   static async checkInstallation(): Promise<boolean> {
     return new Promise((resolve) => {
@@ -289,7 +289,7 @@ export class NucleiService extends EventEmitter {
   }
 
   /**
-   * 获取 Nuclei 版本
+   * 获取扫描引擎版本
    */
   static async getVersion(): Promise<string> {
     return new Promise((resolve, reject) => {
@@ -317,7 +317,7 @@ export class NucleiService extends EventEmitter {
   }
 
   /**
-   * 更新 Nuclei 模板
+   * 更新扫描模板
    */
   static async updateTemplates(): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -341,7 +341,7 @@ export class NucleiService extends EventEmitter {
    * 获取可用的模板分类
    */
   static async getTemplateCategories(): Promise<string[]> {
-    // 这里可以扫描 Nuclei 模板目录获取分类
+    // 这里可以扫描模板目录获取分类
     // 暂时返回硬编码的常用分类
     return [
       'cves',

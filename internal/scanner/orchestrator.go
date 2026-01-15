@@ -145,7 +145,7 @@ func (o *Orchestrator) Scan(ctx context.Context, req ScanRequest) error {
 	// 启动扫描
 	go o.runScan(scanContext, process)
 
-	o.logger.Info("Scan started", "task_id", req.TaskID, "target", req.TargetURL, "strategy", req.Strategy)
+	o.logger.Info("Scan started: task_id=%d, target=%s, strategy=%s", req.TaskID, req.TargetURL, req.Strategy)
 	return nil
 }
 
@@ -163,7 +163,7 @@ func (o *Orchestrator) Stop(ctx context.Context, taskID int) error {
 
 	if process, ok := o.processMgr.Get(taskID); ok {
 		if err := process.Stop(); err != nil {
-			o.logger.Error("Failed to stop scan process", "task_id", taskID, "error", err)
+			o.logger.Error("Failed to stop scan process: task_id=%d, error=%v", taskID, err)
 			return errors.Internal("failed to stop scan", err)
 		}
 	}
@@ -181,7 +181,7 @@ func (o *Orchestrator) Stop(ctx context.Context, taskID int) error {
 	metrics.Global.IncrementScanStopped()
 	metrics.Global.RecordScanDuration(duration)
 
-	o.logger.Info("Scan stopped", "task_id", taskID)
+	o.logger.Info("Scan stopped: task_id=%d", taskID)
 	return nil
 }
 
@@ -214,7 +214,7 @@ func (o *Orchestrator) GetRunningCount() int {
 
 // runScan 运行扫描
 func (o *Orchestrator) runScan(scanCtx *ScanContext, process *ScanProcess) {
-	o.logger.Info("Running scan", "task_id", scanCtx.TaskID, "target", scanCtx.Request.TargetURL)
+	o.logger.Info("Running scan: task_id=%d, target=%s", scanCtx.TaskID, scanCtx.Request.TargetURL)
 
 	defer func() {
 		o.mu.Lock()
@@ -237,14 +237,14 @@ func (o *Orchestrator) runScan(scanCtx *ScanContext, process *ScanProcess) {
 
 	// 运行扫描
 	if err := process.Run(ctx, parser); err != nil {
-		o.logger.Error("Scan failed", "task_id", scanCtx.TaskID, "error", err)
+		o.logger.Error("Scan failed: task_id=%d, error=%v", scanCtx.TaskID, err)
 		o.handleScanError(scanCtx.TaskID, err)
 		return
 	}
 
 	// 扫描完成
 	vulnCount := int(scanCtx.VulnCount.Load())
-	o.logger.Info("Scan completed", "task_id", scanCtx.TaskID, "vuln_count", vulnCount)
+	o.logger.Info("Scan completed: task_id=%d, vuln_count=%d", scanCtx.TaskID, vulnCount)
 	o.onScanCompleted(scanCtx.TaskID, vulnCount)
 }
 
@@ -257,7 +257,7 @@ func (o *Orchestrator) onVulnerability(taskID int) func(*NucleiOutput) {
 
 		if exists {
 			count := scanCtx.VulnCount.Add(1)
-			o.logger.Debug("Vulnerability found", "task_id", taskID, "count", count, "vuln", output.Name)
+			o.logger.Debug("Vulnerability found: task_id=%d, count=%d, vuln=%s", taskID, count, output.Name)
 		}
 
 		// 发布漏洞发现事件

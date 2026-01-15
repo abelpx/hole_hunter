@@ -1,6 +1,6 @@
 /**
  * 模板管理页面
- * 管理 Nuclei 扫描模板，支持分组管理和启用/禁用
+ * 管理扫描模板，支持分组管理和启用/禁用
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -442,7 +442,7 @@ export const TemplatesPage: React.FC = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-100">POC 模板浏览</h1>
-          <p className="text-slate-400 mt-1">浏览和管理 Nuclei 扫描模板库</p>
+          <p className="text-slate-400 mt-1">浏览和管理扫描模板库</p>
         </div>
         <div className="flex items-center gap-2 bg-slate-800/50 border border-slate-700 rounded-lg p-1">
           <button

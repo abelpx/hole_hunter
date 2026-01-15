@@ -105,7 +105,7 @@ export const useSettingsStore = create<SettingsState>()(
           }
         },
 
-        // 更新 Nuclei 设置
+        // 更新扫描引擎设置
         updateNucleiSettings: async (newSettings) => {
           set({ loading: true, error: null });
           try {
@@ -115,9 +115,9 @@ export const useSettingsStore = create<SettingsState>()(
               nuclei: { ...settings.nuclei, ...newSettings },
             };
 
-            // 验证 Nuclei 路径
+            // 验证扫描引擎路径
             if (newSettings.nucleiPath) {
-              // TODO: 验证 Nuclei 是否可用
+              // TODO: 验证扫描引擎是否可用
             }
 
             set({ settings: updated, loading: false });
@@ -247,9 +247,9 @@ export const useSettingsStore = create<SettingsState>()(
             errors['general.autoRefreshInterval'] = '刷新间隔必须在10-300秒之间';
           }
 
-          // 验证 Nuclei 设置
+          // 验证扫描引擎设置
           if (!settings.nuclei.nucleiPath) {
-            errors['nuclei.nucleiPath'] = 'Nuclei 路径不能为空';
+            errors['nuclei.nucleiPath'] = '扫描引擎路径不能为空';
           }
 
           if (settings.nuclei.defaultRateLimit < 1 || settings.nuclei.defaultRateLimit > 1000) {

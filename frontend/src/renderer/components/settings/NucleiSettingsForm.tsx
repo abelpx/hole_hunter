@@ -1,6 +1,6 @@
 /**
  * NucleiSettingsForm 组件
- * Nuclei 扫描器设置表单
+ * 扫描引擎设置表单
  */
 
 import React, { useState } from 'react';
@@ -37,7 +37,7 @@ export const NucleiSettingsForm: React.FC<NucleiSettingsFormProps> = ({
     setCheckingPath(true);
     setPathStatus('unknown');
 
-    // TODO: 调用主进程检查 Nuclei 路径
+    // TODO: 调用主进程检查扫描引擎路径
     if (typeof window !== 'undefined' && window.electronAPI) {
       try {
         const result = await window.electronAPI.nuclei.checkAvailability();
@@ -51,7 +51,7 @@ export const NucleiSettingsForm: React.FC<NucleiSettingsFormProps> = ({
   };
 
   const handleUpdateTemplates = async () => {
-    if (!confirm('确定要更新 Nuclei 模板吗？这可能需要几分钟时间。')) {
+    if (!confirm('确定要更新扫描模板吗？这可能需要几分钟时间。')) {
       return;
     }
 
@@ -70,7 +70,7 @@ export const NucleiSettingsForm: React.FC<NucleiSettingsFormProps> = ({
   return (
     <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-6 space-y-6">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-semibold text-slate-100">Nuclei 配置</h2>
+        <h2 className="text-xl font-semibold text-slate-100">扫描引擎配置</h2>
         <div className="flex items-center gap-2">
           <span
             className={clsx(
@@ -80,15 +80,15 @@ export const NucleiSettingsForm: React.FC<NucleiSettingsFormProps> = ({
               pathStatus === 'unknown' && 'text-slate-500'
             )}
           >
-            {pathStatus === 'valid' ? '✓ Nuclei 可用' : pathStatus === 'invalid' ? '✗ Nuclei 不可用' : '未检查'}
+            {pathStatus === 'valid' ? '✓ 扫描引擎可用' : pathStatus === 'invalid' ? '✗ 扫描引擎不可用' : '未检查'}
           </span>
         </div>
       </div>
 
-      {/* Nuclei 路径 */}
+      {/* 扫描引擎路径 */}
       <div className="space-y-2">
         <Input
-          label="Nuclei 可执行文件路径"
+          label="扫描引擎可执行文件路径"
           placeholder="nuclei 或 /usr/local/bin/nuclei"
           value={localSettings.nucleiPath}
           onChange={(e) => {
@@ -106,7 +106,7 @@ export const NucleiSettingsForm: React.FC<NucleiSettingsFormProps> = ({
             {checkingPath ? '检查中...' : '验证路径'}
           </Button>
           <span className="text-xs text-slate-500">
-            留空使用系统 PATH 中的 nuclei
+            留空使用系统 PATH 中的扫描引擎
           </span>
         </div>
       </div>

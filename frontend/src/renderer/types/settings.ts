@@ -7,7 +7,7 @@ export interface AppSettings {
   // 通用设置
   general: GeneralSettings;
 
-  // Nuclei 设置
+  // 扫描引擎设置
   nuclei: NucleiSettings;
 
   // 数据库设置
@@ -26,9 +26,9 @@ export interface GeneralSettings {
   logLevel: 'debug' | 'info' | 'warning' | 'error';
 }
 
-// Nuclei 设置
+// 扫描引擎设置
 export interface NucleiSettings {
-  // Nuclei 路径
+  // 扫描引擎路径
   nucleiPath: string;
 
   // 模板设置
