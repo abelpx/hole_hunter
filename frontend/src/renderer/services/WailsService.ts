@@ -146,10 +146,17 @@ const currentEnvironment = detectEnvironment();
 // Wails 服务实现
 class WailsServiceImpl {
   private getApp(): WailsBindings | null {
-    // 直接返回导入的 WailsApp 模块
-    // 在 Wails 环境中，这个模块会自动绑定到 Go 后端
-    // 在浏览器环境中，调用会失败并返回 null
-    return WailsApp as any;
+    // 检查 Wails 绑定是否真正可用
+    // 在 Wails 环境中，GetAllTargets 等方法会被绑定到 Go 后端
+    // 在浏览器环境中，这些方法不存在或调用会失败
+    try {
+      if (typeof WailsApp.GetAllTargets === 'function') {
+        return WailsApp as any;
+      }
+      return null;
+    } catch {
+      return null;
+    }
   }
 
   private getRuntime(): WailsRuntime | null {
@@ -166,14 +173,19 @@ class WailsServiceImpl {
       return [];
     }
     console.log('[WailsService] Calling App.GetAllTargets...');
-    const targets = await App.GetAllTargets();
-    console.log('[WailsService] GetAllTargets result:', targets);
-    const result = targets ? targets.map(t => ({
-      ...t,
-      tags: t.tags || []
-    })) : [];
-    console.log('[WailsService] Returning', result.length, 'targets');
-    return result;
+    try {
+      const targets = await App.GetAllTargets();
+      console.log('[WailsService] GetAllTargets result:', targets);
+      const result = targets ? targets.map(t => ({
+        ...t,
+        tags: t.tags || []
+      })) : [];
+      console.log('[WailsService] Returning', result.length, 'targets');
+      return result;
+    } catch (error) {
+      console.error('[WailsService] GetAllTargets failed:', error);
+      return [];
+    }
   }
 
   async getTargetById(id: number): Promise<Target> {
