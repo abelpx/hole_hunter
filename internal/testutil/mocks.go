@@ -11,10 +11,10 @@ import (
 
 // MockEventBus 模拟事件总线
 type MockEventBus struct {
-	PublishFunc func(ctx context.Context, evt event.Event) error
-	SubscribeFunc func(eventType string, handler event.Handler) error
+	PublishFunc      func(ctx context.Context, evt event.Event) error
+	SubscribeFunc    func(eventType string, handler event.Handler) error
 	PublishAsyncFunc func(ctx context.Context, evt event.Event)
-	events         []event.Event
+	events           []event.Event
 }
 
 func (m *MockEventBus) Publish(ctx context.Context, evt event.Event) error {
@@ -50,9 +50,9 @@ func (m *MockEventBus) Clear() {
 // MockNucleiClient 模拟 Nuclei 客户端接口
 // 注意：这里只模拟接口方法，实际返回类型可能需要根据 scanner 包调整
 type MockNucleiClient struct {
-	IsAvailableFunc  func() bool
-	GetVersionFunc   func() string
-	GetBinaryFunc    func() string
+	IsAvailableFunc func() bool
+	GetVersionFunc  func() string
+	GetBinaryFunc   func() string
 }
 
 func (m *MockNucleiClient) IsAvailable() bool {

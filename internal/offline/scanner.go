@@ -13,11 +13,11 @@ import (
 
 // OfflineScanner 离线扫描器
 type OfflineScanner struct {
-	userDataDir    string
-	templatesDir   string
-	nucleiBinary   string
-	platform       string
-	isOfflineMode  bool
+	userDataDir   string
+	templatesDir  string
+	nucleiBinary  string
+	platform      string
+	isOfflineMode bool
 }
 
 // NewOfflineScanner 创建离线扫描器

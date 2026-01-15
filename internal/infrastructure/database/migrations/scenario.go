@@ -8,9 +8,9 @@ func init() {
 
 type Scenario_001_Initial struct{}
 
-func (m *Scenario_001_Initial) Version() int { return 2025011504 }
+func (m *Scenario_001_Initial) Version() int        { return 2025011504 }
 func (m *Scenario_001_Initial) Description() string { return "Scenario: Initial schema" }
-func (m *Scenario_001_Initial) Module() string { return "scenario" }
+func (m *Scenario_001_Initial) Module() string      { return "scenario" }
 
 func (m *Scenario_001_Initial) Up(tx *sql.Tx) error {
 	schema := `

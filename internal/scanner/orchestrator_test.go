@@ -224,9 +224,9 @@ func TestScanContext(t *testing.T) {
 // TestScanRequest 测试扫描请求
 func TestScanRequest(t *testing.T) {
 	tests := []struct {
-		name    string
-		req     ScanRequest
-		valid   bool
+		name  string
+		req   ScanRequest
+		valid bool
 	}{
 		{
 			name: "valid request",

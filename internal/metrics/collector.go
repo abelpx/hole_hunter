@@ -111,12 +111,12 @@ func (c *Collector) GetScanStats() ScanStats {
 func (c *Collector) GetVulnStats() VulnStats {
 	snapshot := c.metrics.GetSnapshot()
 	return VulnStats{
-		Total:        snapshot.TotalVulns,
-		Critical:     snapshot.CriticalVulns,
-		High:         snapshot.HighVulns,
-		Medium:       snapshot.MediumVulns,
-		Low:          snapshot.LowVulns,
-		AvgPerScan:   snapshot.AverageVulnsPerScan(),
+		Total:          snapshot.TotalVulns,
+		Critical:       snapshot.CriticalVulns,
+		High:           snapshot.HighVulns,
+		Medium:         snapshot.MediumVulns,
+		Low:            snapshot.LowVulns,
+		AvgPerScan:     snapshot.AverageVulnsPerScan(),
 		TotalTemplates: snapshot.TotalTemplates,
 	}
 }
@@ -125,10 +125,10 @@ func (c *Collector) GetVulnStats() VulnStats {
 func (c *Collector) GetErrorStats() ErrorStats {
 	snapshot := c.metrics.GetSnapshot()
 	return ErrorStats{
-		Total:     snapshot.TotalErrors,
-		Timeouts:  snapshot.TimeoutErrors,
-		Network:   snapshot.NetworkErrors,
-		Parse:     snapshot.ParseErrors,
+		Total:    snapshot.TotalErrors,
+		Timeouts: snapshot.TimeoutErrors,
+		Network:  snapshot.NetworkErrors,
+		Parse:    snapshot.ParseErrors,
 	}
 }
 

@@ -119,9 +119,7 @@ func getTemplatesDir(dataDir string) string {
 	}
 
 	// 3. 创建用户数据目录的模板目录
-	if err := os.MkdirAll(userTemplates, 0755); err != nil {
-		// 如果创建失败，仍然返回路径，让调用方决定如何处理
-	}
+	_ = os.MkdirAll(userTemplates, 0755)
 	return userTemplates
 }
 

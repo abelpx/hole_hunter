@@ -8,9 +8,9 @@ func init() {
 
 type Brute_001_Initial struct{}
 
-func (m *Brute_001_Initial) Version() int { return 2025011507 }
+func (m *Brute_001_Initial) Version() int        { return 2025011507 }
 func (m *Brute_001_Initial) Description() string { return "Brute: Initial schema" }
-func (m *Brute_001_Initial) Module() string { return "brute" }
+func (m *Brute_001_Initial) Module() string      { return "brute" }
 
 func (m *Brute_001_Initial) Up(tx *sql.Tx) error {
 	schema := `

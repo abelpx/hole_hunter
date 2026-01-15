@@ -3,8 +3,8 @@ package scanner
 import (
 	"context"
 	"os/exec"
-	"syscall"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/holehunter/holehunter/internal/infrastructure/errors"

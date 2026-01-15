@@ -8,14 +8,14 @@ import (
 // Metrics 监控指标结构体
 type Metrics struct {
 	// 扫描任务指标
-	TotalScans      atomic.Int64
-	RunningScans    atomic.Int64
-	CompletedScans  atomic.Int64
-	FailedScans     atomic.Int64
-	StoppedScans    atomic.Int64
+	TotalScans     atomic.Int64
+	RunningScans   atomic.Int64
+	CompletedScans atomic.Int64
+	FailedScans    atomic.Int64
+	StoppedScans   atomic.Int64
 
 	// 漏洞指标
-	TotalVulnerabilities   atomic.Int64
+	TotalVulnerabilities    atomic.Int64
 	CriticalVulnerabilities atomic.Int64
 	HighVulnerabilities     atomic.Int64
 	MediumVulnerabilities   atomic.Int64
@@ -31,10 +31,10 @@ type Metrics struct {
 	MemoryUsage      atomic.Int64 // 字节
 
 	// 错误指标
-	TotalErrors      atomic.Int64
-	TimeoutErrors    atomic.Int64
-	NetworkErrors    atomic.Int64
-	ParseErrors      atomic.Int64
+	TotalErrors   atomic.Int64
+	TimeoutErrors atomic.Int64
+	NetworkErrors atomic.Int64
+	ParseErrors   atomic.Int64
 
 	startTime time.Time
 }

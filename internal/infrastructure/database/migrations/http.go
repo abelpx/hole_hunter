@@ -8,9 +8,9 @@ func init() {
 
 type HTTP_001_Initial struct{}
 
-func (m *HTTP_001_Initial) Version() int { return 2025011503 }
+func (m *HTTP_001_Initial) Version() int        { return 2025011503 }
 func (m *HTTP_001_Initial) Description() string { return "HTTP: Initial schema" }
-func (m *HTTP_001_Initial) Module() string { return "http" }
+func (m *HTTP_001_Initial) Module() string      { return "http" }
 
 func (m *HTTP_001_Initial) Up(tx *sql.Tx) error {
 	schema := `

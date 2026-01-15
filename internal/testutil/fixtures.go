@@ -8,12 +8,12 @@ import (
 func NewMockScanTask(id int) *models.ScanTask {
 	name := "test-scan"
 	return &models.ScanTask{
-		ID:          id,
-		Name:        &name,
-		TargetID:    1,
-		Strategy:    "fast",
-		Status:      "pending",
-		Progress:    0,
+		ID:       id,
+		Name:     &name,
+		TargetID: 1,
+		Strategy: "fast",
+		Status:   "pending",
+		Progress: 0,
 	}
 }
 

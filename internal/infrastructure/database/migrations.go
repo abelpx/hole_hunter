@@ -6,9 +6,9 @@ import (
 	"sort"
 	"time"
 
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/holehunter/holehunter/internal/infrastructure/database/migrations"
 	"github.com/holehunter/holehunter/internal/infrastructure/errors"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 // Migration 迁移接口（重新导出）

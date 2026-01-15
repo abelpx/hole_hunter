@@ -291,15 +291,15 @@ func (s *HTTPService) SendRequest(ctx context.Context, requestID int, timeout ti
 
 	// 创建响应记录
 	response := &models.HttpResponse{
-		RequestID:   requestID,
-		StatusCode:  resp.StatusCode,
-		StatusText:  resp.Status,
-		Headers:     responseHeaders,
-		Body:        string(responseBody),
-		BodySize:    len(responseBody),
-		HeaderSize:  0, // 不再计算，字段保留用于兼容
-		Duration:    int(duration.Milliseconds()),
-		Timestamp:   startTime.Format(time.RFC3339),
+		RequestID:  requestID,
+		StatusCode: resp.StatusCode,
+		StatusText: resp.Status,
+		Headers:    responseHeaders,
+		Body:       string(responseBody),
+		BodySize:   len(responseBody),
+		HeaderSize: 0, // 不再计算，字段保留用于兼容
+		Duration:   int(duration.Milliseconds()),
+		Timestamp:  startTime.Format(time.RFC3339),
 	}
 
 	// 保存响应到数据库
@@ -323,11 +323,11 @@ type CreateHTTPRequest struct {
 
 // UpdateHTTPRequest 更新 HTTP 请求
 type UpdateHTTPRequest struct {
-	Name        *string            `json:"name,omitempty"`
-	Method      *string            `json:"method,omitempty"`
-	URL         *string            `json:"url,omitempty"`
-	Headers     map[string]string  `json:"headers,omitempty"`
-	Body        *string            `json:"body,omitempty"`
-	ContentType *string            `json:"content_type,omitempty"`
-	Tags        []string           `json:"tags,omitempty"`
+	Name        *string           `json:"name,omitempty"`
+	Method      *string           `json:"method,omitempty"`
+	URL         *string           `json:"url,omitempty"`
+	Headers     map[string]string `json:"headers,omitempty"`
+	Body        *string           `json:"body,omitempty"`
+	ContentType *string           `json:"content_type,omitempty"`
+	Tags        []string          `json:"tags,omitempty"`
 }

@@ -29,12 +29,12 @@ var (
 
 // Logger 日志记录器
 type Logger struct {
-	mu       sync.Mutex
-	level    LogLevel
-	logger   *log.Logger
-	file     *os.File
-	output   io.Writer
-	useFile  bool
+	mu      sync.Mutex
+	level   LogLevel
+	logger  *log.Logger
+	file    *os.File
+	output  io.Writer
+	useFile bool
 }
 
 // New 创建新的日志记录器

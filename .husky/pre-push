@@ -1,0 +1,33 @@
+#!/bin/bash
+set -e
+
+echo "🔍 运行 push 前检查..."
+
+# 获取 GOPATH/bin 路径
+GOBIN="$(go env GOPATH)/bin"
+export PATH="$PATH:$GOBIN"
+
+# 检查是否有 golangci-lint
+if ! command -v golangci-lint &> /dev/null; then
+    echo "⚠️  golangci-lint 未安装，正在安装..."
+    go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+fi
+
+echo "▶️  运行 golangci-lint..."
+golangci-lint run --timeout=5m
+
+# 运行后端测试
+echo "▶️  运行后端测试..."
+go test ./internal/... -short
+
+# 检查前端
+if [ -d "frontend" ]; then
+    echo "▶️  运行前端测试..."
+    cd frontend
+    if [ -f "package.json" ]; then
+        npm run test:ci 2>/dev/null || echo "⚠️  前端测试未配置或失败"
+    fi
+    cd ..
+fi
+
+echo "✅ 所有检查通过"

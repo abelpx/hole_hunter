@@ -8,9 +8,9 @@ func init() {
 
 type Core_002_Indexes struct{}
 
-func (m *Core_002_Indexes) Version() int { return 2025011502 }
+func (m *Core_002_Indexes) Version() int        { return 2025011502 }
 func (m *Core_002_Indexes) Description() string { return "Core: Add performance indexes" }
-func (m *Core_002_Indexes) Module() string { return "core" }
+func (m *Core_002_Indexes) Module() string      { return "core" }
 
 func (m *Core_002_Indexes) Up(tx *sql.Tx) error {
 	indexes := `

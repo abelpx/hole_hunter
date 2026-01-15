@@ -53,14 +53,14 @@ type Orchestrator struct {
 
 // ScanContext 扫描上下文
 type ScanContext struct {
-	TaskID      int
-	Request     ScanRequest
-	CancelFunc  context.CancelFunc
-	VulnCount   atomic.Int32
-	ProgressMu  sync.RWMutex
-	Progress    *models.ScanProgress
-	StartTime   time.Time
-	metrics     *metrics.Metrics
+	TaskID     int
+	Request    ScanRequest
+	CancelFunc context.CancelFunc
+	VulnCount  atomic.Int32
+	ProgressMu sync.RWMutex
+	Progress   *models.ScanProgress
+	StartTime  time.Time
+	metrics    *metrics.Metrics
 }
 
 // NewOrchestrator 创建扫描编排器

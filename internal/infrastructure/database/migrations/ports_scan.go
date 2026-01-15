@@ -8,9 +8,9 @@ func init() {
 
 type PortScan_001_Initial struct{}
 
-func (m *PortScan_001_Initial) Version() int { return 2025011505 }
+func (m *PortScan_001_Initial) Version() int        { return 2025011505 }
 func (m *PortScan_001_Initial) Description() string { return "PortScan: Initial schema" }
-func (m *PortScan_001_Initial) Module() string { return "port_scan" }
+func (m *PortScan_001_Initial) Module() string      { return "port_scan" }
 
 func (m *PortScan_001_Initial) Up(tx *sql.Tx) error {
 	schema := `

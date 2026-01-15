@@ -16,10 +16,10 @@ func TestScanRepository_Create(t *testing.T) {
 	ctx := context.Background()
 
 	task := &models.ScanTask{
-		Name:        strPtr("Test Scan"),
-		TargetID:    1,
-		Status:      "pending",
-		Strategy:    "fast",
+		Name:          strPtr("Test Scan"),
+		TargetID:      1,
+		Status:        "pending",
+		Strategy:      "fast",
 		TemplatesUsed: []string{"cve-2021-44228"},
 	}
 
@@ -203,10 +203,10 @@ func TestScanRepository_UpdateProgress(t *testing.T) {
 
 	// 更新进度
 	progress := models.ScanProgress{
-		Progress:         50,
-		TotalTemplates:   100,
-		Executed:         50,
-		CurrentTemplate:  "cve-2021-44228",
+		Progress:        50,
+		TotalTemplates:  100,
+		Executed:        50,
+		CurrentTemplate: "cve-2021-44228",
 	}
 
 	err := repo.UpdateProgress(ctx, task.ID, progress)

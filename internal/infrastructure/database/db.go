@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/holehunter/holehunter/internal/infrastructure/errors"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 // Open 打开数据库连接
