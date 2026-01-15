@@ -25,7 +25,7 @@ import {
   Cpu,
 } from 'lucide-react';
 import { Button, Input, Badge } from '../components/ui';
-import { ipcService } from '../services/IPCService';
+import { getService } from '../services/WailsService';
 import clsx from 'clsx';
 
 // 工具分类
@@ -748,7 +748,7 @@ const PortScannerTool: React.FC = () => {
       const portList = ports.split(',').map(p => parseInt(p.trim())).filter(p => !isNaN(p));
 
       // 调用后端 API 进行端口扫描
-      const scanResults = await ipcService.scanPorts({
+      const scanResults = await getService().scanPorts({
         target,
         ports: portList,
         timeout: 2000,
@@ -869,8 +869,7 @@ const PortScannerTool: React.FC = () => {
 
       <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-3">
         <p className="text-xs text-slate-400">
-          <strong>提示:</strong> 此工具模拟端口扫描功能。实际使用时需要后端支持。
-          常见端口: {commonPorts.slice(0, 8).map(p => p.port).join(', ')} ...
+          <strong>常见端口:</strong> {commonPorts.slice(0, 8).map(p => p.port).join(', ')} ...
         </p>
       </div>
     </div>
@@ -905,7 +904,7 @@ const DomainBruteTool: React.FC = () => {
       const subdomains = wordlist.split('\n').filter(s => s.trim());
 
       // 调用后端 API 进行域名爆破
-      const bruteResults = await ipcService.bruteSubdomains({
+      const bruteResults = await getService().bruteSubdomains({
         domain,
         wordlist: subdomains,
         timeout: 5000,
