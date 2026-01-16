@@ -97,6 +97,14 @@ func (a *App) StopScan(taskID int) error {
 	return a.scanHandler.Stop(a.ctx, taskID)
 }
 
+// UpdateScanTaskStatus 更新扫描任务状态
+func (a *App) UpdateScanTaskStatus(taskID int, status string) error {
+	if err := a.checkInitialized(); err != nil {
+		return err
+	}
+	return a.scanHandler.UpdateStatus(a.ctx, taskID, status)
+}
+
 // GetScanProgress 获取扫描进度
 func (a *App) GetScanProgress(taskID int) (*models.ScanProgress, error) {
 	if err := a.checkInitialized(); err != nil {
@@ -161,6 +169,14 @@ func (a *App) UpdateVulnerabilityNotes(id int, notes string) error {
 		return err
 	}
 	return a.vulnHandler.UpdateNotes(a.ctx, id, notes)
+}
+
+// UpdateVulnerability 更新漏洞
+func (a *App) UpdateVulnerability(id int, isFalsePositive bool, notes string) error {
+	if err := a.checkInitialized(); err != nil {
+		return err
+	}
+	return a.vulnHandler.Update(a.ctx, id, isFalsePositive, notes)
 }
 
 // DeleteVulnerability 删除漏洞
@@ -285,6 +301,38 @@ func (a *App) ToggleCustomTemplate(id int, enabled bool) error {
 	return a.templateHandler.ToggleCustomTemplate(a.ctx, id, enabled)
 }
 
+// GetAllCustomTemplates 获取所有自定义模板
+func (a *App) GetAllCustomTemplates() ([]*models.Template, error) {
+	if err := a.checkInitialized(); err != nil {
+		return nil, err
+	}
+	return a.templateHandler.GetAllCustom(a.ctx)
+}
+
+// GetCustomTemplateByID 根据ID获取自定义模板
+func (a *App) GetCustomTemplateByID(id int) (*models.Template, error) {
+	if err := a.checkInitialized(); err != nil {
+		return nil, err
+	}
+	return a.templateHandler.GetCustomByID(a.ctx, id)
+}
+
+// ValidateCustomTemplate 验证自定义模板
+func (a *App) ValidateCustomTemplate(content string) (bool, []string, error) {
+	if err := a.checkInitialized(); err != nil {
+		return false, nil, err
+	}
+	return a.templateHandler.ValidateCustomTemplate(a.ctx, content)
+}
+
+// GetCustomTemplatesStats 获取自定义模板统计
+func (a *App) GetCustomTemplatesStats() (map[string]interface{}, error) {
+	if err := a.checkInitialized(); err != nil {
+		return nil, err
+	}
+	return a.templateHandler.GetCustomStats(a.ctx)
+}
+
 // ==================== Dashboard ====================
 
 // GetDashboardStats 获取仪表板统计数据
@@ -293,6 +341,22 @@ func (a *App) GetDashboardStats() (*models.DashboardStats, error) {
 		return nil, err
 	}
 	return a.dashboardHandler.GetStats(a.ctx)
+}
+
+// HealthCheck 健康检查
+func (a *App) HealthCheck() error {
+	if err := a.checkInitialized(); err != nil {
+		return err
+	}
+	return a.dashboardHandler.HealthCheck(a.ctx)
+}
+
+// GetDatabaseInfo 获取数据库信息
+func (a *App) GetDatabaseInfo() (map[string]interface{}, error) {
+	if err := a.checkInitialized(); err != nil {
+		return nil, err
+	}
+	return a.dashboardHandler.GetDatabaseInfo(a.ctx)
 }
 
 // ==================== Scenario Group ====================
@@ -401,6 +465,14 @@ func (a *App) SendHttpRequest(requestID int, timeoutSec int) (*models.HttpRespon
 		return nil, errors.New("http handler not initialized")
 	}
 	return a.httpHandler.SendRequest(a.ctx, requestID, timeoutSec)
+}
+
+// GetHttpResponseHistory 获取HTTP响应历史
+func (a *App) GetHttpResponseHistory(requestID int) ([]*models.HttpResponse, error) {
+	if a.httpHandler == nil {
+		return nil, errors.New("http handler not initialized")
+	}
+	return a.httpHandler.GetResponseHistory(a.ctx, requestID)
 }
 
 // ==================== Port Scan ====================

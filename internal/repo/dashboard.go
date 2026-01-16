@@ -59,6 +59,64 @@ func (r *DashboardRepository) GetStats(ctx context.Context) (*Stats, error) {
 	return stats, nil
 }
 
+// HealthCheck 检查数据库健康状态
+func (r *DashboardRepository) HealthCheck(ctx context.Context) error {
+	return r.db.PingContext(ctx)
+}
+
+// GetDatabaseInfo 获取数据库信息
+func (r *DashboardRepository) GetDatabaseInfo(ctx context.Context) (*DatabaseInfo, error) {
+	info := &DatabaseInfo{}
+
+	// 获取 SQLite 版本
+	if err := r.db.QueryRowContext(ctx, "SELECT sqlite_version()").Scan(&info.Version); err != nil {
+		return nil, errors.DBError("failed to get sqlite version", err)
+	}
+
+	// 获取数据库大小
+	var pageSize, pageCount int
+	if err := r.db.QueryRowContext(ctx, "PRAGMA page_size").Scan(&pageSize); err != nil {
+		return nil, errors.DBError("failed to get page size", err)
+	}
+	if err := r.db.QueryRowContext(ctx, "PRAGMA page_count").Scan(&pageCount); err != nil {
+		return nil, errors.DBError("failed to get page count", err)
+	}
+	info.Size = int64(pageSize) * int64(pageCount)
+
+	// 获取表统计
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT name, (SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=m.name) as has_rows
+		FROM sqlite_master m
+		WHERE type='table' AND name NOT LIKE 'sqlite_%'
+		ORDER BY name
+	`)
+	if err != nil {
+		return nil, errors.DBError("failed to get table info", err)
+	}
+	defer rows.Close()
+
+	info.Tables = []string{}
+	for rows.Next() {
+		var tableName string
+		var hasRows int
+		if err := rows.Scan(&tableName, &hasRows); err != nil {
+			return nil, err
+		}
+		info.Tables = append(info.Tables, tableName)
+	}
+	info.TableCount = len(info.Tables)
+
+	return info, nil
+}
+
+// DatabaseInfo 数据库信息
+type DatabaseInfo struct {
+	Version    string
+	Size       int64
+	TableCount int
+	Tables     []string
+}
+
 // Stats 统计数据
 type Stats struct {
 	TotalTargets         int

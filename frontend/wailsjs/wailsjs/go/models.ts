@@ -20,6 +20,32 @@ export namespace models {
 	        this.created_at = source["created_at"];
 	    }
 	}
+	export class BruteResult {
+	    task_id: number;
+	    payload: string;
+	    result: string;
+	    success: boolean;
+	    response_time: number;
+	    error?: string;
+	    timestamp: string;
+	    metadata?: Record<string, any>;
+	
+	    static createFrom(source: any = {}) {
+	        return new BruteResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.task_id = source["task_id"];
+	        this.payload = source["payload"];
+	        this.result = source["result"];
+	        this.success = source["success"];
+	        this.response_time = source["response_time"];
+	        this.error = source["error"];
+	        this.timestamp = source["timestamp"];
+	        this.metadata = source["metadata"];
+	    }
+	}
 	export class BruteTask {
 	    id: number;
 	    name: string;
@@ -248,6 +274,38 @@ export namespace models {
 	        this.banner = source["banner"];
 	        this.latency = source["latency"];
 	        this.created_at = source["created_at"];
+	    }
+	}
+	export class Report {
+	    id: number;
+	    name: string;
+	    scan_id: number;
+	    type: string;
+	    format: string;
+	    file_path: string;
+	    file_size: number;
+	    status: string;
+	    config: Record<string, any>;
+	    created_at: string;
+	    generated_at: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Report(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.scan_id = source["scan_id"];
+	        this.type = source["type"];
+	        this.format = source["format"];
+	        this.file_path = source["file_path"];
+	        this.file_size = source["file_size"];
+	        this.status = source["status"];
+	        this.config = source["config"];
+	        this.created_at = source["created_at"];
+	        this.generated_at = source["generated_at"];
 	    }
 	}
 	export class ScanProgress {

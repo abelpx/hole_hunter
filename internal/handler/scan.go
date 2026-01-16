@@ -71,3 +71,8 @@ func (h *ScanHandler) GetStats(ctx context.Context) (*svc.ScanStats, error) {
 func (h *ScanHandler) GetNucleiStatus() *models.NucleiStatus {
 	return h.service.GetNucleiStatus()
 }
+
+// UpdateStatus 更新扫描任务状态
+func (h *ScanHandler) UpdateStatus(ctx context.Context, taskID int, status string) error {
+	return h.service.UpdateStatus(ctx, taskID, status)
+}

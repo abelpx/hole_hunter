@@ -30,6 +30,10 @@ export function CreatePortScanTask(arg1, arg2, arg3, arg4) {
   return window['go']['app']['App']['CreatePortScanTask'](arg1, arg2, arg3, arg4);
 }
 
+export function CreateReport(arg1, arg2, arg3, arg4) {
+  return window['go']['app']['App']['CreateReport'](arg1, arg2, arg3, arg4);
+}
+
 export function CreateScanTask(arg1, arg2, arg3, arg4) {
   return window['go']['app']['App']['CreateScanTask'](arg1, arg2, arg3, arg4);
 }
@@ -54,6 +58,10 @@ export function DeleteHttpRequest(arg1) {
   return window['go']['app']['App']['DeleteHttpRequest'](arg1);
 }
 
+export function DeleteReport(arg1) {
+  return window['go']['app']['App']['DeleteReport'](arg1);
+}
+
 export function DeleteScanTask(arg1) {
   return window['go']['app']['App']['DeleteScanTask'](arg1);
 }
@@ -70,6 +78,10 @@ export function DeleteVulnerability(arg1) {
   return window['go']['app']['App']['DeleteVulnerability'](arg1);
 }
 
+export function ExportReport(arg1, arg2) {
+  return window['go']['app']['App']['ExportReport'](arg1, arg2);
+}
+
 export function GetAllBrutePayloadSets() {
   return window['go']['app']['App']['GetAllBrutePayloadSets']();
 }
@@ -80,6 +92,10 @@ export function GetAllBruteTasks() {
 
 export function GetAllHttpRequests() {
   return window['go']['app']['App']['GetAllHttpRequests']();
+}
+
+export function GetAllReports() {
+  return window['go']['app']['App']['GetAllReports']();
 }
 
 export function GetAllScanTasks() {
@@ -102,6 +118,10 @@ export function GetAllVulnerabilities() {
   return window['go']['app']['App']['GetAllVulnerabilities']();
 }
 
+export function GetBruteTaskResults(arg1) {
+  return window['go']['app']['App']['GetBruteTaskResults'](arg1);
+}
+
 export function GetDashboardStats() {
   return window['go']['app']['App']['GetDashboardStats']();
 }
@@ -120,6 +140,10 @@ export function GetNucleiStatus() {
 
 export function GetPortScanResults(arg1) {
   return window['go']['app']['App']['GetPortScanResults'](arg1);
+}
+
+export function GetReportById(arg1) {
+  return window['go']['app']['App']['GetReportById'](arg1);
 }
 
 export function GetScanProgress(arg1) {
@@ -200,6 +224,10 @@ export function RemoveTemplatesFromScenarioGroup(arg1, arg2) {
 
 export function SendHttpRequest(arg1, arg2) {
   return window['go']['app']['App']['SendHttpRequest'](arg1, arg2);
+}
+
+export function StartBruteTask(arg1) {
+  return window['go']['app']['App']['StartBruteTask'](arg1);
 }
 
 export function StartScan(arg1) {

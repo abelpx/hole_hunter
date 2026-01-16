@@ -236,3 +236,41 @@ func (r *HTTPResponseRepository) GetByRequestID(ctx context.Context, requestID i
 
 	return &resp, nil
 }
+
+// GetHistoryByRequestID 根据请求 ID 获取历史响应记录
+func (r *HTTPResponseRepository) GetHistoryByRequestID(ctx context.Context, requestID int) ([]*models.HttpResponse, error) {
+	query := `
+		SELECT id, request_id, status_code, status_text, headers, body, body_size, header_size, duration, timestamp, created_at
+		FROM http_responses
+		WHERE request_id = ?
+		ORDER BY created_at ASC
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, requestID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var responses []*models.HttpResponse
+	for rows.Next() {
+		var resp models.HttpResponse
+		var headersJSON string
+
+		if err := rows.Scan(
+			&resp.ID, &resp.RequestID, &resp.StatusCode, &resp.StatusText,
+			&headersJSON, &resp.Body, &resp.BodySize, &resp.HeaderSize,
+			&resp.Duration, &resp.Timestamp, &resp.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+
+		if err := json.Unmarshal([]byte(headersJSON), &resp.Headers); err != nil {
+			resp.Headers = make(map[string]string)
+		}
+
+		responses = append(responses, &resp)
+	}
+
+	return responses, rows.Err()
+}

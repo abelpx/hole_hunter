@@ -37,12 +37,24 @@ func (r *ReportRepository) GetAll(ctx context.Context) ([]*models.Report, error)
 	for rows.Next() {
 		var rpt models.Report
 		var configJSON string
+		var filePath, generatedAt sql.NullString
+		var fileSize sql.NullInt64
 
 		err := rows.Scan(&rpt.ID, &rpt.Name, &rpt.ScanID, &rpt.Type, &rpt.Format,
-			&rpt.FilePath, &rpt.FileSize, &rpt.Status, &configJSON,
-			&rpt.CreatedAt, &rpt.GeneratedAt)
+			&filePath, &fileSize, &rpt.Status, &configJSON,
+			&rpt.CreatedAt, &generatedAt)
 		if err != nil {
 			return nil, errors.DBError("failed to scan report", err)
+		}
+
+		if filePath.Valid {
+			rpt.FilePath = filePath.String
+		}
+		if fileSize.Valid {
+			rpt.FileSize = fileSize.Int64
+		}
+		if generatedAt.Valid {
+			rpt.GeneratedAt = generatedAt.String
 		}
 
 		// TODO: 解析 config JSON
@@ -64,11 +76,13 @@ func (r *ReportRepository) GetByID(ctx context.Context, id int) (*models.Report,
 
 	var rpt models.Report
 	var configJSON string
+	var filePath, generatedAt sql.NullString
+	var fileSize sql.NullInt64
 
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&rpt.ID, &rpt.Name, &rpt.ScanID, &rpt.Type, &rpt.Format,
-		&rpt.FilePath, &rpt.FileSize, &rpt.Status, &configJSON,
-		&rpt.CreatedAt, &rpt.GeneratedAt,
+		&filePath, &fileSize, &rpt.Status, &configJSON,
+		&rpt.CreatedAt, &generatedAt,
 	)
 
 	if err == sql.ErrNoRows {
@@ -76,6 +90,16 @@ func (r *ReportRepository) GetByID(ctx context.Context, id int) (*models.Report,
 	}
 	if err != nil {
 		return nil, errors.DBError("failed to query report", err)
+	}
+
+	if filePath.Valid {
+		rpt.FilePath = filePath.String
+	}
+	if fileSize.Valid {
+		rpt.FileSize = fileSize.Int64
+	}
+	if generatedAt.Valid {
+		rpt.GeneratedAt = generatedAt.String
 	}
 
 	// TODO: 解析 config JSON

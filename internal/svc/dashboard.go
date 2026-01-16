@@ -35,3 +35,23 @@ func (s *DashboardService) GetStats(ctx context.Context) (*models.DashboardStats
 		LowVulns:             stats.LowVulns,
 	}, nil
 }
+
+// HealthCheck 健康检查
+func (s *DashboardService) HealthCheck(ctx context.Context) error {
+	return s.repo.HealthCheck(ctx)
+}
+
+// GetDatabaseInfo 获取数据库信息
+func (s *DashboardService) GetDatabaseInfo(ctx context.Context) (map[string]interface{}, error) {
+	info, err := s.repo.GetDatabaseInfo(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return map[string]interface{}{
+		"version":    info.Version,
+		"size":       info.Size,
+		"tableCount": len(info.Tables),
+		"tables":     info.Tables,
+	}, nil
+}

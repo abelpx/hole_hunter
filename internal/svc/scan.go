@@ -276,3 +276,15 @@ func sumValues(m map[string]int) int {
 	}
 	return sum
 }
+
+// UpdateStatus 更新扫描任务状态
+func (s *ScanService) UpdateStatus(ctx context.Context, taskID int, status string) error {
+	if taskID <= 0 {
+		return errors.InvalidInput("invalid scan task id")
+	}
+	if status == "" {
+		return errors.InvalidInput("status cannot be empty")
+	}
+
+	return s.scanRepo.UpdateStatus(ctx, taskID, status)
+}

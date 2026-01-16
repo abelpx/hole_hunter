@@ -16,6 +16,8 @@ export function CreateHttpRequest(arg1:string,arg2:string,arg3:string,arg4:Recor
 
 export function CreatePortScanTask(arg1:string,arg2:Array<number>,arg3:number,arg4:number):Promise<number>;
 
+export function CreateReport(arg1:string,arg2:number,arg3:string,arg4:string):Promise<number>;
+
 export function CreateScanTask(arg1:string,arg2:number,arg3:string,arg4:Array<string>):Promise<models.ScanTask>;
 
 export function CreateScenarioGroup(arg1:string,arg2:string,arg3:string,arg4:Array<string>):Promise<models.ScenarioGroup>;
@@ -28,6 +30,8 @@ export function DeleteCustomTemplate(arg1:number):Promise<void>;
 
 export function DeleteHttpRequest(arg1:number):Promise<void>;
 
+export function DeleteReport(arg1:number):Promise<void>;
+
 export function DeleteScanTask(arg1:number):Promise<void>;
 
 export function DeleteScenarioGroup(arg1:string):Promise<void>;
@@ -36,11 +40,15 @@ export function DeleteTarget(arg1:number):Promise<void>;
 
 export function DeleteVulnerability(arg1:number):Promise<void>;
 
+export function ExportReport(arg1:number,arg2:string):Promise<string>;
+
 export function GetAllBrutePayloadSets():Promise<Array<models.BrutePayloadSet>>;
 
 export function GetAllBruteTasks():Promise<Array<models.BruteTask>>;
 
 export function GetAllHttpRequests():Promise<Array<models.HttpRequest>>;
+
+export function GetAllReports():Promise<Array<models.Report>>;
 
 export function GetAllScanTasks():Promise<Array<models.ScanTask>>;
 
@@ -52,6 +60,8 @@ export function GetAllTemplates():Promise<Array<models.Template>>;
 
 export function GetAllVulnerabilities():Promise<Array<models.Vulnerability>>;
 
+export function GetBruteTaskResults(arg1:number):Promise<Array<models.BruteResult>>;
+
 export function GetDashboardStats():Promise<models.DashboardStats>;
 
 export function GetDomainBruteResults(arg1:number):Promise<Array<models.DomainBruteResult>>;
@@ -61,6 +71,8 @@ export function GetHttpRequestByID(arg1:number):Promise<models.HttpRequest>;
 export function GetNucleiStatus():Promise<models.NucleiStatus>;
 
 export function GetPortScanResults(arg1:number):Promise<Array<models.PortScanResult>>;
+
+export function GetReportById(arg1:number):Promise<models.Report>;
 
 export function GetScanProgress(arg1:number):Promise<models.ScanProgress>;
 
@@ -101,6 +113,8 @@ export function MarkVulnerabilityFalsePositive(arg1:number,arg2:boolean):Promise
 export function RemoveTemplatesFromScenarioGroup(arg1:string,arg2:Array<string>):Promise<void>;
 
 export function SendHttpRequest(arg1:number,arg2:number):Promise<models.HttpResponse>;
+
+export function StartBruteTask(arg1:number):Promise<void>;
 
 export function StartScan(arg1:number):Promise<void>;
 

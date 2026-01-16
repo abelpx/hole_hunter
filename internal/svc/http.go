@@ -331,3 +331,11 @@ type UpdateHTTPRequest struct {
 	ContentType *string           `json:"content_type,omitempty"`
 	Tags        []string          `json:"tags,omitempty"`
 }
+
+// GetResponseHistory 获取HTTP响应历史
+func (s *HTTPService) GetResponseHistory(ctx context.Context, requestID int) ([]*models.HttpResponse, error) {
+	if requestID <= 0 {
+		return nil, errors.InvalidInput("invalid request id")
+	}
+	return s.responseRepo.GetHistoryByRequestID(ctx, requestID)
+}

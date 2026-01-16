@@ -93,8 +93,8 @@ func parseTemplateProgress(line string) (ScanProgress, bool) {
 		return ScanProgress{}, false
 	}
 
-	// 防止除零
-	if total <= 0 {
+	// 防止除零和负数
+	if total <= 0 || current < 0 {
 		return ScanProgress{}, false
 	}
 

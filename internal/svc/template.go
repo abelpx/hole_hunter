@@ -29,6 +29,7 @@ type TemplateRepository interface {
 	GetCategories(ctx context.Context) ([]string, error)
 	GetAuthors(ctx context.Context) ([]string, error)
 	GetSeverities(ctx context.Context) ([]string, error)
+	GetAllCustom(ctx context.Context) ([]*models.Template, error)
 }
 
 // NewTemplateService 创建模板服务
@@ -230,6 +231,76 @@ func (s *TemplateService) GetAuthors(ctx context.Context) ([]string, error) {
 // GetSeverities 获取所有严重程度
 func (s *TemplateService) GetSeverities(ctx context.Context) ([]string, error) {
 	return s.repo.GetSeverities(ctx)
+}
+
+// GetAllCustom 获取所有自定义模板
+func (s *TemplateService) GetAllCustom(ctx context.Context) ([]*models.Template, error) {
+	return s.repo.GetAllCustom(ctx)
+}
+
+// GetCustomByID 根据ID获取自定义模板
+func (s *TemplateService) GetCustomByID(ctx context.Context, id int) (*models.Template, error) {
+	template, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if template.Source != "custom" {
+		return nil, fmt.Errorf("template is not custom")
+	}
+	return template, nil
+}
+
+// ValidateCustomTemplate 验证自定义模板
+func (s *TemplateService) ValidateCustomTemplate(ctx context.Context, content string) (bool, []string, error) {
+	var warnings []string
+
+	// YAML 格式验证
+	if err := s.validateYAML(content); err != nil {
+		return false, nil, err
+	}
+
+	// 提取模板信息
+	info, err := s.extractTemplateInfo(content)
+	if err != nil {
+		return false, nil, err
+	}
+
+	// 验证必需字段
+	if info.ID == "" {
+		warnings = append(warnings, "missing template id")
+	}
+	if info.Name == "" {
+		warnings = append(warnings, "missing template name")
+	}
+	if info.Severity == "" {
+		warnings = append(warnings, "missing severity")
+	}
+
+	return len(warnings) == 0, warnings, nil
+}
+
+// GetCustomStats 获取自定义模板统计
+func (s *TemplateService) GetCustomStats(ctx context.Context) (map[string]interface{}, error) {
+	templates, err := s.repo.GetAllCustom(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	stats := map[string]interface{}{
+		"total":    len(templates),
+		"enabled":  0,
+		"disabled": 0,
+	}
+
+	for _, t := range templates {
+		if t.Enabled {
+			stats["enabled"] = stats["enabled"].(int) + 1
+		} else {
+			stats["disabled"] = stats["disabled"].(int) + 1
+		}
+	}
+
+	return stats, nil
 }
 
 // validateYAML 验证 YAML 内容

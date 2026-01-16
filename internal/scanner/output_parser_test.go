@@ -106,3 +106,57 @@ func TestParseScanProgress(t *testing.T) {
 		})
 	}
 }
+
+// TestParseScanProgress_EdgeCases 测试边界情况和错误处理
+func TestParseScanProgress_EdgeCases(t *testing.T) {
+	tests := []struct {
+		name      string
+		input     string
+		wantValid bool
+	}{
+		{
+			name:      "总模板数为0",
+			input:     "[INF] Current template: test.yaml (0/0)",
+			wantValid: false, // 应该返回 false，因为除零
+		},
+		{
+			name:      "负数进度",
+			input:     "[INF] Current template: test.yaml (-1/100)",
+			wantValid: false, // 解析失败但返回0
+		},
+		{
+			name:      "无效数字格式",
+			input:     "[INF] Current template: test.yaml (abc/100)",
+			wantValid: false,
+		},
+		{
+			name:      "括号内格式错误",
+			input:     "[INF] Current template: test.yaml (100)",
+			wantValid: false,
+		},
+		{
+			name:      "空括号",
+			input:     "[INF] Current template: test.yaml ()",
+			wantValid: false,
+		},
+		{
+			name:      "stats 格式错误",
+			input:     "[INF] [stats] requests: 123, findings:",
+			wantValid: false,
+		},
+		{
+			name:      "stats findings 无效数字",
+			input:     "[INF] [stats] requests: 123, findings: abc",
+			wantValid: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, ok := ParseScanProgress(tt.input)
+			if ok != tt.wantValid {
+				t.Errorf("ParseScanProgress(%q) ok = %v, wantValid %v", tt.input, ok, tt.wantValid)
+			}
+		})
+	}
+}

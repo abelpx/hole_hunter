@@ -776,42 +776,6 @@ class WailsServiceImpl {
     );
   }
 
-  async createReport(data: { scan_id: number; format: string; name: string }): Promise<any> {
-    return safeWailsCall(
-      async () => {
-        // TODO: 实现创建报告
-        return {};
-      },
-      {},
-      'createReport'
-    );
-  }
-
-  async deleteReport(id: number): Promise<void> {
-    return safeWailsCall(
-      async () => {
-        // TODO: 实现删除报告
-      },
-      undefined,
-      'deleteReport'
-    );
-  }
-
-  async exportReport(data: {
-    task_id?: number;
-    target_id?: number;
-    severity?: string[];
-    format: 'json' | 'html' | 'csv' | 'pdf' | 'word';
-  }): Promise<Blob> {
-    return safeWailsCall(
-      async () => {
-        throw new Error('Export not implemented yet');
-      },
-      null as unknown as Blob,
-      'exportReport'
-    );
-  }
-
   // ==================== 工具箱扩展工具 ====================
 
   async scanPorts(options: {
@@ -898,4 +862,10 @@ class WailsServiceImpl {
 
 
 
+// 导出服务实例和获取函数
 export const WailsService = new WailsServiceImpl();
+
+// 导出 getService 函数以兼容现有代码
+export function getService(): WailsServiceImpl {
+  return WailsService;
+}

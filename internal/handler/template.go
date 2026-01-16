@@ -81,3 +81,23 @@ func (h *TemplateHandler) ToggleCustomTemplate(ctx context.Context, id int, enab
 func (h *TemplateHandler) SyncBuiltinTemplates(ctx context.Context, templates []*models.Template) (*models.SyncStats, error) {
 	return h.service.SyncBuiltinTemplates(ctx, templates)
 }
+
+// GetAllCustom 获取所有自定义模板
+func (h *TemplateHandler) GetAllCustom(ctx context.Context) ([]*models.Template, error) {
+	return h.service.GetAllCustom(ctx)
+}
+
+// GetCustomByID 根据ID获取自定义模板
+func (h *TemplateHandler) GetCustomByID(ctx context.Context, id int) (*models.Template, error) {
+	return h.service.GetCustomByID(ctx, id)
+}
+
+// ValidateCustomTemplate 验证自定义模板
+func (h *TemplateHandler) ValidateCustomTemplate(ctx context.Context, content string) (bool, []string, error) {
+	return h.service.ValidateCustomTemplate(ctx, content)
+}
+
+// GetCustomStats 获取自定义模板统计
+func (h *TemplateHandler) GetCustomStats(ctx context.Context) (map[string]interface{}, error) {
+	return h.service.GetCustomStats(ctx)
+}

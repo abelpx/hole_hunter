@@ -39,6 +39,27 @@ func (r *TemplateRepository) GetAll(ctx context.Context) ([]*models.Template, er
 	return r.scanTemplates(rows)
 }
 
+// GetAllCustom 获取所有自定义模板
+func (r *TemplateRepository) GetAllCustom(ctx context.Context) ([]*models.Template, error) {
+	query := `
+		SELECT id, source, template_id, name, severity, category, author,
+		       path, content, enabled, description, impact, remediation,
+		       tags, reference, metadata, nuclei_version, official_path,
+		       created_at, updated_at
+		FROM templates
+		WHERE source = 'custom'
+		ORDER BY created_at DESC
+	`
+
+	rows, err := r.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query custom templates: %w", err)
+	}
+	defer rows.Close()
+
+	return r.scanTemplates(rows)
+}
+
 // GetByID 根据 ID 获取模板
 func (r *TemplateRepository) GetByID(ctx context.Context, id int) (*models.Template, error) {
 	query := `

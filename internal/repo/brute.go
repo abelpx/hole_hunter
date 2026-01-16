@@ -52,16 +52,31 @@ func (r *BruteRepository) GetTaskByID(ctx context.Context, id int) (*models.Brut
 	`
 
 	var task models.BruteTask
+	var startedAt, completedAt, createdAt, updatedAt sql.NullString
+
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&task.ID, &task.Name, &task.RequestID, &task.Type, &task.Status,
 		&task.TotalPayloads, &task.SentPayloads, &task.SuccessCount, &task.FailureCount,
-		&task.StartedAt, &task.CompletedAt, &task.CreatedAt, &task.UpdatedAt,
+		&startedAt, &completedAt, &createdAt, &updatedAt,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, errors.NotFound("brute task not found")
 		}
 		return nil, err
+	}
+
+	if startedAt.Valid {
+		task.StartedAt = startedAt.String
+	}
+	if completedAt.Valid {
+		task.CompletedAt = completedAt.String
+	}
+	if createdAt.Valid {
+		task.CreatedAt = createdAt.String
+	}
+	if updatedAt.Valid {
+		task.UpdatedAt = updatedAt.String
 	}
 
 	return &task, nil

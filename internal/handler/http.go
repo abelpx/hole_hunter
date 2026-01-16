@@ -72,3 +72,8 @@ func (h *HTTPHandler) SendRequest(ctx context.Context, requestID int, timeoutSec
 	}
 	return h.service.SendRequest(ctx, requestID, timeout)
 }
+
+// GetResponseHistory 获取HTTP响应历史
+func (h *HTTPHandler) GetResponseHistory(ctx context.Context, requestID int) ([]*models.HttpResponse, error) {
+	return h.service.GetResponseHistory(ctx, requestID)
+}
