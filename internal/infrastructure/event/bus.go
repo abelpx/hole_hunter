@@ -69,4 +69,10 @@ const (
 	EventVulnFound     = "vulnerability.found"
 	EventTargetCreated = "target.created"
 	EventTargetDeleted = "target.deleted"
+
+	// Brute 事件
+	EventBruteStarted   = "brute.started"
+	EventBruteProgress  = "brute.progress"
+	EventBruteCompleted = "brute.completed"
+	EventBruteFailed    = "brute.failed"
 )

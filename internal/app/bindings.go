@@ -496,3 +496,45 @@ func (a *App) GetBruteTaskResults(taskID int) ([]*models.BruteResult, error) {
 	}
 	return a.bruteHandler.GetBruteTaskResults(a.ctx, taskID)
 }
+
+// ==================== Reports ====================
+
+// GetAllReports 获取所有报告
+func (a *App) GetAllReports() ([]*models.Report, error) {
+	if a.reportHandler == nil {
+		return nil, errors.New("report handler not initialized")
+	}
+	return a.reportHandler.GetAll(a.ctx)
+}
+
+// GetReportById 根据ID获取报告
+func (a *App) GetReportById(id int) (*models.Report, error) {
+	if a.reportHandler == nil {
+		return nil, errors.New("report handler not initialized")
+	}
+	return a.reportHandler.GetByID(a.ctx, id)
+}
+
+// CreateReport 创建报告
+func (a *App) CreateReport(name string, scanID int, reportType, format string) (int, error) {
+	if a.reportHandler == nil {
+		return 0, errors.New("report handler not initialized")
+	}
+	return a.reportHandler.Create(a.ctx, name, scanID, reportType, format)
+}
+
+// DeleteReport 删除报告
+func (a *App) DeleteReport(id int) error {
+	if a.reportHandler == nil {
+		return errors.New("report handler not initialized")
+	}
+	return a.reportHandler.Delete(a.ctx, id)
+}
+
+// ExportReport 导出报告
+func (a *App) ExportReport(id int, format string) (string, error) {
+	if a.reportHandler == nil {
+		return "", errors.New("report handler not initialized")
+	}
+	return a.reportHandler.Export(a.ctx, id, format)
+}

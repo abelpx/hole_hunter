@@ -34,6 +34,7 @@ type App struct {
 	portScanHandler    *handler.PortScanHandler
 	domainBruteHandler *handler.DomainBruteHandler
 	bruteHandler       *handler.BruteHandler
+	reportHandler      *handler.ReportHandler
 }
 
 // NewApp 创建新应用
@@ -109,6 +110,7 @@ func (a *App) initLayers() {
 	portScanRepo := repo.NewPortScanRepository(a.db)
 	domainBruteRepo := repo.NewDomainBruteRepository(a.db)
 	bruteRepo := repo.NewBruteRepository(a.db)
+	reportRepo := repo.NewReportRepository(a.db)
 
 	// 初始化 Service
 	targetSvc := svc.NewTargetService(targetRepo, a.eventBus)
@@ -121,6 +123,7 @@ func (a *App) initLayers() {
 	portScanSvc := svc.NewPortScanService(portScanRepo)
 	domainBruteSvc := svc.NewDomainBruteService(domainBruteRepo)
 	bruteSvc := svc.NewBruteService(bruteRepo)
+	reportSvc := svc.NewReportService(reportRepo, scanRepo, vulnRepo, a.config.DataDir)
 
 	// 初始化 Handler
 	a.targetHandler = handler.NewTargetHandler(targetSvc)
@@ -133,6 +136,7 @@ func (a *App) initLayers() {
 	a.portScanHandler = handler.NewPortScanHandler(portScanSvc)
 	a.domainBruteHandler = handler.NewDomainBruteHandler(domainBruteSvc)
 	a.bruteHandler = handler.NewBruteHandler(bruteSvc)
+	a.reportHandler = handler.NewReportHandler(reportSvc)
 
 	// 设置事件处理器（处理业务逻辑事件）
 	eventHandler := appEvent.NewEventHandler(vulnSvc, a.logger)
@@ -221,6 +225,27 @@ func (a *App) setupEventForwarding() {
 
 	a.eventBus.Subscribe(appEvent.EventTargetDeleted, func(ctx context.Context, e appEvent.Event) error {
 		runtime.EventsEmit(a.ctx, "target.deleted", e.Data)
+		return nil
+	})
+
+	// Brute 事件
+	a.eventBus.Subscribe(appEvent.EventBruteStarted, func(ctx context.Context, e appEvent.Event) error {
+		runtime.EventsEmit(a.ctx, "brute.started", e.Data)
+		return nil
+	})
+
+	a.eventBus.Subscribe(appEvent.EventBruteProgress, func(ctx context.Context, e appEvent.Event) error {
+		runtime.EventsEmit(a.ctx, "brute.progress", e.Data)
+		return nil
+	})
+
+	a.eventBus.Subscribe(appEvent.EventBruteCompleted, func(ctx context.Context, e appEvent.Event) error {
+		runtime.EventsEmit(a.ctx, "brute.completed", e.Data)
+		return nil
+	})
+
+	a.eventBus.Subscribe(appEvent.EventBruteFailed, func(ctx context.Context, e appEvent.Event) error {
+		runtime.EventsEmit(a.ctx, "brute.failed", e.Data)
 		return nil
 	})
 }

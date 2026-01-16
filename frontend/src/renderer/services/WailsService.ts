@@ -1,10 +1,8 @@
 /**
  * Wails 服务层
- * 使用 Wails 生成的 Go 绑定来替代 Electron IPC
- * 在浏览器环境下自动切换到 Mock 服务
+ * 使用 Wails 生成的 Go 绑定来与后端通信
  */
 
-import { mockService } from './MockService';
 import {
   Target,
   Vulnerability,
@@ -18,129 +16,14 @@ import {
   BruteTask,
   BrutePayloadSet,
   BruteResult,
+  Report,
+  CreateReportRequest,
 } from '../types';
 
 // 导入 Wails 自动生成的绑定
 // 使用 vite 别名导入 wailsjs
 import * as WailsApp from '@wailsjs/go/app/App';
 
-// 运行环境类型
-type RuntimeEnvironment = 'wails' | 'electron' | 'browser';
-
-// Wails 绑定的类型定义（用于浏览器模式）
-interface WailsBindings {
-  GetAllTargets(): Promise<any[]>;
-  GetTargetByID(id: number): Promise<any>;
-  CreateTarget(name: string, url: string, description: string, tags: string[]): Promise<number>;
-  UpdateTarget(id: number, name: string, url: string, description: string, tags: string[]): Promise<void>;
-  DeleteTarget(id: number): Promise<void>;
-  GetAllScanTasks(): Promise<any[]>;
-  GetScanTaskByID(id: number): Promise<any>;
-  CreateScanTask(targetId: number, strategy: string, templates: string[]): Promise<number>;
-  UpdateScanTaskStatus(id: number, status: string): Promise<void>;
-  DeleteScanTask(id: number): Promise<void>;
-  GetAllVulnerabilities(): Promise<any[]>;
-  GetVulnerabilityByID(id: number): Promise<any>;
-  UpdateVulnerability(id: number, falsePositive: boolean, notes: string): Promise<void>;
-  DeleteVulnerability(id: number): Promise<void>;
-  HealthCheck(): Promise<boolean>;
-  GetDashboardStats(): Promise<any>;
-  GetDatabaseInfo(): Promise<any>;
-  GetAllHttpRequests(): Promise<any[]>;
-  GetHttpRequestByID(id: number): Promise<any>;
-  CreateHttpRequest(name: string, method: string, url: string, headers: any, body: string, contentType: string, tags: string[]): Promise<number>;
-  UpdateHttpRequest(id: number, name: string, method: string, url: string, headers: any, body: string, contentType: string, tags: string[]): Promise<void>;
-  DeleteHttpRequest(id: number): Promise<void>;
-  SendHttpRequest(requestId: number, timeoutSec: number): Promise<any>;
-  GetHttpResponseHistory(requestId: number): Promise<any[]>;
-  GetAllBruteTasks(): Promise<any[]>;
-  CreateBruteTask(name: string, requestId: number, type: string): Promise<number>;
-  DeleteBruteTask(id: number): Promise<void>;
-  GetAllBrutePayloadSets(): Promise<any[]>;
-  CreateBrutePayloadSet(name: string, type: string, config: any): Promise<number>;
-  CreatePortScanTask(target: string, ports: number[], timeout: number, batchSize: number): Promise<number>;
-  GetPortScanResults(taskId: number): Promise<any[]>;
-  CreateDomainBruteTask(domain: string, wordlist: string[], timeout: number, batchSize: number): Promise<number>;
-  GetDomainBruteResults(taskId: number): Promise<any[]>;
-  // Custom Templates
-  GetAllCustomTemplates(): Promise<any[]>;
-  GetCustomTemplateByID(id: number): Promise<any>;
-  CreateCustomTemplate(name: string, content: string): Promise<number>;
-  UpdateCustomTemplate(id: number, name: string, content: string): Promise<void>;
-  DeleteCustomTemplate(id: number): Promise<void>;
-  ToggleCustomTemplate(id: number, enabled: boolean): Promise<void>;
-  ValidateCustomTemplate(content: string): Promise<any>;
-  GetCustomTemplatesStats(): Promise<any>;
-}
-
-interface WailsRuntime {
-  EventsOn(event: string, callback: Function): void;
-  EventsOff(event: string, callback?: Function): void;
-  EventsEmit(event: string, data?: any): void;
-}
-
-// 获取 Wails 绑定 - 直接使用导入的模块
-function getWailsApp(): WailsBindings | null {
-  // 在 Wails 环境中，导入的 WailsApp 模块会自动绑定
-  // 如果绑定失败（比如在浏览器环境），返回 null
-  try {
-    // 尝试调用一个简单的方法来测试绑定是否可用
-    // 实际调用会在每个方法中进行
-    return WailsApp as any;
-  } catch (error) {
-    console.log('[getWailsApp] Wails bindings not available:', error);
-    return null;
-  }
-}
-
-function getWailsRuntime(): WailsRuntime | null {
-  if (typeof window === 'undefined') return null;
-
-  const w = window as any;
-
-  // 方式1: 直接从 window.runtime 获取
-  if (w?.runtime?.EventsOn) {
-    return w.runtime;
-  }
-
-  // 方式2: 从 window.wailsjs 获取
-  if (w?.wailsjs?.runtime) {
-    return w.wailsjs.runtime;
-  }
-
-  return null;
-}
-
-// 检测运行环境
-function detectEnvironment(): RuntimeEnvironment {
-  if (typeof window === 'undefined') {
-    return 'browser';
-  }
-
-  const w = window as any;
-
-  console.log('[detectEnvironment] Checking window object keys:', Object.keys(w).filter(k => k.includes('go') || k.includes('wails') || k.includes('Wails')));
-  console.log('[detectEnvironment] window._WailsRuntime_:', (w as any)._WailsRuntime_);
-  console.log('[detectEnvironment] window.go:', w.go);
-
-  // 检测 Wails - 检查是否有 Wails 运行时
-  // Wails v2 在打包后会有 _WailsRuntime_ 对象
-  if ((w as any)._WailsRuntime_ !== undefined || w.go !== undefined) {
-    console.log('[detectEnvironment] Detected Wails environment');
-    return 'wails';
-  }
-
-  // 检测 Electron
-  if (w.electronAPI !== undefined) {
-    console.log('[detectEnvironment] Detected Electron environment');
-    return 'electron';
-  }
-
-  console.log('[detectEnvironment] No desktop environment detected, using browser mode');
-  return 'browser';
-}
-
-// 当前环境
 const currentEnvironment = detectEnvironment();
 
 // 统一的 Wails 调用包装器 - 处理异常和超时
@@ -774,7 +657,7 @@ class WailsServiceImpl {
   async startBruteTask(id: number): Promise<void> {
     return safeWailsCall(
       async () => {
-        // TODO: 实现启动逻辑
+        await (WailsApp as any).StartBruteTask(id);
       },
       undefined,
       'startBruteTask'
@@ -804,8 +687,7 @@ class WailsServiceImpl {
   async getBruteTaskResults(id: number): Promise<BruteResult[]> {
     return safeWailsCall(
       async () => {
-        // TODO: 实现获取结果逻辑
-        return [];
+        return await (WailsApp as any).GetBruteTaskResults(id);
       },
       [],
       'getBruteTaskResults'
@@ -840,10 +722,62 @@ class WailsServiceImpl {
 
   // ==================== 报告管理 ====================
 
-  async getAllReports(): Promise<any[]> {
+  async getAllReports(): Promise<Report[]> {
     return safeWailsCall(
       async () => {
-        // TODO: 实现获取所有报告
+        return await (WailsApp as any).GetAllReports();
+      },
+      [],
+      'getAllReports'
+    );
+  }
+
+  async getReportById(id: number): Promise<Report> {
+    return safeWailsCall(
+      async () => {
+        return await (WailsApp as any).GetReportById(id);
+      },
+      null as unknown as Report,
+      'getReportById'
+    );
+  }
+
+  async createReport(request: CreateReportRequest): Promise<Report> {
+    return safeWailsCall(
+      async () => {
+        const id = await (WailsApp as any).CreateReport(
+          request.name,
+          request.scan_id,
+          request.type || 'summary',
+          request.format || 'json'
+        );
+        return await this.getReportById(Number(id));
+      },
+      null as unknown as Report,
+      'createReport'
+    );
+  }
+
+  async deleteReport(id: number): Promise<void> {
+    return safeWailsCall(
+      async () => {
+        await (WailsApp as any).DeleteReport(id);
+      },
+      undefined,
+      'deleteReport'
+    );
+  }
+
+  async exportReport(id: number, format: string): Promise<string> {
+    return safeWailsCall(
+      async () => {
+        return await (WailsApp as any).ExportReport(id, format);
+      },
+      '',
+      'exportReport'
+    );
+  }
+}
         return [];
       },
       [],
@@ -982,306 +916,3 @@ class WailsServiceImpl {
   }
 }
 
-// 统一的服务接口
-class UnifiedService {
-  private wailsService: WailsServiceImpl;
-  private environment: RuntimeEnvironment;
-
-  constructor() {
-    this.environment = currentEnvironment;
-    this.wailsService = new WailsServiceImpl();
-
-    const envName = this.environment === 'wails' ? 'Wails (Go Desktop)' :
-                    this.environment === 'electron' ? 'Electron' : 'Browser (Demo Mode)';
-    console.log(`[UnifiedService] Running in ${envName} environment`);
-
-    // 在 Wails 环境下，验证绑定是否可用
-    if (this.environment === 'wails') {
-      const wailsApp = getWailsApp();
-      if (wailsApp) {
-        console.log('[UnifiedService] Wails bindings are available via window.go.main.App');
-      } else {
-        console.warn('[UnifiedService] Wails bindings NOT found on window object');
-      }
-    }
-  }
-
-  getEnvironment(): RuntimeEnvironment {
-    return this.environment;
-  }
-
-  isBrowserMode(): boolean {
-    return this.environment === 'browser';
-  }
-
-  isDesktopMode(): boolean {
-    return this.environment === 'wails' || this.environment === 'electron';
-  }
-
-  // 代理所有方法到对应的服务实现
-  async getAllTargets(): Promise<Target[]> {
-    return this.isBrowserMode() ? mockService.getAllTargets() : this.wailsService.getAllTargets();
-  }
-
-  async getTargetById(id: number): Promise<Target> {
-    return this.isBrowserMode() ? mockService.getTargetById(id) : this.wailsService.getTargetById(id);
-  }
-
-  async createTarget(data: CreateTargetRequest): Promise<Target> {
-    return this.isBrowserMode() ? mockService.createTarget(data) : this.wailsService.createTarget(data);
-  }
-
-  async updateTarget(id: number, data: UpdateTargetRequest): Promise<Target> {
-    return this.isBrowserMode() ? mockService.updateTarget(id, data) : this.wailsService.updateTarget(id, data);
-  }
-
-  async deleteTarget(id: number): Promise<void> {
-    return this.isBrowserMode() ? mockService.deleteTarget(id) : this.wailsService.deleteTarget(id);
-  }
-
-  async batchDeleteTargets(ids: number[]): Promise<void> {
-    return this.isBrowserMode() ? mockService.batchDeleteTargets(ids) : this.wailsService.batchDeleteTargets(ids);
-  }
-
-  async createScan(data: CreateScanRequest): Promise<ScanTask> {
-    console.log('[UnifiedService] createScan called, environment:', this.environment, 'isBrowserMode:', this.isBrowserMode());
-    return this.isBrowserMode() ? mockService.createScan(data) : this.wailsService.createScan(data);
-  }
-
-  async cancelScan(id: number): Promise<void> {
-    return this.isBrowserMode() ? mockService.cancelScan(id) : this.wailsService.cancelScan(id);
-  }
-
-  async deleteScan(id: number): Promise<void> {
-    return this.isBrowserMode() ? mockService.deleteScan(id) : this.wailsService.deleteScan(id);
-  }
-
-  async getAllScans(): Promise<ScanTask[]> {
-    return this.isBrowserMode() ? mockService.getAllScans() : this.wailsService.getAllScans();
-  }
-
-  async getScanById(id: number): Promise<ScanTask> {
-    return this.isBrowserMode() ? mockService.getScanById(id) : this.wailsService.getScanById(id);
-  }
-
-  async getScanProgress(id: number): Promise<any> {
-    return this.isBrowserMode() ? mockService.getScanProgress(id) : this.wailsService.getScanProgress(id);
-  }
-
-  async getScanLogs(id: number): Promise<string[]> {
-    return this.isBrowserMode() ? mockService.getScanLogs(id) : this.wailsService.getScanLogs(id);
-  }
-
-  async getAllVulnerabilities(): Promise<Vulnerability[]> {
-    return this.isBrowserMode() ? mockService.getAllVulnerabilities() : this.wailsService.getAllVulnerabilities();
-  }
-
-  async getVulnerabilityById(id: string): Promise<Vulnerability> {
-    return this.isBrowserMode() ? mockService.getVulnerabilityById(id) : this.wailsService.getVulnerabilityById(id);
-  }
-
-  async updateVulnerability(id: string, data: any): Promise<Vulnerability> {
-    return this.isBrowserMode() ? mockService.updateVulnerability(id, data) : this.wailsService.updateVulnerability(id, data);
-  }
-
-  async markVulnerabilityAsFalsePositive(id: string, isFalsePositive: boolean): Promise<Vulnerability> {
-    return this.isBrowserMode() ? mockService.markVulnerabilityAsFalsePositive(id, isFalsePositive) : this.wailsService.markVulnerabilityAsFalsePositive(id, isFalsePositive);
-  }
-
-  async deleteVulnerability(id: string): Promise<void> {
-    return this.isBrowserMode() ? mockService.deleteVulnerability(id) : this.wailsService.deleteVulnerability(id);
-  }
-
-  async checkDatabaseHealth(): Promise<{ healthy: boolean; type: string; message?: string }> {
-    return this.isBrowserMode() ? mockService.checkDatabaseHealth() : this.wailsService.checkDatabaseHealth();
-  }
-
-  async getDatabaseStats(): Promise<any> {
-    return this.isBrowserMode() ? mockService.getDatabaseStats() : this.wailsService.getDatabaseStats();
-  }
-
-  async getDatabaseInfo(): Promise<any> {
-    return this.isBrowserMode() ? mockService.getDatabaseInfo() : this.wailsService.getDatabaseInfo();
-  }
-
-  async getAppVersion(): Promise<string> {
-    return this.isBrowserMode() ? mockService.getAppVersion() : this.wailsService.getAppVersion();
-  }
-
-  getPlatform(): string {
-    return this.isBrowserMode() ? mockService.getPlatform() : this.wailsService.getPlatform();
-  }
-
-  // Custom Templates
-  async getAllCustomTemplates(): Promise<any[]> {
-    return this.isBrowserMode() ? mockService.getAllCustomTemplates() : this.wailsService.getAllCustomTemplates();
-  }
-
-  async getCustomTemplateById(id: number): Promise<any> {
-    return this.isBrowserMode() ? mockService.getCustomTemplateById(id) : this.wailsService.getCustomTemplateById(id);
-  }
-
-  async createCustomTemplate(name: string, content: string): Promise<number> {
-    return this.isBrowserMode() ? mockService.createCustomTemplate(name, content) : this.wailsService.createCustomTemplate(name, content);
-  }
-
-  async updateCustomTemplate(id: number, name: string, content: string): Promise<void> {
-    return this.isBrowserMode() ? mockService.updateCustomTemplate(id, name, content) : this.wailsService.updateCustomTemplate(id, name, content);
-  }
-
-  async deleteCustomTemplate(id: number): Promise<void> {
-    return this.isBrowserMode() ? mockService.deleteCustomTemplate(id) : this.wailsService.deleteCustomTemplate(id);
-  }
-
-  async toggleCustomTemplate(id: number, enabled: boolean): Promise<void> {
-    return this.isBrowserMode() ? mockService.toggleCustomTemplate(id, enabled) : this.wailsService.toggleCustomTemplate(id, enabled);
-  }
-
-  async validateCustomTemplate(content: string): Promise<any> {
-    return this.isBrowserMode() ? mockService.validateCustomTemplate(content) : this.wailsService.validateCustomTemplate(content);
-  }
-
-  async getCustomTemplatesStats(): Promise<any> {
-    return this.isBrowserMode() ? mockService.getCustomTemplatesStats() : this.wailsService.getCustomTemplatesStats();
-  }
-
-  onScanProgress(callback: Function): void {
-    return this.isBrowserMode() ? mockService.onScanProgress(callback) : this.wailsService.onScanProgress(callback);
-  }
-
-  onScanLog(callback: Function): void {
-    return this.isBrowserMode() ? mockService.onScanLog(callback) : this.wailsService.onScanLog(callback);
-  }
-
-  onVulnFound(callback: Function): void {
-    return this.isBrowserMode() ? mockService.onVulnFound(callback) : this.wailsService.onVulnFound(callback);
-  }
-
-  offScanProgress(callback?: Function): void {
-    return this.isBrowserMode() ? mockService.offScanProgress(callback) : this.wailsService.offScanProgress(callback);
-  }
-
-  async getAllHttpRequests(): Promise<HttpRequest[]> {
-    return this.isBrowserMode() ? mockService.getAllHttpRequests() : this.wailsService.getAllHttpRequests();
-  }
-
-  async getHttpRequestById(id: number): Promise<HttpRequest> {
-    return this.isBrowserMode() ? mockService.getHttpRequestById(id) : this.wailsService.getHttpRequestById(id);
-  }
-
-  async createHttpRequest(data: CreateHttpRequest): Promise<HttpRequest> {
-    return this.isBrowserMode() ? mockService.createHttpRequest(data) : this.wailsService.createHttpRequest(data);
-  }
-
-  async updateHttpRequest(id: number, data: Partial<CreateHttpRequest>): Promise<void> {
-    return this.isBrowserMode() ? mockService.updateHttpRequest(id, data) : this.wailsService.updateHttpRequest(id, data);
-  }
-
-  async deleteHttpRequest(id: number): Promise<void> {
-    return this.isBrowserMode() ? mockService.deleteHttpRequest(id) : this.wailsService.deleteHttpRequest(id);
-  }
-
-  async sendHttpRequest(id: number): Promise<HttpResponse> {
-    return this.isBrowserMode() ? mockService.sendHttpRequest(id) : this.wailsService.sendHttpRequest(id);
-  }
-
-  async getHttpResponseHistory(requestId: number): Promise<HttpResponse[]> {
-    return this.isBrowserMode() ? mockService.getHttpResponseHistory(requestId) : this.wailsService.getHttpResponseHistory(requestId);
-  }
-
-  async importHttpRequest(data: { data: string; type: 'curl' | 'http' }): Promise<HttpRequest> {
-    return this.isBrowserMode() ? mockService.importHttpRequest(data) : this.wailsService.importHttpRequest(data);
-  }
-
-  async getAllBruteTasks(): Promise<BruteTask[]> {
-    return this.isBrowserMode() ? mockService.getAllBruteTasks() : this.wailsService.getAllBruteTasks();
-  }
-
-  async getBruteTask(id: number): Promise<BruteTask> {
-    return this.isBrowserMode() ? mockService.getBruteTask(id) : this.wailsService.getBruteTask(id);
-  }
-
-  async createBruteTask(data: any): Promise<BruteTask> {
-    return this.isBrowserMode() ? mockService.createBruteTask(data) : this.wailsService.createBruteTask(data);
-  }
-
-  async startBruteTask(id: number): Promise<void> {
-    return this.isBrowserMode() ? mockService.startBruteTask(id) : this.wailsService.startBruteTask(id);
-  }
-
-  async cancelBruteTask(id: number): Promise<void> {
-    return this.isBrowserMode() ? mockService.cancelBruteTask(id) : this.wailsService.cancelBruteTask(id);
-  }
-
-  async deleteBruteTask(id: number): Promise<void> {
-    return this.isBrowserMode() ? mockService.deleteBruteTask(id) : this.wailsService.deleteBruteTask(id);
-  }
-
-  async getBruteTaskResults(id: number): Promise<BruteResult[]> {
-    return this.isBrowserMode() ? mockService.getBruteTaskResults(id) : this.wailsService.getBruteTaskResults(id);
-  }
-
-  async getAllBrutePayloadSets(): Promise<BrutePayloadSet[]> {
-    return this.isBrowserMode() ? mockService.getAllBrutePayloadSets() : this.wailsService.getAllBrutePayloadSets();
-  }
-
-  async createBrutePayloadSet(data: any): Promise<BrutePayloadSet> {
-    return this.isBrowserMode() ? mockService.createBrutePayloadSet(data) : this.wailsService.createBrutePayloadSet(data);
-  }
-
-  async getAllReports(): Promise<any[]> {
-    return this.isBrowserMode() ? mockService.getAllReports() : this.wailsService.getAllReports();
-  }
-
-  async getReportById(id: number): Promise<any> {
-    return this.isBrowserMode() ? mockService.getReportById(id) : this.wailsService.getReportById(id);
-  }
-
-  async createReport(data: { scan_id: number; format: string; name: string }): Promise<any> {
-    return this.isBrowserMode() ? mockService.createReport(data) : this.wailsService.createReport(data);
-  }
-
-  async deleteReport(id: number): Promise<void> {
-    return this.isBrowserMode() ? mockService.deleteReport(id) : this.wailsService.deleteReport(id);
-  }
-
-  async exportReport(data: any): Promise<Blob> {
-    return this.isBrowserMode() ? mockService.exportReport(data) : this.wailsService.exportReport(data);
-  }
-
-  async scanPorts(options: any): Promise<any[]> {
-    return this.isBrowserMode() ? mockService.scanPorts(options) : this.wailsService.scanPorts(options);
-  }
-
-  async getCommonPorts(): Promise<number[]> {
-    return this.isBrowserMode() ? mockService.getCommonPorts() : this.wailsService.getCommonPorts();
-  }
-
-  async bruteSubdomains(options: any): Promise<any[]> {
-    return this.isBrowserMode() ? mockService.bruteSubdomains(options) : this.wailsService.bruteSubdomains(options);
-  }
-
-  async getDomainWordlist(): Promise<string[]> {
-    return this.isBrowserMode() ? mockService.getDomainWordlist() : this.wailsService.getDomainWordlist();
-  }
-
-  async getDomainRecords(domain: string, type: 'mx' | 'ns' | 'txt'): Promise<string[]> {
-    return this.isBrowserMode() ? mockService.getDomainRecords(domain, type) : this.wailsService.getDomainRecords(domain, type);
-  }
-}
-
-// 导出单例
-let serviceInstance: UnifiedService | null = null;
-
-export const getService = (): UnifiedService => {
-  if (!serviceInstance) {
-    serviceInstance = new UnifiedService();
-  }
-  return serviceInstance;
-};
-
-// 重新导出类型以保持兼容性
-export type { UnifiedService as WailsService };
-
-// 导出便捷实例
-export const wailsService = getService();

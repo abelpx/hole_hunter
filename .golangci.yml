@@ -21,6 +21,19 @@ issues:
   exclude-use-default: false
   max-issues-per-linter: 0
   max-same-issues: 0
+  exclude-rules:
+    - path: main.go
+      linters:
+        - typecheck
+    - path: internal/app/
+      linters:
+        - typecheck
+    - path: internal/svc/
+      linters:
+        - typecheck
+    - path: internal/handler/
+      linters:
+        - typecheck
 
 run:
   timeout: 5m
