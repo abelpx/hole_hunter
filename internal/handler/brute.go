@@ -46,3 +46,13 @@ func (h *BruteHandler) CreatePayloadSet(ctx context.Context, name string, bruteT
 func (h *BruteHandler) GetAllPayloadSets(ctx context.Context) ([]*models.BrutePayloadSet, error) {
 	return h.service.GetAllPayloadSets(ctx)
 }
+
+// StartBruteTask 启动暴力破解任务
+func (h *BruteHandler) StartBruteTask(ctx context.Context, taskID int) error {
+	return h.service.StartBruteTask(ctx, taskID)
+}
+
+// GetBruteTaskResults 获取暴力破解任务结果
+func (h *BruteHandler) GetBruteTaskResults(ctx context.Context, taskID int) ([]*models.BruteResult, error) {
+	return h.service.GetBruteTaskResults(ctx, taskID)
+}

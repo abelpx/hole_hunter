@@ -25,3 +25,15 @@ type BrutePayloadSet struct {
 	Config    map[string]interface{} `json:"config"`
 	CreatedAt string                 `json:"created_at"`
 }
+
+// BruteResult represents a single brute force attempt result
+type BruteResult struct {
+	TaskID       int                    `json:"task_id"`
+	Payload      string                 `json:"payload"`
+	Result       string                 `json:"result"`
+	Success      bool                   `json:"success"`
+	ResponseTime int64                  `json:"response_time"`
+	Error        string                 `json:"error,omitempty"`
+	Timestamp    string                 `json:"timestamp"`
+	Metadata     map[string]interface{} `json:"metadata,omitempty"`
+}

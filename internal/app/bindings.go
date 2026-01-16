@@ -480,3 +480,19 @@ func (a *App) CreateBrutePayloadSet(name string, bruteType string, config map[st
 	}
 	return a.bruteHandler.CreatePayloadSet(a.ctx, name, bruteType, config)
 }
+
+// StartBruteTask 启动暴力破解任务
+func (a *App) StartBruteTask(taskID int) error {
+	if a.bruteHandler == nil {
+		return errors.New("brute handler not initialized")
+	}
+	return a.bruteHandler.StartBruteTask(a.ctx, taskID)
+}
+
+// GetBruteTaskResults 获取暴力破解任务结果
+func (a *App) GetBruteTaskResults(taskID int) ([]*models.BruteResult, error) {
+	if a.bruteHandler == nil {
+		return nil, errors.New("brute handler not initialized")
+	}
+	return a.bruteHandler.GetBruteTaskResults(a.ctx, taskID)
+}

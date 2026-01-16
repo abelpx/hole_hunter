@@ -120,6 +120,26 @@ func (r *BruteRepository) DeleteTask(ctx context.Context, id int) error {
 	return nil
 }
 
+// UpdateTaskStatus 更新任务状态
+func (r *BruteRepository) UpdateTaskStatus(ctx context.Context, id int, status string) error {
+	query := `UPDATE brute_tasks SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
+	result, err := r.db.ExecContext(ctx, query, status, id)
+	if err != nil {
+		return err
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rows == 0 {
+		return errors.NotFound("brute task not found")
+	}
+
+	return nil
+}
+
 // CreatePayloadSet 创建载荷集
 func (r *BruteRepository) CreatePayloadSet(ctx context.Context, set *models.BrutePayloadSet) error {
 	configJSON, _ := json.Marshal(set.Config)

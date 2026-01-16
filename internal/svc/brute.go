@@ -88,3 +88,41 @@ func (s *BruteService) CreatePayloadSet(ctx context.Context, name string, bruteT
 func (s *BruteService) GetAllPayloadSets(ctx context.Context) ([]*models.BrutePayloadSet, error) {
 	return s.repo.GetAllPayloadSets(ctx)
 }
+
+// StartBruteTask 启动暴力破解任务
+func (s *BruteService) StartBruteTask(ctx context.Context, taskID int) error {
+	if taskID <= 0 {
+		return errors.InvalidInput("invalid task id")
+	}
+
+	task, err := s.repo.GetTaskByID(ctx, taskID)
+	if err != nil {
+		return err
+	}
+
+	if task.Status != "pending" {
+		return errors.InvalidInput("task is not in pending status")
+	}
+
+	// 更新任务状态为 running
+	if err := s.repo.UpdateTaskStatus(ctx, taskID, "running"); err != nil {
+		return err
+	}
+
+	// TODO: 实现实际的暴力破解执行逻辑
+	// 这里应该启动一个 goroutine 来执行暴力破解
+	// 参考端口扫描的实现方式
+
+	return nil
+}
+
+// GetBruteTaskResults 获取暴力破解任务结果
+func (s *BruteService) GetBruteTaskResults(ctx context.Context, taskID int) ([]*models.BruteResult, error) {
+	if taskID <= 0 {
+		return nil, errors.InvalidInput("invalid task id")
+	}
+
+	// TODO: 从数据库或内存中获取结果
+	// 当前返回空数组，实际应该从 repo 获取
+	return []*models.BruteResult{}, nil
+}
