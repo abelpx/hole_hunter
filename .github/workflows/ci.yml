@@ -20,13 +20,16 @@ jobs:
         run: go mod download
       - name: Run tests
         run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./internal/...
-      - name: Upload coverage
-        uses: codecov/codecov-action@v3
+      - name: Generate coverage badge
+        run: |
+          COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
+          echo "COVERAGE=$COVERAGE" >> $GITHUB_ENV
+          echo "Backend coverage: $COVERAGE%"
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
         with:
-          files: ./coverage.out
-          flags: backend
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
+          name: backend-coverage
+          path: coverage.out
 
   frontend-test:
     name: Frontend Test
@@ -44,10 +47,3 @@ jobs:
       - name: Run tests
         working-directory: ./frontend
         run: npm run test -- --run --coverage
-      - name: Upload coverage
-        uses: codecov/codecov-action@v3
-        with:
-          files: ./frontend/coverage/lcov.info
-          flags: frontend
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false

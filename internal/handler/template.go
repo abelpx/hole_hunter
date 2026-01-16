@@ -101,3 +101,8 @@ func (h *TemplateHandler) ValidateCustomTemplate(ctx context.Context, content st
 func (h *TemplateHandler) GetCustomStats(ctx context.Context) (map[string]interface{}, error) {
 	return h.service.GetCustomStats(ctx)
 }
+
+// GetTemplateService 获取模板服务（用于内部同步）
+func (h *TemplateHandler) GetTemplateService() *svc.TemplateService {
+	return h.service
+}

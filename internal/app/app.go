@@ -12,6 +12,7 @@ import (
 	"github.com/holehunter/holehunter/internal/infrastructure/logger"
 	"github.com/holehunter/holehunter/internal/repo"
 	"github.com/holehunter/holehunter/internal/svc"
+	"github.com/holehunter/holehunter/internal/sync"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
@@ -88,6 +89,12 @@ func (a *App) startup(ctx context.Context) error {
 
 	// 初始化各个层
 	a.initLayers()
+
+	// 同步内置模板到数据库
+	if err := a.syncTemplates(ctx); err != nil {
+		a.logger.Warn("Failed to sync builtin templates: %v", err)
+		// 不阻塞启动，只记录警告
+	}
 
 	// 设置事件转发
 	a.setupEventForwarding()
@@ -264,4 +271,17 @@ func (a *App) LogFromFrontend(level, message string) {
 	default:
 		a.logger.Info("%s", message)
 	}
+}
+
+// syncTemplates 同步内置模板到数据库
+func (a *App) syncTemplates(ctx context.Context) error {
+	// 创建模板同步器
+	syncer := sync.NewTemplateSyncer(
+		a.templateHandler.GetTemplateService(),
+		a.config.TemplatesDir,
+		a.logger,
+	)
+
+	// 执行同步
+	return syncer.SyncBuiltinTemplates(ctx)
 }

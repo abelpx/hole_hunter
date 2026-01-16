@@ -46,6 +46,8 @@ export function GetAllBrutePayloadSets():Promise<Array<models.BrutePayloadSet>>;
 
 export function GetAllBruteTasks():Promise<Array<models.BruteTask>>;
 
+export function GetAllCustomTemplates():Promise<Array<models.Template>>;
+
 export function GetAllHttpRequests():Promise<Array<models.HttpRequest>>;
 
 export function GetAllReports():Promise<Array<models.Report>>;
@@ -62,11 +64,19 @@ export function GetAllVulnerabilities():Promise<Array<models.Vulnerability>>;
 
 export function GetBruteTaskResults(arg1:number):Promise<Array<models.BruteResult>>;
 
+export function GetCustomTemplateByID(arg1:number):Promise<models.Template>;
+
+export function GetCustomTemplatesStats():Promise<Record<string, any>>;
+
 export function GetDashboardStats():Promise<models.DashboardStats>;
+
+export function GetDatabaseInfo():Promise<Record<string, any>>;
 
 export function GetDomainBruteResults(arg1:number):Promise<Array<models.DomainBruteResult>>;
 
 export function GetHttpRequestByID(arg1:number):Promise<models.HttpRequest>;
+
+export function GetHttpResponseHistory(arg1:number):Promise<Array<models.HttpResponse>>;
 
 export function GetNucleiStatus():Promise<models.NucleiStatus>;
 
@@ -106,6 +116,8 @@ export function GetVulnerabilitiesPageByFilter(arg1:models.VulnerabilityFilter,a
 
 export function GetVulnerabilityByID(arg1:number):Promise<models.Vulnerability>;
 
+export function HealthCheck():Promise<void>;
+
 export function LogFromFrontend(arg1:string,arg2:string):Promise<void>;
 
 export function MarkVulnerabilityFalsePositive(arg1:number,arg2:boolean):Promise<void>;
@@ -126,8 +138,14 @@ export function UpdateCustomTemplate(arg1:number,arg2:models.UpdateTemplateReque
 
 export function UpdateHttpRequest(arg1:number,arg2:any,arg3:any,arg4:any,arg5:Record<string, string>,arg6:any,arg7:any,arg8:Array<string>):Promise<void>;
 
+export function UpdateScanTaskStatus(arg1:number,arg2:string):Promise<void>;
+
 export function UpdateScenarioGroup(arg1:string,arg2:any,arg3:any,arg4:Array<string>):Promise<void>;
 
 export function UpdateTarget(arg1:number,arg2:string,arg3:string,arg4:string,arg5:Array<string>):Promise<void>;
 
+export function UpdateVulnerability(arg1:number,arg2:boolean,arg3:string):Promise<void>;
+
 export function UpdateVulnerabilityNotes(arg1:number,arg2:string):Promise<void>;
+
+export function ValidateCustomTemplate(arg1:string):Promise<boolean>;

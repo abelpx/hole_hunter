@@ -90,6 +90,10 @@ export function GetAllBruteTasks() {
   return window['go']['app']['App']['GetAllBruteTasks']();
 }
 
+export function GetAllCustomTemplates() {
+  return window['go']['app']['App']['GetAllCustomTemplates']();
+}
+
 export function GetAllHttpRequests() {
   return window['go']['app']['App']['GetAllHttpRequests']();
 }
@@ -122,8 +126,20 @@ export function GetBruteTaskResults(arg1) {
   return window['go']['app']['App']['GetBruteTaskResults'](arg1);
 }
 
+export function GetCustomTemplateByID(arg1) {
+  return window['go']['app']['App']['GetCustomTemplateByID'](arg1);
+}
+
+export function GetCustomTemplatesStats() {
+  return window['go']['app']['App']['GetCustomTemplatesStats']();
+}
+
 export function GetDashboardStats() {
   return window['go']['app']['App']['GetDashboardStats']();
+}
+
+export function GetDatabaseInfo() {
+  return window['go']['app']['App']['GetDatabaseInfo']();
 }
 
 export function GetDomainBruteResults(arg1) {
@@ -132,6 +148,10 @@ export function GetDomainBruteResults(arg1) {
 
 export function GetHttpRequestByID(arg1) {
   return window['go']['app']['App']['GetHttpRequestByID'](arg1);
+}
+
+export function GetHttpResponseHistory(arg1) {
+  return window['go']['app']['App']['GetHttpResponseHistory'](arg1);
 }
 
 export function GetNucleiStatus() {
@@ -210,6 +230,10 @@ export function GetVulnerabilityByID(arg1) {
   return window['go']['app']['App']['GetVulnerabilityByID'](arg1);
 }
 
+export function HealthCheck() {
+  return window['go']['app']['App']['HealthCheck']();
+}
+
 export function LogFromFrontend(arg1, arg2) {
   return window['go']['app']['App']['LogFromFrontend'](arg1, arg2);
 }
@@ -250,6 +274,10 @@ export function UpdateHttpRequest(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8
   return window['go']['app']['App']['UpdateHttpRequest'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
 }
 
+export function UpdateScanTaskStatus(arg1, arg2) {
+  return window['go']['app']['App']['UpdateScanTaskStatus'](arg1, arg2);
+}
+
 export function UpdateScenarioGroup(arg1, arg2, arg3, arg4) {
   return window['go']['app']['App']['UpdateScenarioGroup'](arg1, arg2, arg3, arg4);
 }
@@ -258,6 +286,14 @@ export function UpdateTarget(arg1, arg2, arg3, arg4, arg5) {
   return window['go']['app']['App']['UpdateTarget'](arg1, arg2, arg3, arg4, arg5);
 }
 
+export function UpdateVulnerability(arg1, arg2, arg3) {
+  return window['go']['app']['App']['UpdateVulnerability'](arg1, arg2, arg3);
+}
+
 export function UpdateVulnerabilityNotes(arg1, arg2) {
   return window['go']['app']['App']['UpdateVulnerabilityNotes'](arg1, arg2);
+}
+
+export function ValidateCustomTemplate(arg1) {
+  return window['go']['app']['App']['ValidateCustomTemplate'](arg1);
 }
