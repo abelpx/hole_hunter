@@ -2,6 +2,7 @@ package repo
 
 import (
 	"database/sql"
+	"fmt"
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -26,8 +27,32 @@ func setupTestDB(t *testing.T) *sql.DB {
 	return db
 }
 
+// CreateInMemoryDB 创建内存数据库（不依赖 testing.T，用于基准测试）
+func CreateInMemoryDB() (*sql.DB, error) {
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		return nil, fmt.Errorf("failed to open test database: %w", err)
+	}
+
+	// 创建测试表结构
+	if err := initSchemaDB(db); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("failed to init schema: %w", err)
+	}
+
+	return db, nil
+}
+
 // initSchema 初始化测试数据库表结构
 func initSchema(t *testing.T, db *sql.DB) {
+	t.Helper()
+	if err := initSchemaDB(db); err != nil {
+		t.Fatalf("failed to create test schema: %v", err)
+	}
+}
+
+// initSchemaDB 初始化数据库表结构（不依赖 testing.T）
+func initSchemaDB(db *sql.DB) error {
 	schema := `
 	CREATE TABLE targets (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -74,10 +99,31 @@ func initSchema(t *testing.T, db *sql.DB) {
 		cvss REAL,
 		created_at TEXT
 	);
+
+	CREATE TABLE templates (
+		id              INTEGER PRIMARY KEY AUTOINCREMENT,
+		source          TEXT NOT NULL,
+		template_id     TEXT,
+		name            TEXT NOT NULL,
+		severity        TEXT,
+		category        TEXT,
+		author          TEXT,
+		path            TEXT,
+		content         TEXT,
+		enabled         BOOLEAN DEFAULT 1,
+		description     TEXT,
+		impact          TEXT,
+		remediation     TEXT,
+		tags            TEXT,
+		reference       TEXT,
+		metadata        TEXT,
+		nuclei_version  TEXT,
+		official_path   TEXT,
+		created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	);
 	`
 
 	_, err := db.Exec(schema)
-	if err != nil {
-		t.Fatalf("failed to create test schema: %v", err)
-	}
+	return err
 }

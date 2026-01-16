@@ -2,450 +2,402 @@ package repo
 
 import (
 	"context"
-	"os"
-	"path/filepath"
+	"fmt"
 	"testing"
 
 	"github.com/holehunter/holehunter/internal/models"
 )
 
-// setupTestTemplateRepo 创建测试用的模板仓库
-func setupTestTemplateRepo(t *testing.T) (repo *TemplateRepository, cleanup func()) {
-	t.Helper()
-
-	// 创建临时目录
-	tempDir, err := os.MkdirTemp("", "templates-test-*")
-	if err != nil {
-		t.Fatalf("failed to create temp dir: %v", err)
-	}
-
-	// 创建测试模板文件
-	testTemplates := map[string]string{
-		"cves/test-cve.yaml": `
-id: cve-2024-1234
-info:
-  name: Test CVE Vulnerability
-  severity: critical
-  author: test-author
-  description: A test CVE vulnerability
-  tags: cve,critical
-`,
-		"vulnerabilities/test-vuln.yaml": `
-id: vuln-2024-5678
-info:
-  name: Test Vulnerability
-  severity: high
-  author: test-author
-  description: A test vulnerability
-  tags: vuln,high
-`,
-		"exposures/test-exposure.yaml": `
-id: exposure-2024-9012
-info:
-  name: Test Information Disclosure
-  severity: medium
-  author: another-author
-  description: A test information disclosure
-  tags: exposure,medium
-`,
-		"technologies/test-tech.yaml": `
-id: tech-detection-123
-info:
-  name: Technology Detection
-  severity: info
-  author: test-author
-  description: Detects specific technology
-  tags: tech,detection
-`,
-		"misconfiguration/test-misc.yaml": `
-id: misc-config-456
-info:
-  name: Misconfiguration Detection
-  severity: low
-  author: another-author
-  description: Detects misconfiguration
-  tags: misconfig,low
-`,
-	}
-
-	for path, content := range testTemplates {
-		fullPath := filepath.Join(tempDir, path)
-		if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
-			os.RemoveAll(tempDir)
-			t.Fatalf("failed to create dir: %v", err)
-		}
-		if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
-			os.RemoveAll(tempDir)
-			t.Fatalf("failed to write file: %v", err)
-		}
-	}
-
-	repo = NewTemplateRepository(tempDir)
-	cleanup = func() {
-		os.RemoveAll(tempDir)
-	}
-
-	return repo, cleanup
-}
-
 func TestTemplateRepository_GetAll(t *testing.T) {
-	repo, cleanup := setupTestTemplateRepo(t)
-	defer cleanup()
-
+	db := setupTestDB(t)
+	defer db.Close()
+	repo := NewTemplateRepository(db)
 	ctx := context.Background()
-	templates, err := repo.GetAll(ctx)
 
+	// 插入测试数据
+	_, err := db.ExecContext(ctx, `
+		INSERT INTO templates (source, template_id, name, severity, category, enabled)
+		VALUES
+			('builtin', 'test-1', 'Test Template 1', 'high', 'cves', 1),
+			('custom', 'custom-1', 'Custom Template 1', 'info', 'examples', 1)
+	`)
 	if err != nil {
-		t.Fatalf("GetAll() error = %v", err)
+		t.Fatalf("Failed to insert test data: %v", err)
 	}
 
-	// 验证返回了所有模板
-	if len(templates) != 5 {
-		t.Errorf("GetAll() returned %d templates, want 5", len(templates))
+	templates, err := repo.GetAll(ctx)
+	if err != nil {
+		t.Fatalf("GetAll failed: %v", err)
 	}
 
-	// 验证模板的基本属性
-	for _, tmpl := range templates {
-		if tmpl.ID == "" {
-			t.Error("template ID should not be empty")
-		}
-		if tmpl.Name == "" {
-			t.Error("template Name should not be empty")
-		}
-		if !tmpl.Enabled {
-			t.Error("template should be enabled by default")
-		}
-	}
-}
-
-func TestTemplateRepository_GetByCategory(t *testing.T) {
-	tests := []struct {
-		name      string
-		category  string
-		wantCount int
-		wantIDs   []string
-	}{
-		{
-			name:      "获取 cves 分类",
-			category:  "cves",
-			wantCount: 1,
-			wantIDs:   []string{"cves/test-cve"},
-		},
-		{
-			name:      "获取 vulnerabilities 分类",
-			category:  "vulnerabilities",
-			wantCount: 1,
-			wantIDs:   []string{"vulnerabilities/test-vuln"},
-		},
-		{
-			name:      "获取不存在的分类",
-			category:  "nonexistent",
-			wantCount: 0,
-			wantIDs:   nil,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			repo, cleanup := setupTestTemplateRepo(t)
-			defer cleanup()
-
-			ctx := context.Background()
-			templates, err := repo.GetByCategory(ctx, tt.category)
-
-			if err != nil {
-				t.Fatalf("GetByCategory() error = %v", err)
-			}
-
-			if len(templates) != tt.wantCount {
-				t.Errorf("GetByCategory() returned %d templates, want %d", len(templates), tt.wantCount)
-			}
-
-			if tt.wantIDs != nil {
-				for _, wantID := range tt.wantIDs {
-					found := false
-					for _, tmpl := range templates {
-						if tmpl.ID == wantID {
-							found = true
-							break
-						}
-					}
-					if !found {
-						t.Errorf("GetByCategory() did not return template with ID %s", wantID)
-					}
-				}
-			}
-		})
-	}
-}
-
-func TestTemplateRepository_GetBySeverity(t *testing.T) {
-	tests := []struct {
-		name      string
-		severity  string
-		wantCount int
-		wantNames []string
-	}{
-		{
-			name:      "获取 critical 级别",
-			severity:  "critical",
-			wantCount: 1,
-			wantNames: []string{"Test CVE Vulnerability"},
-		},
-		{
-			name:      "获取 high 级别",
-			severity:  "high",
-			wantCount: 1,
-			wantNames: []string{"Test Vulnerability"},
-		},
-		{
-			name:      "获取 medium 级别",
-			severity:  "medium",
-			wantCount: 1,
-			wantNames: []string{"Test Information Disclosure"},
-		},
-		{
-			name:      "获取 low 级别",
-			severity:  "low",
-			wantCount: 1,
-			wantNames: []string{"Misconfiguration Detection"},
-		},
-		{
-			name:      "获取 info 级别",
-			severity:  "info",
-			wantCount: 1,
-			wantNames: []string{"Technology Detection"},
-		},
-		{
-			name:      "获取不存在的级别",
-			severity:  "unknown",
-			wantCount: 0,
-			wantNames: nil,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			repo, cleanup := setupTestTemplateRepo(t)
-			defer cleanup()
-
-			ctx := context.Background()
-			templates, err := repo.GetBySeverity(ctx, tt.severity)
-
-			if err != nil {
-				t.Fatalf("GetBySeverity() error = %v", err)
-			}
-
-			if len(templates) != tt.wantCount {
-				t.Errorf("GetBySeverity() returned %d templates, want %d", len(templates), tt.wantCount)
-			}
-
-			if tt.wantNames != nil {
-				for _, wantName := range tt.wantNames {
-					found := false
-					for _, tmpl := range templates {
-						if tmpl.Name == wantName {
-							found = true
-							// 验证严重级别
-							if tmpl.Severity != tt.severity {
-								t.Errorf("template severity = %s, want %s", tmpl.Severity, tt.severity)
-							}
-							break
-						}
-					}
-					if !found {
-						t.Errorf("GetBySeverity() did not return template with name %s", wantName)
-					}
-				}
-			}
-		})
+	if len(templates) != 2 {
+		t.Errorf("Expected 2 templates, got %d", len(templates))
 	}
 }
 
 func TestTemplateRepository_GetByID(t *testing.T) {
-	repo, cleanup := setupTestTemplateRepo(t)
-	defer cleanup()
-
+	db := setupTestDB(t)
+	defer db.Close()
+	repo := NewTemplateRepository(db)
 	ctx := context.Background()
 
+	// 插入测试数据
+	result, err := db.ExecContext(ctx, `
+		INSERT INTO templates (source, template_id, name, severity, category, enabled)
+		VALUES ('builtin', 'test-1', 'Test Template 1', 'high', 'cves', 1)
+	`)
+	if err != nil {
+		t.Fatalf("Failed to insert test data: %v", err)
+	}
+
+	id, _ := result.LastInsertId()
+
+	template, err := repo.GetByID(ctx, int(id))
+	if err != nil {
+		t.Fatalf("GetByID failed: %v", err)
+	}
+
+	if template.Name != "Test Template 1" {
+		t.Errorf("Expected name 'Test Template 1', got '%s'", template.Name)
+	}
+
+	if template.Source != "builtin" {
+		t.Errorf("Expected source 'builtin', got '%s'", template.Source)
+	}
+}
+
+func TestTemplateRepository_GetPage(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	repo := NewTemplateRepository(db)
+	ctx := context.Background()
+
+	// 插入 150 条测试数据
+	for i := 1; i <= 150; i++ {
+		templateID := fmt.Sprintf("test-%d", i)
+		name := fmt.Sprintf("Template %d", i)
+		_, err := db.ExecContext(ctx, `
+			INSERT INTO templates (source, template_id, name, severity, category, enabled)
+			VALUES (?, ?, ?, ?, ?, 1)
+		`, "builtin", templateID, name, "high", "cves")
+		if err != nil {
+			t.Fatalf("Failed to insert test data: %v", err)
+		}
+	}
+
 	tests := []struct {
-		name      string
-		id        string
-		wantName  string
-		wantError bool
+		name          string
+		page          int
+		pageSize      int
+		expectedCount int
+		expectedTotal int
+	}{
+		{"第1页", 1, 50, 50, 150},
+		{"第2页", 2, 50, 50, 150},
+		{"第3页", 3, 50, 50, 150},
+		{"第4页", 4, 50, 0, 150},
+		{"小页面大小", 1, 10, 10, 150},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			templates, total, err := repo.GetPage(ctx, tt.page, tt.pageSize)
+			if err != nil {
+				t.Fatalf("GetPage failed: %v", err)
+			}
+
+			if len(templates) != tt.expectedCount {
+				t.Errorf("Expected %d templates, got %d", tt.expectedCount, len(templates))
+			}
+
+			if total != tt.expectedTotal {
+				t.Errorf("Expected total %d, got %d", tt.expectedTotal, total)
+			}
+		})
+	}
+}
+
+func TestTemplateRepository_GetPageByFilter(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	repo := NewTemplateRepository(db)
+	ctx := context.Background()
+
+	// 插入测试数据
+	_, err := db.ExecContext(ctx, `
+		INSERT INTO templates (source, template_id, name, severity, category, author, enabled)
+		VALUES
+			('builtin', 'cve-1', 'CVE-2021-44228', 'critical', 'cves', 'author1', 1),
+			('builtin', 'cve-2', 'CVE-2022-1234', 'high', 'cves', 'author1', 1),
+			('builtin', 'exposure-1', 'Exposed Admin Panel', 'high', 'exposures', 'author2', 1),
+			('custom', 'custom-1', 'My Custom Template', 'info', 'examples', 'user', 1),
+			('builtin', 'cve-3', 'Disabled CVE', 'critical', 'cves', 'author1', 0)
+	`)
+	if err != nil {
+		t.Fatalf("Failed to insert test data: %v", err)
+	}
+
+	tests := []struct {
+		name          string
+		filter        *models.TemplateFilterUnified
+		expectedCount int
 	}{
 		{
-			name:      "获取存在的模板",
-			id:        "cves/test-cve",
-			wantName:  "Test CVE Vulnerability",
-			wantError: false,
+			name: "按分类过滤 - cves",
+			filter: &models.TemplateFilterUnified{
+				Category: "cves",
+			},
+			expectedCount: 3,
 		},
 		{
-			name:      "获取不存在的模板",
-			id:        "nonexistent/test",
-			wantName:  "",
-			wantError: true,
+			name: "按严重程度过滤 - critical",
+			filter: &models.TemplateFilterUnified{
+				Severity: "critical",
+			},
+			expectedCount: 2,
+		},
+		{
+			name: "按作者过滤 - author1",
+			filter: &models.TemplateFilterUnified{
+				Author: "author1",
+			},
+			expectedCount: 3,
+		},
+		{
+			name: "按 source 过滤 - builtin",
+			filter: &models.TemplateFilterUnified{
+				Source: "builtin",
+			},
+			expectedCount: 4,
+		},
+		{
+			name: "按 enabled 过滤 - true",
+			filter: &models.TemplateFilterUnified{
+				Enabled: boolPtr(true),
+			},
+			expectedCount: 4,
+		},
+		{
+			name: "组合过滤 - cves + critical",
+			filter: &models.TemplateFilterUnified{
+				Category: "cves",
+				Severity: "critical",
+			},
+			expectedCount: 2,
+		},
+		{
+			name: "搜索关键词 - CVE",
+			filter: &models.TemplateFilterUnified{
+				Search: "CVE",
+			},
+			expectedCount: 3,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			template, err := repo.GetByID(ctx, tt.id)
-
-			if tt.wantError {
-				if err == nil {
-					t.Error("GetByID() expected error, got nil")
-				}
-				return
-			}
-
+			templates, total, err := repo.GetPageByFilter(ctx, tt.filter, 1, 100)
 			if err != nil {
-				t.Fatalf("GetByID() error = %v", err)
+				t.Fatalf("GetPageByFilter failed: %v", err)
 			}
 
-			if template.Name != tt.wantName {
-				t.Errorf("GetByID() name = %s, want %s", template.Name, tt.wantName)
+			if len(templates) != tt.expectedCount {
+				t.Errorf("Expected %d templates, got %d", tt.expectedCount, len(templates))
 			}
 
-			if template.ID != tt.id {
-				t.Errorf("GetByID() ID = %s, want %s", template.ID, tt.id)
-			}
-		})
-	}
-}
-
-func TestTemplateRepository_ParseTemplate(t *testing.T) {
-	repo, cleanup := setupTestTemplateRepo(t)
-	defer cleanup()
-
-	ctx := context.Background()
-	templates, err := repo.GetAll(ctx)
-	if err != nil {
-		t.Fatalf("GetAll() error = %v", err)
-	}
-
-	// 找到 CVE 模板进行详细验证
-	var cveTemplate *models.NucleiTemplate
-	for _, tmpl := range templates {
-		if tmpl.ID == "cves/test-cve" {
-			cveTemplate = tmpl
-			break
-		}
-	}
-
-	if cveTemplate == nil {
-		t.Fatal("CVE template not found")
-	}
-
-	// 验证解析的字段
-	tests := []struct {
-		field string
-		want  string
-		got   string
-	}{
-		{"ID", "cves/test-cve", cveTemplate.ID},
-		{"Name", "Test CVE Vulnerability", cveTemplate.Name},
-		{"Severity", "critical", cveTemplate.Severity},
-		{"Author", "test-author", cveTemplate.Author},
-		{"Description", "A test CVE vulnerability", cveTemplate.Description},
-		{"Category", "cves", cveTemplate.Category},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.field, func(t *testing.T) {
-			if tt.got != tt.want {
-				t.Errorf("%s = %s, want %s", tt.field, tt.got, tt.want)
+			if total != tt.expectedCount {
+				t.Errorf("Expected total %d, got %d", tt.expectedCount, total)
 			}
 		})
 	}
+}
 
-	// 验证 tags（逗号分隔的字符串应被解析为数组）
-	if len(cveTemplate.Tags) != 2 {
-		t.Errorf("Tags length = %d, want 2", len(cveTemplate.Tags))
-	}
-	expectedTags := []string{"cve", "critical"}
-	for i, tag := range cveTemplate.Tags {
-		if tag != expectedTags[i] {
-			t.Errorf("Tags[%d] = %s, want %s", i, tag, expectedTags[i])
-		}
+func TestTemplateRepository_Create(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	repo := NewTemplateRepository(db)
+	ctx := context.Background()
+
+	template := &models.Template{
+		Source:     "custom",
+		TemplateID: "test-custom-1",
+		Name:       "Test Custom Template",
+		Severity:   "info",
+		Category:   "examples",
+		Author:     "test-user",
+		Content:    "id: test-custom-1\ninfo:\n  name: Test",
+		Enabled:    true,
+		Tags:       []string{"test", "example"},
 	}
 
-	// 验证 Enabled 默认为 true
-	if !cveTemplate.Enabled {
-		t.Error("Enabled should be true by default")
+	created, err := repo.Create(ctx, template)
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	if created.ID == 0 {
+		t.Error("Expected non-zero ID")
+	}
+
+	if created.Source != "custom" {
+		t.Errorf("Expected source 'custom', got '%s'", created.Source)
 	}
 }
 
-func TestTemplateRepository_EmptyDirectory(t *testing.T) {
-	// 空目录测试
-	tempDir, err := os.MkdirTemp("", "empty-templates-test-*")
-	if err != nil {
-		t.Fatalf("failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tempDir)
-
-	repo := NewTemplateRepository(tempDir)
+func TestTemplateRepository_Update(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	repo := NewTemplateRepository(db)
 	ctx := context.Background()
 
-	templates, err := repo.GetAll(ctx)
-	if err != nil {
-		t.Fatalf("GetAll() on empty dir error = %v", err)
+	// 先创建一个模板
+	template := &models.Template{
+		Source:     "custom",
+		TemplateID: "test-custom-1",
+		Name:       "Original Name",
+		Severity:   "info",
+		Category:   "examples",
+		Enabled:    true,
 	}
 
-	if len(templates) != 0 {
-		t.Errorf("GetAll() on empty dir returned %d templates, want 0", len(templates))
+	created, err := repo.Create(ctx, template)
+	if err != nil {
+		t.Fatalf("Failed to create template: %v", err)
+	}
+
+	// 更新模板
+	created.Name = "Updated Name"
+	created.Severity = "high"
+
+	err = repo.Update(ctx, created)
+	if err != nil {
+		t.Fatalf("Update failed: %v", err)
+	}
+
+	// 验证更新
+	updated, err := repo.GetByID(ctx, created.ID)
+	if err != nil {
+		t.Fatalf("Failed to get updated template: %v", err)
+	}
+
+	if updated.Name != "Updated Name" {
+		t.Errorf("Expected name 'Updated Name', got '%s'", updated.Name)
+	}
+
+	if updated.Severity != "high" {
+		t.Errorf("Expected severity 'high', got '%s'", updated.Severity)
 	}
 }
 
-func TestTemplateRepository_NonexistentDirectory(t *testing.T) {
-	// 不存在的目录测试
-	repo := NewTemplateRepository("/nonexistent/directory/that/does/not/exist")
+func TestTemplateRepository_Delete(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	repo := NewTemplateRepository(db)
 	ctx := context.Background()
 
-	templates, err := repo.GetAll(ctx)
-	if err != nil {
-		t.Fatalf("GetAll() on nonexistent dir error = %v", err)
+	// 先创建一个模板
+	template := &models.Template{
+		Source:     "custom",
+		TemplateID: "test-custom-1",
+		Name:       "Test Template",
+		Severity:   "info",
+		Category:   "examples",
+		Enabled:    true,
 	}
 
-	if len(templates) != 0 {
-		t.Errorf("GetAll() on nonexistent dir returned %d templates, want 0", len(templates))
+	created, err := repo.Create(ctx, template)
+	if err != nil {
+		t.Fatalf("Failed to create template: %v", err)
+	}
+
+	// 删除模板
+	err = repo.Delete(ctx, created.ID)
+	if err != nil {
+		t.Fatalf("Delete failed: %v", err)
+	}
+
+	// 验证删除
+	_, err = repo.GetByID(ctx, created.ID)
+	if err == nil {
+		t.Error("Expected error when getting deleted template")
 	}
 }
 
-func TestTemplateRepository_InvalidYAML(t *testing.T) {
-	tempDir, err := os.MkdirTemp("", "invalid-yaml-test-*")
-	if err != nil {
-		t.Fatalf("failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tempDir)
-
-	// 创建无效的 YAML 文件
-	invalidPath := filepath.Join(tempDir, "test/invalid.yaml")
-	if err := os.MkdirAll(filepath.Dir(invalidPath), 0755); err != nil {
-		t.Fatalf("failed to create dir: %v", err)
-	}
-	if err := os.WriteFile(invalidPath, []byte("invalid: yaml: content: ["), 0644); err != nil {
-		t.Fatalf("failed to write file: %v", err)
-	}
-
-	repo := NewTemplateRepository(tempDir)
+func TestTemplateRepository_ToggleEnabled(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	repo := NewTemplateRepository(db)
 	ctx := context.Background()
 
-	// 应该跳过无效文件，不返回错误
-	templates, err := repo.GetAll(ctx)
+	// 先创建一个模板
+	template := &models.Template{
+		Source:     "custom",
+		TemplateID: "test-custom-1",
+		Name:       "Test Template",
+		Severity:   "info",
+		Category:   "examples",
+		Enabled:    true,
+	}
+
+	created, err := repo.Create(ctx, template)
 	if err != nil {
-		t.Fatalf("GetAll() with invalid YAML error = %v", err)
+		t.Fatalf("Failed to create template: %v", err)
 	}
 
-	// 验证返回的模板数量（可能有一个部分解析的模板）
-	// 解析失败的模板会返回最小信息
-	if len(templates) != 1 {
-		t.Errorf("GetAll() returned %d templates, want 1 (parsed with minimal info)", len(templates))
+	// 切换为禁用
+	err = repo.ToggleEnabled(ctx, created.ID, false)
+	if err != nil {
+		t.Fatalf("ToggleEnabled failed: %v", err)
 	}
 
-	// 验证解析失败的模板有默认值
-	tmpl := templates[0]
-	if tmpl.Severity != "unknown" {
-		t.Errorf("invalid template severity = %s, want 'unknown'", tmpl.Severity)
+	// 验证切换
+	updated, err := repo.GetByID(ctx, created.ID)
+	if err != nil {
+		t.Fatalf("Failed to get updated template: %v", err)
 	}
+
+	if updated.Enabled {
+		t.Error("Expected enabled to be false")
+	}
+}
+
+func TestTemplateRepository_SyncBuiltin(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	repo := NewTemplateRepository(db)
+	ctx := context.Background()
+
+	// 插入初始数据
+	_, err := db.ExecContext(ctx, `
+		INSERT INTO templates (source, template_id, name, severity, category, enabled)
+		VALUES ('builtin', 'existing-1', 'Existing Template', 'high', 'cves', 1)
+	`)
+	if err != nil {
+		t.Fatalf("Failed to insert initial data: %v", err)
+	}
+
+	// 同步新数据
+	templates := []*models.Template{
+		{TemplateID: "existing-1", Name: "Updated Template", Severity: "critical", Category: "cves"},
+		{TemplateID: "new-1", Name: "New Template", Severity: "high", Category: "exposures"},
+		{TemplateID: "new-2", Name: "Another New Template", Severity: "info", Category: "technologies"},
+	}
+
+	stats, err := repo.SyncBuiltin(ctx, templates)
+	if err != nil {
+		t.Fatalf("SyncBuiltin failed: %v", err)
+	}
+
+	if stats.Updated != 1 {
+		t.Errorf("Expected 1 updated, got %d", stats.Updated)
+	}
+
+	if stats.Inserted != 2 {
+		t.Errorf("Expected 2 inserted, got %d", stats.Inserted)
+	}
+}
+
+// Helper function
+func boolPtr(b bool) *bool {
+	return &b
 }

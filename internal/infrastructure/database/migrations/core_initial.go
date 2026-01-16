@@ -14,7 +14,7 @@ func (m *Core_001_Initial) Module() string      { return "core" }
 
 func (m *Core_001_Initial) Up(tx *sql.Tx) error {
 	schema := `
-	CREATE TABLE targets (
+	CREATE TABLE IF NOT EXISTS targets (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		name TEXT NOT NULL,
 		url TEXT NOT NULL UNIQUE,
@@ -24,7 +24,7 @@ func (m *Core_001_Initial) Up(tx *sql.Tx) error {
 		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);
 
-	CREATE TABLE scan_tasks (
+	CREATE TABLE IF NOT EXISTS scan_tasks (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		name TEXT,
 		target_id INTEGER NOT NULL,
@@ -42,7 +42,7 @@ func (m *Core_001_Initial) Up(tx *sql.Tx) error {
 		FOREIGN KEY (target_id) REFERENCES targets(id) ON DELETE CASCADE
 	);
 
-	CREATE TABLE vulnerabilities (
+	CREATE TABLE IF NOT EXISTS vulnerabilities (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		task_id INTEGER NOT NULL,
 		template_id TEXT NOT NULL,

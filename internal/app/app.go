@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
 	"github.com/holehunter/holehunter/internal/handler"
 	"github.com/holehunter/holehunter/internal/infrastructure/config"
@@ -42,7 +43,19 @@ func NewApp() *App {
 
 // Startup 应用启动
 func (a *App) Startup(ctx context.Context) {
-	_ = a.startup(ctx)
+	if err := a.startup(ctx); err != nil {
+		a.logger.Error("Application startup failed: %v", err)
+		// 显示错误对话框
+		if a.ctx != nil {
+			runtime.MessageDialog(ctx, runtime.MessageDialogOptions{
+				Type:          runtime.ErrorDialog,
+				Title:         "启动失败",
+				Message:       fmt.Sprintf("应用启动失败: %v\n\n请检查数据库文件是否损坏，尝试删除后重启动。", err),
+				Buttons:       []string{"确定"},
+				DefaultButton: "确定",
+			})
+		}
+	}
 }
 
 // startup 应用启动（内部方法）
@@ -89,7 +102,7 @@ func (a *App) initLayers() {
 	scanRepo := repo.NewScanRepository(a.db)
 	vulnRepo := repo.NewVulnerabilityRepository(a.db)
 	dashboardRepo := repo.NewDashboardRepository(a.db)
-	templateRepo := repo.NewTemplateRepository(a.config.TemplatesDir)
+	templateRepo := repo.NewTemplateRepository(a.db)
 	scenarioRepo := repo.NewScenarioRepository(a.db)
 	httpRequestRepo := repo.NewHTTPRequestRepository(a.db)
 	httpResponseRepo := repo.NewHTTPResponseRepository(a.db)
@@ -137,6 +150,24 @@ func (a *App) Shutdown(ctx context.Context) {
 	if a.db != nil {
 		a.db.Close()
 	}
+}
+
+// isInitialized 检查应用是否已正确初始化
+func (a *App) isInitialized() bool {
+	return a.targetHandler != nil &&
+		a.scanHandler != nil &&
+		a.vulnHandler != nil &&
+		a.dashboardHandler != nil &&
+		a.templateHandler != nil &&
+		a.scenarioHandler != nil
+}
+
+// checkInitialized 检查应用是否已初始化，如果未初始化则返回错误
+func (a *App) checkInitialized() error {
+	if !a.isInitialized() {
+		return fmt.Errorf("application not properly initialized")
+	}
+	return nil
 }
 
 // setupEventHandlers 设置事件处理器（处理业务逻辑事件）

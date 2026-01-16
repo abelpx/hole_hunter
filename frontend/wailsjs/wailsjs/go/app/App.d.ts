@@ -74,11 +74,21 @@ export function GetTemplateCategories():Promise<Array<string>>;
 
 export function GetTemplateSeverities():Promise<Array<string>>;
 
+export function GetTemplateStats():Promise<Record<string, number>>;
+
 export function GetTemplatesByCategory(arg1:string):Promise<Array<models.NucleiTemplate>>;
 
 export function GetTemplatesBySeverity(arg1:string):Promise<Array<models.NucleiTemplate>>;
 
+export function GetTemplatesPage(arg1:number,arg2:number):Promise<Array<models.NucleiTemplate>>;
+
+export function GetTemplatesPageByFilter(arg1:models.TemplateFilter,arg2:number,arg3:number):Promise<Array<models.NucleiTemplate>>;
+
 export function GetVulnerabilitiesByTaskID(arg1:number):Promise<Array<models.Vulnerability>>;
+
+export function GetVulnerabilitiesPage(arg1:number,arg2:number):Promise<Array<models.Vulnerability>>;
+
+export function GetVulnerabilitiesPageByFilter(arg1:models.VulnerabilityFilter,arg2:number,arg3:number):Promise<Array<models.Vulnerability>>;
 
 export function GetVulnerabilityByID(arg1:number):Promise<models.Vulnerability>;
 

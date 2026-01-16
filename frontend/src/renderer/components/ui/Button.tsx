@@ -80,9 +80,9 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     },
     ref
   ) => {
-    const styles = buttonStyles[type];
-    const sizeClass = sizeStyles[size];
-    const iconSz = iconSize[size];
+    const styles = buttonStyles[type] || buttonStyles.primary;
+    const sizeClass = sizeStyles[size] || sizeStyles.md;
+    const iconSz = iconSize[size] || iconSize.md;
 
     return (
       <motion.button

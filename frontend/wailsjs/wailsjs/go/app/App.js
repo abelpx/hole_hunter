@@ -146,6 +146,10 @@ export function GetTemplateSeverities() {
   return window['go']['app']['App']['GetTemplateSeverities']();
 }
 
+export function GetTemplateStats() {
+  return window['go']['app']['App']['GetTemplateStats']();
+}
+
 export function GetTemplatesByCategory(arg1) {
   return window['go']['app']['App']['GetTemplatesByCategory'](arg1);
 }
@@ -154,8 +158,24 @@ export function GetTemplatesBySeverity(arg1) {
   return window['go']['app']['App']['GetTemplatesBySeverity'](arg1);
 }
 
+export function GetTemplatesPage(arg1, arg2) {
+  return window['go']['app']['App']['GetTemplatesPage'](arg1, arg2);
+}
+
+export function GetTemplatesPageByFilter(arg1, arg2, arg3) {
+  return window['go']['app']['App']['GetTemplatesPageByFilter'](arg1, arg2, arg3);
+}
+
 export function GetVulnerabilitiesByTaskID(arg1) {
   return window['go']['app']['App']['GetVulnerabilitiesByTaskID'](arg1);
+}
+
+export function GetVulnerabilitiesPage(arg1, arg2) {
+  return window['go']['app']['App']['GetVulnerabilitiesPage'](arg1, arg2);
+}
+
+export function GetVulnerabilitiesPageByFilter(arg1, arg2, arg3) {
+  return window['go']['app']['App']['GetVulnerabilitiesPageByFilter'](arg1, arg2, arg3);
 }
 
 export function GetVulnerabilityByID(arg1) {

@@ -27,10 +27,10 @@ import { Button, Input, Badge } from '../components/ui';
 import { YamlEditor } from '../components/special/YamlEditor';
 import { motion } from 'framer-motion';
 import {
-  GetAllTemplates,
-  GetTemplatesByCategory,
-  GetTemplatesBySeverity,
+  GetTemplatesPageByFilter,
+  GetTemplateStats,
 } from '@wailsjs/go/app/App';
+import { models } from '@wailsjs/go/models';
 import { getService } from '../services/WailsService';
 
 // 统一的 PoC 类型，包含来源标识
@@ -72,10 +72,15 @@ const templateCategoryDefs: Omit<TemplateCategory, 'count'>[] = [
 ];
 
 export const PoCPage: React.FC = () => {
-  // 统一的 PoC 列表
-  const [allPocs, setAllPocs] = useState<UnifiedPoC[]>([]);
-  const [filteredPocs, setFilteredPocs] = useState<UnifiedPoC[]>([]);
+  // PoC 列表
+  const [displayPocs, setDisplayPocs] = useState<UnifiedPoC[]>([]);
   const [loading, setLoading] = useState(false);
+  const [builtinTotal, setBuiltinTotal] = useState(0);
+  const [customTotal, setCustomTotal] = useState(0);
+
+  // 分页状态
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 50;
 
   // 过滤条件
   const [searchQuery, setSearchQuery] = useState('');
@@ -85,11 +90,8 @@ export const PoCPage: React.FC = () => {
 
   // 统计信息
   const [stats, setStats] = useState({
-    total: 0,
     builtin: 0,
     custom: 0,
-    enabled: 0,
-    disabled: 0,
   });
 
   // 编辑器状态
@@ -104,35 +106,62 @@ export const PoCPage: React.FC = () => {
   const [showPreview, setShowPreview] = useState(false);
   const [previewContent, setPreviewContent] = useState('');
 
+  // 标记是否为初始加载
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+
+  // 初始加载
   useEffect(() => {
-    loadAllPocs();
+    loadStats();
+    loadPocs();
+    setIsInitialLoad(false);
   }, []);
 
+  // 当过滤条件或分页变化时重新加载
   useEffect(() => {
-    applyFilters();
-  }, [allPocs, searchQuery, categoryFilter, severityFilter, sourceFilter]);
+    if (isInitialLoad) return;
 
-  const loadAllPocs = async () => {
+    if (currentPage === 1) {
+      loadPocs();
+    } else {
+      setCurrentPage(1);
+    }
+  }, [searchQuery, categoryFilter, severityFilter, sourceFilter]);
+
+  // 页码变化时加载
+  useEffect(() => {
+    if (isInitialLoad) return;
+    if (currentPage > 1) {
+      loadPocs();
+    }
+  }, [currentPage]);
+
+  const loadStats = async () => {
+    try {
+      const categoryStats = await GetTemplateStats();
+      const totalBuiltin = Object.values(categoryStats).reduce((sum, count) => sum + count, 0);
+      setStats({ builtin: totalBuiltin, custom: 0 });
+
+      const service = getService();
+      const customTemplates = await service.getAllCustomTemplates();
+      setStats(prev => ({ ...prev, custom: customTemplates.length }));
+    } catch (error) {
+      console.error('Failed to load stats:', error);
+    }
+  };
+
+  const loadPocs = async () => {
+    console.log('[PoCPage] loadPocs called');
     setLoading(true);
     try {
-      // 并行加载内置和自定义 PoC
-      const [builtinData, customData] = await Promise.all([
-        loadBuiltinPocs(),
-        loadCustomPocs(),
-      ]);
-
-      // 合并为统一列表
-      const unified: UnifiedPoC[] = [
-        ...builtinData.map((poc) => ({ ...poc, source: 'builtin' as const })),
-        ...customData.map((poc) => ({
-          ...poc,
-          source: 'custom' as const,
-          id: `custom-${poc.id}`,
-        })),
-      ];
-
-      setAllPocs(unified);
-      updateStats(unified);
+      // 只显示选中的来源类型
+      if (sourceFilter === 'custom') {
+        await loadCustomPocs();
+      } else if (sourceFilter === 'builtin') {
+        await loadBuiltinPocs();
+      } else {
+        // all: 并行加载内置和自定义
+        await Promise.all([loadBuiltinPocs(), loadCustomPocs()]);
+      }
     } catch (error) {
       console.error('Failed to load PoCs:', error);
     } finally {
@@ -142,80 +171,76 @@ export const PoCPage: React.FC = () => {
 
   const loadBuiltinPocs = async () => {
     try {
-      let templates;
-      if (categoryFilter === 'all' && sourceFilter !== 'custom') {
-        templates = await GetAllTemplates();
-      } else if (severityFilter !== 'all') {
-        templates = await GetTemplatesBySeverity(severityFilter);
-      } else if (categoryFilter !== 'all' && categoryFilter !== 'custom') {
-        templates = await GetTemplatesByCategory(categoryFilter);
+      const filter = new models.TemplateFilter();
+      filter.category = categoryFilter === 'custom' ? '' : categoryFilter;
+      filter.search = searchQuery;
+      filter.severity = severityFilter;
+      filter.author = '';
+
+      const [result, totalCount] = await GetTemplatesPageByFilter(filter, currentPage, pageSize);
+      setBuiltinTotal(totalCount);
+
+      const builtinPocs = (result || []).map((poc) => ({
+        ...poc,
+        source: 'builtin' as const,
+        severity: (poc.severity || 'info') as UnifiedPoC['severity'],
+        id: poc.id || poc.template_id || `builtin-${poc.name}`,
+        name: poc.name || 'Unknown',
+        path: poc.path || poc.id || '',
+        category: poc.category || 'unknown',
+        author: poc.author || '',
+        description: poc.description || poc.info?.description || '',
+        tags: poc.tags || [],
+        enabled: poc.enabled !== false, // 默认启用
+      }));
+
+      if (sourceFilter === 'builtin') {
+        setDisplayPocs(builtinPocs);
       } else {
-        templates = await GetAllTemplates();
+        setDisplayPocs(prev => {
+          const customOnly = prev.filter(p => p.source === 'custom');
+          return [...builtinPocs, ...customOnly];
+        });
       }
-      return templates;
     } catch (error) {
       console.error('Failed to load builtin PoCs:', error);
-      return [];
+      if (sourceFilter === 'builtin') {
+        setDisplayPocs([]);
+      }
     }
   };
 
   const loadCustomPocs = async () => {
     try {
       const service = getService();
-      return await service.getAllCustomTemplates();
+      const customData = await service.getAllCustomTemplates();
+      setCustomTotal(customData.length);
+
+      const customPocs = (customData || []).map((poc) => ({
+        ...poc,
+        source: 'custom' as const,
+        id: `custom-${poc.id}`,
+        name: poc.name || 'Custom PoC',
+        severity: (poc.severity || 'info') as UnifiedPoC['severity'],
+        description: poc.description || '',
+        tags: poc.tags || [],
+        enabled: poc.enabled !== false,
+      }));
+
+      if (sourceFilter === 'custom') {
+        setDisplayPocs(customPocs);
+      } else {
+        setDisplayPocs(prev => {
+          const builtinOnly = prev.filter(p => p.source === 'builtin');
+          return [...builtinOnly, ...customPocs];
+        });
+      }
     } catch (error) {
       console.error('Failed to load custom PoCs:', error);
-      return [];
-    }
-  };
-
-  const updateStats = (pocs: UnifiedPoC[]) => {
-    setStats({
-      total: pocs.length,
-      builtin: pocs.filter((p) => p.source === 'builtin').length,
-      custom: pocs.filter((p) => p.source === 'custom').length,
-      enabled: pocs.filter((p) => p.enabled).length,
-      disabled: pocs.filter((p) => !p.enabled).length,
-    });
-  };
-
-  const applyFilters = () => {
-    let filtered = [...allPocs];
-
-    // 来源过滤
-    if (sourceFilter !== 'all') {
-      filtered = filtered.filter((p) => p.source === sourceFilter);
-    }
-
-    // 分类过滤
-    if (categoryFilter !== 'all') {
-      if (categoryFilter === 'custom') {
-        filtered = filtered.filter((p) => p.source === 'custom');
-      } else {
-        filtered = filtered.filter(
-          (p) => p.source === 'builtin' && p.category === categoryFilter
-        );
+      if (sourceFilter === 'custom') {
+        setDisplayPocs([]);
       }
     }
-
-    // 严重等级过滤
-    if (severityFilter !== 'all') {
-      filtered = filtered.filter((p) => p.severity === severityFilter);
-    }
-
-    // 搜索过滤
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (p) =>
-          p.name.toLowerCase().includes(query) ||
-          p.id.toLowerCase().includes(query) ||
-          p.tags?.some((tag) => tag.toLowerCase().includes(query)) ||
-          p.description?.toLowerCase().includes(query)
-      );
-    }
-
-    setFilteredPocs(filtered);
   };
 
   // 创建自定义 PoC
@@ -281,7 +306,7 @@ export const PoCPage: React.FC = () => {
       const service = getService();
       const originalId = parseInt(poc.id.replace('custom-', ''));
       await service.deleteCustomTemplate(originalId);
-      await loadAllPocs();
+      await loadPocs();
     } catch (error) {
       console.error('Failed to delete PoC:', error);
       alert('删除失败');
@@ -297,7 +322,7 @@ export const PoCPage: React.FC = () => {
         await service.toggleCustomTemplate(originalId, !poc.enabled);
       }
       // 内置 PoC 的状态切换需要后端支持，这里暂时只处理自定义
-      await loadAllPocs();
+      await loadPocs();
     } catch (error) {
       console.error('Failed to toggle PoC:', error);
     }
@@ -316,7 +341,7 @@ export const PoCPage: React.FC = () => {
         await service.createCustomTemplate(pocName, editorContent);
       }
 
-      await loadAllPocs();
+      await loadPocs();
       setShowEditor(false);
       setEditingPoc(null);
     } catch (error) {
@@ -369,26 +394,18 @@ export const PoCPage: React.FC = () => {
       </div>
 
       {/* 统计信息 */}
-      <div className="grid grid-cols-5 gap-4">
+      <div className="grid grid-cols-3 gap-4">
         <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
-          <div className="text-sm text-slate-400">总计</div>
-          <div className="text-2xl font-bold text-slate-100 mt-1">{stats.total}</div>
-        </div>
-        <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
-          <div className="text-sm text-slate-400">内置</div>
+          <div className="text-sm text-slate-400">内置 PoC 总数</div>
           <div className="text-2xl font-bold text-sky-400 mt-1">{stats.builtin}</div>
         </div>
         <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
-          <div className="text-sm text-slate-400">自定义</div>
+          <div className="text-sm text-slate-400">自定义 PoC 总数</div>
           <div className="text-2xl font-bold text-purple-400 mt-1">{stats.custom}</div>
         </div>
         <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
-          <div className="text-sm text-slate-400">已启用</div>
-          <div className="text-2xl font-bold text-emerald-400 mt-1">{stats.enabled}</div>
-        </div>
-        <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
-          <div className="text-sm text-slate-400">已禁用</div>
-          <div className="text-2xl font-bold text-slate-400 mt-1">{stats.disabled}</div>
+          <div className="text-sm text-slate-400">当前显示</div>
+          <div className="text-2xl font-bold text-slate-100 mt-1">{displayPocs.length}</div>
         </div>
       </div>
 
@@ -437,7 +454,7 @@ export const PoCPage: React.FC = () => {
         <Button
           type="secondary"
           icon={<RefreshCw size={16} />}
-          onClick={loadAllPocs}
+          onClick={loadPocs}
         >
           刷新
         </Button>
@@ -448,7 +465,7 @@ export const PoCPage: React.FC = () => {
         <div className="flex items-center justify-center py-12">
           <div className="text-slate-400">加载中...</div>
         </div>
-      ) : filteredPocs.length === 0 ? (
+      ) : displayPocs.length === 0 ? (
         <div className="text-center py-12">
           <FileCode size={48} className="text-slate-600 mx-auto mb-4" />
           <p className="text-slate-500">未找到匹配的 PoC</p>
@@ -456,7 +473,7 @@ export const PoCPage: React.FC = () => {
         </div>
       ) : (
         <div className="grid gap-3">
-          {filteredPocs.map((poc) => (
+          {displayPocs.map((poc) => (
             <motion.div
               key={poc.id}
               initial={{ opacity: 0, y: 10 }}
@@ -564,7 +581,7 @@ export const PoCPage: React.FC = () => {
                 {/* 操作按钮 */}
                 <div className="flex items-center gap-2">
                   <Button
-                    type="default"
+                    type="secondary"
                     size="sm"
                     icon={<Eye size={14} />}
                     onClick={() => handlePreview(poc)}
@@ -574,7 +591,7 @@ export const PoCPage: React.FC = () => {
                   {poc.source === 'custom' && (
                     <>
                       <Button
-                        type="default"
+                        type="secondary"
                         size="sm"
                         icon={<Edit size={14} />}
                         onClick={() => handleEdit(poc)}
@@ -595,6 +612,55 @@ export const PoCPage: React.FC = () => {
               </div>
             </motion.div>
           ))}
+        </div>
+      )}
+
+      {/* 分页控件 - 仅对内置 PoC 显示分页 */}
+      {sourceFilter !== 'custom' && builtinTotal > pageSize && (
+        <div className="flex items-center justify-between mt-6">
+          <div className="text-sm text-slate-400">
+            显示 {(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, builtinTotal)} / 共 {builtinTotal} 条内置 PoC
+            {sourceFilter === 'all' && customTotal > 0 && (
+              <span className="ml-3 text-purple-400">+ {customTotal} 条自定义 PoC</span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              type="secondary"
+              size="sm"
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(1)}
+            >
+              首页
+            </Button>
+            <Button
+              type="secondary"
+              size="sm"
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+            >
+              上一页
+            </Button>
+            <span className="text-sm text-slate-400 px-4">
+              第 {currentPage} / {Math.ceil(builtinTotal / pageSize)} 页
+            </span>
+            <Button
+              type="secondary"
+              size="sm"
+              disabled={currentPage >= Math.ceil(builtinTotal / pageSize)}
+              onClick={() => setCurrentPage(Math.min(Math.ceil(builtinTotal / pageSize), currentPage + 1))}
+            >
+              下一页
+            </Button>
+            <Button
+              type="secondary"
+              size="sm"
+              disabled={currentPage >= Math.ceil(builtinTotal / pageSize)}
+              onClick={() => setCurrentPage(Math.ceil(builtinTotal / pageSize))}
+            >
+              末页
+            </Button>
+          </div>
         </div>
       )}
 
@@ -631,7 +697,7 @@ export const PoCPage: React.FC = () => {
                   {saving ? '保存中...' : '保存'}
                 </Button>
                 <Button
-                  type="default"
+                  type="secondary"
                   icon={<X size={14} />}
                   onClick={() => setShowEditor(false)}
                 >
@@ -657,7 +723,7 @@ export const PoCPage: React.FC = () => {
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700">
               <h2 className="text-xl font-semibold text-slate-100">PoC 预览</h2>
               <Button
-                type="default"
+                type="secondary"
                 icon={<X size={14} />}
                 onClick={() => setShowPreview(false)}
               >

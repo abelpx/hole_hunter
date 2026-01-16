@@ -1,5 +1,6 @@
 {
   "name": "holehunter",
+  "type": "module",
   "version": "1.0.0-alpha",
   "description": "基于 Nuclei 的现代化安全测试工具",
   "main": "dist/main/index.js",
@@ -51,6 +52,7 @@
     "@typescript-eslint/eslint-plugin": "^6.14.0",
     "@typescript-eslint/parser": "^6.14.0",
     "@vitejs/plugin-react": "^4.2.1",
+    "@vitest/coverage-v8": "^4.0.17",
     "@vitest/ui": "^4.0.17",
     "autoprefixer": "^10.4.16",
     "concurrently": "^8.2.2",
@@ -60,7 +62,7 @@
     "eslint": "^8.55.0",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.5",
-    "jsdom": "^27.4.0",
+    "jsdom": "^25.0.1",
     "png-to-ico": "^3.0.1",
     "postcss": "^8.4.32",
     "prettier": "^3.1.1",

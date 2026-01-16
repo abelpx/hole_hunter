@@ -14,8 +14,9 @@ import {
   CheckCircle2,
   Loader2,
   FileText,
+  Trash2,
 } from 'lucide-react';
-import { Button, Badge } from '../components/ui';
+import { Button, Badge, Modal } from '../components/ui';
 import { ScanProgressBar } from '../components/special/ScanProgressBar';
 import { ScanLogViewer, LogEntry } from '../components/special/ScanLogViewer';
 import { ScanConfigModal, ScanConfigOptions } from '../components/special/ScanConfigModal';
@@ -45,6 +46,8 @@ export const ScansPage: React.FC = () => {
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [selectedTargetId, setSelectedTargetId] = useState<number | null>(null);
+  const [selectedScanIds, setSelectedScanIds] = useState<number[]>([]);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const { targets } = useTargetStore();
 
   useEffect(() => {
@@ -241,6 +244,33 @@ export const ScansPage: React.FC = () => {
     }
   };
 
+  const handleToggleSelect = (scanId: number) => {
+    setSelectedScanIds((prev) =>
+      prev.includes(scanId) ? prev.filter((id) => id !== scanId) : [...prev, scanId]
+    );
+  };
+
+  const handleSelectAll = () => {
+    setSelectedScanIds(scans.map((s) => s.id));
+  };
+
+  const handleClearSelection = () => {
+    setSelectedScanIds([]);
+  };
+
+  const handleBatchDelete = async () => {
+    try {
+      const service = getService();
+      await Promise.allSettled(selectedScanIds.map((id) => service.deleteScan(id)));
+      setShowDeleteConfirm(false);
+      setSelectedScanIds([]);
+      loadScans();
+    } catch (error) {
+      console.error('Failed to batch delete scans:', error);
+      alert('批量删除失败');
+    }
+  };
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'running':
@@ -273,25 +303,49 @@ export const ScansPage: React.FC = () => {
           <p className="text-slate-400 mt-1">管理和监控安全扫描任务</p>
         </div>
 
-        <Button
-          type="primary"
-          icon={<Play size={16} />}
-          onClick={() => {
-            console.log('[ScansPage] New Scan button clicked');
-            console.log('[ScansPage] targets.length:', targets.length);
-            console.log('[ScansPage] targets:', targets);
-            if (targets.length > 0) {
-              setSelectedTargetId(targets[0].id);
-              setShowConfigModal(true);
-              console.log('[ScansPage] Opening config modal for target:', targets[0].id);
-            } else {
-              console.log('[ScansPage] No targets available');
-            }
-          }}
-          disabled={targets.length === 0}
-        >
-          新建扫描
-        </Button>
+        <div className="flex items-center gap-3">
+          {/* 批量操作按钮 */}
+          {selectedScanIds.length > 0 && (
+            <>
+              <Badge variant="info">{selectedScanIds.length} 已选择</Badge>
+              <Button
+                type="danger"
+                size="md"
+                icon={<Trash2 size={16} />}
+                onClick={() => setShowDeleteConfirm(true)}
+              >
+                批量删除
+              </Button>
+              <Button
+                type="ghost"
+                size="md"
+                onClick={handleClearSelection}
+              >
+                取消选择
+              </Button>
+            </>
+          )}
+
+          <Button
+            type="primary"
+            icon={<Play size={16} />}
+            onClick={() => {
+              console.log('[ScansPage] New Scan button clicked');
+              console.log('[ScansPage] targets.length:', targets.length);
+              console.log('[ScansPage] targets:', targets);
+              if (targets.length > 0) {
+                setSelectedTargetId(targets[0].id);
+                setShowConfigModal(true);
+                console.log('[ScansPage] Opening config modal for target:', targets[0].id);
+              } else {
+                console.log('[ScansPage] No targets available');
+              }
+            }}
+            disabled={targets.length === 0}
+          >
+            新建扫描
+          </Button>
+        </div>
       </div>
 
       {/* 目标选择 */}
@@ -326,16 +380,39 @@ export const ScansPage: React.FC = () => {
         </div>
       ) : (
         <div className="space-y-4">
+          {/* 全选按钮 */}
+          {scans.length > 0 && (
+            <div className="flex items-center gap-4 text-sm text-slate-500">
+              <button
+                onClick={handleSelectAll}
+                className="hover:text-slate-300 transition-colors"
+              >
+                全选
+              </button>
+              <span>|</span>
+              <span>共 {scans.length} 个扫描任务</span>
+            </div>
+          )}
+
           {scans.map((scan) => (
             <motion.div
               key={scan.id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-slate-800/50 border border-slate-700 rounded-xl p-5"
+              className={`bg-slate-800/50 border rounded-xl p-5 transition-all ${
+                selectedScanIds.includes(scan.id) ? 'border-sky-500/50 bg-sky-500/5' : 'border-slate-700'
+              }`}
             >
               {/* 头部 */}
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
+                  {/* 选择复选框 */}
+                  <input
+                    type="checkbox"
+                    checked={selectedScanIds.includes(scan.id)}
+                    onChange={() => handleToggleSelect(scan.id)}
+                    className="w-4 h-4 rounded border-slate-600 text-sky-500 focus:ring-sky-500 focus:ring-offset-slate-800"
+                  />
                   {getStatusIcon(scan.status)}
                   <div>
                     <h3 className="text-lg font-semibold text-slate-100">{scan.target_name}</h3>
@@ -373,7 +450,7 @@ export const ScansPage: React.FC = () => {
                     )}
                     {scan.status !== 'running' && (
                       <Button
-                        type="default"
+                        type="secondary"
                         size="sm"
                         icon={<X size={14} />}
                         onClick={() => handleDeleteScan(scan.id)}
@@ -446,6 +523,25 @@ export const ScansPage: React.FC = () => {
         onConfirm={handleStartScan}
         targetName={targets.find((t) => t.id === selectedTargetId)?.name}
       />
+
+      {/* 批量删除确认模态框 */}
+      <Modal
+        visible={showDeleteConfirm}
+        title="确认删除"
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleBatchDelete}
+        confirmText="删除"
+        cancelText="取消"
+      >
+        <div className="space-y-4">
+          <p className="text-slate-300">
+            确定要删除选中的 <span className="text-sky-400 font-medium">{selectedScanIds.length}</span> 个扫描任务吗？
+          </p>
+          <p className="text-sm text-slate-500">
+            此操作将同时删除相关的扫描日志和结果，且无法撤销。
+          </p>
+        </div>
+      </Modal>
     </div>
   );
 };

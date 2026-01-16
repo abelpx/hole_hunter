@@ -249,7 +249,7 @@ export const CustomTemplatesPage: React.FC = () => {
                 {/* 操作按钮 */}
                 <div className="flex items-center gap-2">
                   <Button
-                    type="default"
+                    type="secondary"
                     size="sm"
                     icon={<Eye size={14} />}
                     onClick={() => handlePreview(template)}
@@ -257,7 +257,7 @@ export const CustomTemplatesPage: React.FC = () => {
                     预览
                   </Button>
                   <Button
-                    type="default"
+                    type="secondary"
                     size="sm"
                     icon={<Edit size={14} />}
                     onClick={() => handleEdit(template)}
@@ -314,7 +314,7 @@ export const CustomTemplatesPage: React.FC = () => {
                   {saving ? '保存中...' : '保存'}
                 </Button>
                 <Button
-                  type="default"
+                  type="secondary"
                   icon={<X size={14} />}
                   onClick={handleEditorClose}
                 >
@@ -343,7 +343,7 @@ export const CustomTemplatesPage: React.FC = () => {
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700">
               <h2 className="text-xl font-semibold text-slate-100">模板预览</h2>
               <Button
-                type="default"
+                type="secondary"
                 icon={<X size={14} />}
                 onClick={() => setShowPreview(false)}
               >

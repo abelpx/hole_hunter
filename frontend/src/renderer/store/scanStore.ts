@@ -13,6 +13,7 @@ interface ScanState {
   // 数据
   scans: ScanTask[];
   activeScanId: number | null;
+  selectedIds: number[];
 
   // 加载状态
   loading: boolean;
@@ -22,7 +23,14 @@ interface ScanState {
   fetchScans: () => Promise<void>;
   createScan: (data: Omit<CreateScanRequest, 'target_name'>) => Promise<number>;
   cancelScan: (id: number) => Promise<void>;
+  deleteScan: (id: number) => Promise<void>;
+  batchDeleteScans: (ids: number[]) => Promise<void>;
   getScanById: (id: number) => Promise<ScanTask | null>;
+
+  // 选择
+  toggleSelect: (id: number) => void;
+  selectAll: () => void;
+  clearSelection: () => void;
 
   // UI
   setLoading: (loading: boolean) => void;
@@ -36,6 +44,7 @@ export const useScanStore = create<ScanState>()(
       // 初始状态
       scans: [],
       activeScanId: null,
+      selectedIds: [],
       loading: false,
       error: null,
 
@@ -115,6 +124,75 @@ export const useScanStore = create<ScanState>()(
           set({ error: message });
           return null;
         }
+      },
+
+      // 删除扫描任务
+      deleteScan: async (id: number) => {
+        set({ loading: true, error: null });
+        try {
+          const service = getService();
+          await service.deleteScan(id);
+          const { scans } = get();
+          set({
+            scans: scans.filter((s) => s.id !== id),
+            loading: false,
+          });
+        } catch (error: any) {
+          set({ error: error.message, loading: false });
+          throw error;
+        }
+      },
+
+      // 批量删除扫描任务
+      batchDeleteScans: async (ids: number[]) => {
+        set({ loading: true, error: null });
+        try {
+          const service = getService();
+          const results = await Promise.allSettled(
+            ids.map((id) => service.deleteScan(id))
+          );
+
+          const failures = results.filter(r => r.status === 'rejected');
+          if (failures.length > 0) {
+            console.warn(`[scanStore] batchDeleteScans: ${failures.length}/${ids.length} failed`);
+          }
+
+          const successIds = new Set(
+            results
+              .map((r, i) => (r.status === 'fulfilled' ? ids[i] : null))
+              .filter(Boolean)
+          );
+
+          const { scans } = get();
+          set({
+            scans: scans.filter((s) => !successIds.has(s.id)),
+            loading: false,
+          });
+        } catch (error: any) {
+          set({ error: error.message, loading: false });
+          throw error;
+        }
+      },
+
+      // 切换选择
+      toggleSelect: (id: number) => {
+        const { selectedIds } = get();
+        if (selectedIds.includes(id)) {
+          set({ selectedIds: selectedIds.filter((sid) => sid !== id) });
+        } else {
+          set({ selectedIds: [...selectedIds, id] });
+        }
+      },
+
+      // 全选
+      selectAll: () => {
+        const { scans } = get();
+        set({ selectedIds: scans.map((s) => s.id) });
+      },
+
+      // 清除选择
+      clearSelection: () => {
+        set({ selectedIds: [] });
       },
 
       // 设置加载状态

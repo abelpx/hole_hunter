@@ -11,6 +11,7 @@ export interface BadgeProps {
   children: React.ReactNode;
   variant?: 'default' | 'success' | 'warning' | 'danger' | 'info';
   size?: 'sm' | 'md' | 'lg';
+  className?: string;
 }
 
 // Tag Props
@@ -66,6 +67,7 @@ export const Badge: React.FC<BadgeProps> = ({
   children,
   variant = 'default',
   size = 'md',
+  className,
 }) => {
   const styles = badgeStyles[variant];
   const sizeClass = badgeSizes[size];
@@ -79,7 +81,8 @@ export const Badge: React.FC<BadgeProps> = ({
         styles.bg,
         styles.text,
         styles.border,
-        sizeClass
+        sizeClass,
+        className
       )}
     >
       {children}

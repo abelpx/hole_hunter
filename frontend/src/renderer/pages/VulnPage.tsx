@@ -13,8 +13,9 @@ import {
   XCircle,
   AlertCircle,
   FileText,
+  Trash2,
 } from 'lucide-react';
-import { Button } from '../components/ui';
+import { Button, Modal } from '../components/ui';
 import { VulnCard } from '../components/special/VulnCard';
 import { VulnDetailModal } from '../components/special/VulnDetailModal';
 import { VulnFiltersPanel, VulnFilters } from '../components/special/VulnFiltersPanel';
@@ -31,40 +32,79 @@ export const VulnPage: React.FC = () => {
     loading,
     error,
     currentVuln,
+    total,
+    currentPage,
+    pageSize,
     fetchVulnerabilities,
     markFalsePositive,
     batchMarkFalsePositive,
+    batchDeleteVulnerabilities,
     toggleSelect,
     selectAll,
     clearSelection,
     setFilters,
     clearFilters,
     setCurrentVuln,
+    setPage,
+    nextPage,
+    prevPage,
   } = useVulnStore();
 
   const { targets } = useTargetStore();
   const [showFilters, setShowFilters] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
-  // 搜索防抖 - 减少不必要的 API 调用和重新渲染
+  // 搜索防抖
   const debouncedSearch = useDebounce(filters.search, 300);
 
   // 当搜索值变化时，重新获取数据（使用防抖后的值）
   useEffect(() => {
-    if (debouncedSearch !== undefined) {
-      fetchVulnerabilities({ ...filters, search: debouncedSearch });
+    // 跳过初始加载
+    if (isInitialLoad) {
+      setIsInitialLoad(false);
+      return;
     }
-  }, [debouncedSearch]); // 只依赖 debouncedSearch
+    fetchVulnerabilities(1);
+  }, [debouncedSearch]);
 
-  // 计算统计数据
+  // 初始加载 - 只执行一次
+  useEffect(() => {
+    fetchVulnerabilities(1);
+  }, []);
+
+  // 计算总页数
+  const totalPages = Math.ceil(total / pageSize);
+
+  const loadVulnerabilities = async () => {
+    await fetchVulnerabilities(1);
+  };
+
+  const handleFiltersChange = async (newFilters: VulnFilters) => {
+    setFilters(newFilters);
+    await fetchVulnerabilities(1);
+  };
+
+  const handleClearFilters = async () => {
+    clearFilters();
+    setShowFilters(false);
+    await fetchVulnerabilities(1);
+  };
+
+  const handlePageChange = async (page: number) => {
+    setPage(page);
+    await fetchVulnerabilities(page);
+  };
+
+  // 计算统计数据（基于当前页数据）
   const stats = useMemo(() => {
     const stats = {
+      total,
       critical: 0,
       high: 0,
       medium: 0,
       low: 0,
-      info: 0,
-      total: vulnerabilities.length,
       falsePositive: 0,
     };
 
@@ -74,43 +114,14 @@ export const VulnPage: React.FC = () => {
       else if (severity === 'high') stats.high++;
       else if (severity === 'medium') stats.medium++;
       else if (severity === 'low') stats.low++;
-      else stats.info++;
 
-      if (vuln.false_positive || vuln.is_false_positive) {
+      if (vuln.is_false_positive) {
         stats.falsePositive++;
       }
     });
 
     return stats;
-  }, [vulnerabilities]);
-
-  // 计算所有标签
-  const allTags = useMemo(() => {
-    const tags = new Set<string>();
-    vulnerabilities.forEach((vuln) => {
-      vuln.tags.forEach((tag) => tags.add(tag));
-    });
-    return Array.from(tags).sort();
-  }, [vulnerabilities]);
-
-  useEffect(() => {
-    fetchVulnerabilities();
-  }, []);
-
-  const loadVulnerabilities = async () => {
-    await fetchVulnerabilities(filters);
-  };
-
-  const handleFiltersChange = async (newFilters: VulnFilters) => {
-    setFilters(newFilters);
-    await fetchVulnerabilities(newFilters);
-  };
-
-  const handleClearFilters = async () => {
-    clearFilters();
-    setShowFilters(false);
-    await fetchVulnerabilities({});
-  };
+  }, [vulnerabilities, total]);
 
   const handleViewDetails = (vuln: Vulnerability) => {
     setCurrentVuln(vuln);
@@ -133,6 +144,17 @@ export const VulnPage: React.FC = () => {
     } catch (error) {
       console.error('Failed to batch mark false positive:', error);
       alert('批量操作失败');
+    }
+  };
+
+  const handleBatchDelete = async () => {
+    try {
+      await batchDeleteVulnerabilities(selectedIds);
+      setShowDeleteConfirm(false);
+      clearSelection();
+    } catch (error) {
+      console.error('Failed to batch delete:', error);
+      alert('批量删除失败');
     }
   };
 
@@ -235,7 +257,7 @@ export const VulnPage: React.FC = () => {
       {/* 过滤器和操作栏 */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3 flex-1">
-          {/* 搜索框 */}
+          {/* 搜索框 - 使用防抖优化性能 */}
           <div className="relative flex-1 max-w-md">
             <Search
               size={18}
@@ -252,8 +274,11 @@ export const VulnPage: React.FC = () => {
                 'transition-all'
               )}
               value={filters.search || ''}
-              onChange={(e) => handleFiltersChange({ ...filters, search: e.target.value })}
+              onChange={(e) => setFilters({ ...filters, search: e.target.value })}
             />
+            {filters.search !== debouncedSearch && (
+              <span className="text-xs text-slate-500 absolute right-3 top-1/2 -translate-y-1/2">搜索中...</span>
+            )}
           </div>
 
           {/* 过滤按钮 */}
@@ -291,6 +316,14 @@ export const VulnPage: React.FC = () => {
               批量标记误报
             </Button>
             <Button
+              type="danger"
+              size="sm"
+              icon={<Trash2 size={14} />}
+              onClick={() => setShowDeleteConfirm(true)}
+            >
+              批量删除
+            </Button>
+            <Button
               type="ghost"
               size="sm"
               onClick={clearSelection}
@@ -308,7 +341,7 @@ export const VulnPage: React.FC = () => {
         onFiltersChange={handleFiltersChange}
         onClear={handleClearFilters}
         targets={targets}
-        allTags={allTags}
+        allTags={[]}
       />
 
       {/* 漏洞列表 */}
@@ -337,21 +370,9 @@ export const VulnPage: React.FC = () => {
         </div>
       ) : (
         <>
-          {/* 全选按钮 */}
-          <div className="flex items-center gap-4 text-sm text-slate-500 mb-4">
-            <button
-              onClick={selectAll}
-              className="hover:text-slate-300 transition-colors"
-            >
-              全选
-            </button>
-            <span>|</span>
-            <span>共 {vulnerabilities.length} 个漏洞</span>
-          </div>
-
           {/* 漏洞卡片网格 */}
           <div className="grid grid-cols-1 gap-4">
-            {vulnerabilities.map((vuln) => (
+            {vulnerabilities.filter(v => v && v.id).map((vuln) => (
               <VulnCard
                 key={vuln.id}
                 vuln={vuln}
@@ -362,6 +383,64 @@ export const VulnPage: React.FC = () => {
                 onCopy={handleCopy}
               />
             ))}
+          </div>
+
+          {/* 分页控件 */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-700">
+              <div className="text-sm text-slate-400">
+                显示 {(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, total)} / 共 {total} 条
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="secondary"
+                  size="sm"
+                  disabled={currentPage === 1}
+                  onClick={() => handlePageChange(1)}
+                >
+                  首页
+                </Button>
+                <Button
+                  type="secondary"
+                  size="sm"
+                  disabled={currentPage === 1}
+                  onClick={() => handlePageChange(currentPage - 1)}
+                >
+                  上一页
+                </Button>
+                <span className="text-sm text-slate-400 px-3">
+                  第 {currentPage} / {totalPages} 页
+                </span>
+                <Button
+                  type="secondary"
+                  size="sm"
+                  disabled={currentPage >= totalPages}
+                  onClick={() => handlePageChange(currentPage + 1)}
+                >
+                  下一页
+                </Button>
+                <Button
+                  type="secondary"
+                  size="sm"
+                  disabled={currentPage >= totalPages}
+                  onClick={() => handlePageChange(totalPages)}
+                >
+                  末页
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* 全选按钮 */}
+          <div className="flex items-center gap-4 text-sm text-slate-500 mt-4">
+            <button
+              onClick={selectAll}
+              className="hover:text-slate-300 transition-colors"
+            >
+              全选当前页
+            </button>
+            <span>|</span>
+            <span>当前页 {vulnerabilities.length} 条，总计 {total} 条</span>
           </div>
         </>
       )}
@@ -377,6 +456,25 @@ export const VulnPage: React.FC = () => {
         onMarkFalsePositive={handleMarkFalsePositive}
         onCopy={handleCopy}
       />
+
+      {/* 批量删除确认模态框 */}
+      <Modal
+        visible={showDeleteConfirm}
+        title="确认删除"
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleBatchDelete}
+        confirmText="删除"
+        cancelText="取消"
+      >
+        <div className="space-y-4">
+          <p className="text-slate-300">
+            确定要删除选中的 <span className="text-sky-400 font-medium">{selectedIds.length}</span> 个漏洞吗？
+          </p>
+          <p className="text-sm text-slate-500">
+            此操作无法撤销，请谨慎操作。
+          </p>
+        </div>
+      </Modal>
     </div>
   );
 };

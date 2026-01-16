@@ -370,6 +370,28 @@ export namespace models {
 	        this.updated_at = source["updated_at"];
 	    }
 	}
+	export class TemplateFilter {
+	    page: number;
+	    pageSize: number;
+	    category: string;
+	    search: string;
+	    severity: string;
+	    author: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new TemplateFilter(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.page = source["page"];
+	        this.pageSize = source["pageSize"];
+	        this.category = source["category"];
+	        this.search = source["search"];
+	        this.severity = source["severity"];
+	        this.author = source["author"];
+	    }
+	}
 	export class Vulnerability {
 	    id: number;
 	    task_id: number;
@@ -410,6 +432,32 @@ export namespace models {
 	        this.cve = source["cve"];
 	        this.cvss = source["cvss"];
 	        this.created_at = source["created_at"];
+	    }
+	}
+	export class VulnerabilityFilter {
+	    page: number;
+	    pageSize: number;
+	    severity: string[];
+	    target_id?: number;
+	    scan_id?: number;
+	    is_false_positive?: boolean;
+	    tags: string[];
+	    search: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new VulnerabilityFilter(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.page = source["page"];
+	        this.pageSize = source["pageSize"];
+	        this.severity = source["severity"];
+	        this.target_id = source["target_id"];
+	        this.scan_id = source["scan_id"];
+	        this.is_false_positive = source["is_false_positive"];
+	        this.tags = source["tags"];
+	        this.search = source["search"];
 	    }
 	}
 

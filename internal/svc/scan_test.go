@@ -527,6 +527,29 @@ func setupTestDB(t *testing.T) *sql.DB {
 		cvss REAL,
 		created_at TEXT
 	);
+
+	CREATE TABLE templates (
+		id              INTEGER PRIMARY KEY AUTOINCREMENT,
+		source          TEXT NOT NULL,
+		template_id     TEXT,
+		name            TEXT NOT NULL,
+		severity        TEXT,
+		category        TEXT,
+		author          TEXT,
+		path            TEXT,
+		content         TEXT,
+		enabled         BOOLEAN DEFAULT 1,
+		description     TEXT,
+		impact          TEXT,
+		remediation     TEXT,
+		tags            TEXT,
+		reference       TEXT,
+		metadata        TEXT,
+		nuclei_version  TEXT,
+		official_path   TEXT,
+		created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	);
 	`
 
 	if _, err := db.Exec(schema); err != nil {
