@@ -56,9 +56,4 @@ jobs:
         run: npm ci
       - name: Run tests
         working-directory: ./frontend
-        run: npm run test:ci
-      - name: Upload coverage
-        uses: codecov/codecov-action@v3
-        with:
-          files: ./frontend/coverage/lcov.info
-          flags: frontend
+        run: npm run test -- --run --reporter=verbose
