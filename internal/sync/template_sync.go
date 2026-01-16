@@ -15,7 +15,7 @@ import (
 
 // TemplateSyncer 模板同步器
 type TemplateSyncer struct {
-	templateSvc *svc.TemplateService
+	templateSvc  *svc.TemplateService
 	templatesDir string
 	logger       *logger.Logger
 }
