@@ -777,24 +777,6 @@ class WailsServiceImpl {
       'exportReport'
     );
   }
-}
-        return [];
-      },
-      [],
-      'getAllReports'
-    );
-  }
-
-  async getReportById(id: number): Promise<any> {
-    return safeWailsCall(
-      async () => {
-        // TODO: 实现获取报告详情
-        return {};
-      },
-      {},
-      'getReportById'
-    );
-  }
 
   async createReport(data: { scan_id: number; format: string; name: string }): Promise<any> {
     return safeWailsCall(
@@ -916,3 +898,6 @@ class WailsServiceImpl {
   }
 }
 
+
+
+export const WailsService = new WailsServiceImpl();
