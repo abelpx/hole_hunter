@@ -24,8 +24,6 @@ import {
 // 使用 vite 别名导入 wailsjs
 import * as WailsApp from '@wailsjs/go/app/App';
 
-const currentEnvironment = detectEnvironment();
-
 // 统一的 Wails 调用包装器 - 处理异常和超时
 async function safeWailsCall<T>(
   fn: () => Promise<T>,
