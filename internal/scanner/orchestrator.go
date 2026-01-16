@@ -260,8 +260,14 @@ func (o *Orchestrator) onVulnerability(taskID int) func(*NucleiOutput) {
 			o.logger.Debug("Vulnerability found: task_id=%d, count=%d, vuln=%s", taskID, count, output.Name)
 		}
 
+		// 使用 scanCtx 的 context（如果存在），否则使用 Background
+		ctx := context.Background()
+		if exists && scanCtx.Request.Context != nil {
+			ctx = scanCtx.Request.Context
+		}
+
 		// 发布漏洞发现事件
-		o.eventBus.PublishAsync(context.Background(), event.Event{
+		o.eventBus.PublishAsync(ctx, event.Event{
 			Type: event.EventVulnFound,
 			Data: map[string]interface{}{
 				"taskId": taskID,
@@ -301,8 +307,14 @@ func (o *Orchestrator) onProgress(taskID int) func(ScanProgress) {
 			}
 		}
 
+		// 使用 scanCtx 的 context（如果存在），否则使用 Background
+		ctx := context.Background()
+		if exists && scanCtx.Request.Context != nil {
+			ctx = scanCtx.Request.Context
+		}
+
 		// 发布进度事件
-		o.eventBus.PublishAsync(context.Background(), event.Event{
+		o.eventBus.PublishAsync(ctx, event.Event{
 			Type: event.EventScanProgress,
 			Data: map[string]interface{}{
 				"taskId":   taskID,
