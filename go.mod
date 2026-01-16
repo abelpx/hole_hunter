@@ -1,6 +1,6 @@
 module github.com/holehunter/holehunter
 
-go 1.25.0
+go 1.24
 
 require (
 	github.com/mattn/go-sqlite3 v1.14.33
