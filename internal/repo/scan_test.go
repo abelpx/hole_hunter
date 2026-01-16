@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/holehunter/holehunter/internal/infrastructure/logger"
 	"github.com/holehunter/holehunter/internal/models"
 )
 
@@ -12,7 +13,8 @@ func TestScanRepository_Create(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	repo := NewScanRepository(db)
+	log := logger.New("info", "")
+	repo := NewScanRepository(db, log)
 	ctx := context.Background()
 
 	task := &models.ScanTask{
@@ -38,7 +40,8 @@ func TestScanRepository_GetByID(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	repo := NewScanRepository(db)
+	log := logger.New("info", "")
+	repo := NewScanRepository(db, log)
 	ctx := context.Background()
 
 	// 先创建一个任务
@@ -71,7 +74,8 @@ func TestScanRepository_GetByID_NotFound(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	repo := NewScanRepository(db)
+	log := logger.New("info", "")
+	repo := NewScanRepository(db, log)
 	ctx := context.Background()
 
 	_, err := repo.GetByID(ctx, 999)
@@ -85,7 +89,8 @@ func TestScanRepository_GetAll(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	repo := NewScanRepository(db)
+	log := logger.New("info", "")
+	repo := NewScanRepository(db, log)
 	ctx := context.Background()
 
 	// 创建多个任务
@@ -117,7 +122,8 @@ func TestScanRepository_UpdateStatus(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	repo := NewScanRepository(db)
+	log := logger.New("info", "")
+	repo := NewScanRepository(db, log)
 	ctx := context.Background()
 
 	// 创建任务
@@ -152,7 +158,8 @@ func TestScanRepository_UpdateStatus_Completed(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	repo := NewScanRepository(db)
+	log := logger.New("info", "")
+	repo := NewScanRepository(db, log)
 	ctx := context.Background()
 
 	// 创建任务
@@ -187,7 +194,8 @@ func TestScanRepository_UpdateProgress(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	repo := NewScanRepository(db)
+	log := logger.New("info", "")
+	repo := NewScanRepository(db, log)
 	ctx := context.Background()
 
 	// 创建任务
@@ -226,7 +234,8 @@ func TestScanRepository_Delete(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	repo := NewScanRepository(db)
+	log := logger.New("info", "")
+	repo := NewScanRepository(db, log)
 	ctx := context.Background()
 
 	// 创建任务
@@ -258,7 +267,8 @@ func TestScanRepository_CountByStatus(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	repo := NewScanRepository(db)
+	log := logger.New("info", "")
+	repo := NewScanRepository(db, log)
 	ctx := context.Background()
 
 	// 创建不同状态的任务
@@ -293,7 +303,8 @@ func TestScanRepository_GetByTargetID(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	repo := NewScanRepository(db)
+	log := logger.New("info", "")
+	repo := NewScanRepository(db, log)
 	ctx := context.Background()
 
 	targetID := 42
@@ -332,7 +343,8 @@ func TestScanRepository_GetAllPaged(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	repo := NewScanRepository(db)
+	log := logger.New("info", "")
+	repo := NewScanRepository(db, log)
 	ctx := context.Background()
 
 	// 创建 5 个任务
@@ -379,7 +391,8 @@ func TestScanRepository_Update(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	repo := NewScanRepository(db)
+	log := logger.New("info", "")
+	repo := NewScanRepository(db, log)
 	ctx := context.Background()
 
 	// 创建任务

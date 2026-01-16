@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/holehunter/holehunter/internal/infrastructure/event"
+	"github.com/holehunter/holehunter/internal/infrastructure/logger"
 	"github.com/holehunter/holehunter/internal/models"
 	"github.com/holehunter/holehunter/internal/repo"
 	"github.com/holehunter/holehunter/internal/scanner"
@@ -17,7 +18,8 @@ func TestScanService_GetAll(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	scanRepo := repo.NewScanRepository(db)
+	log := logger.New("info", "")
+	scanRepo := repo.NewScanRepository(db, log)
 	targetRepo := repo.NewTargetRepository(db)
 	eventBus := event.NewBus()
 
@@ -66,7 +68,8 @@ func TestScanService_GetByID(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	scanRepo := repo.NewScanRepository(db)
+	log := logger.New("info", "")
+	scanRepo := repo.NewScanRepository(db, log)
 	targetRepo := repo.NewTargetRepository(db)
 	eventBus := event.NewBus()
 
@@ -126,7 +129,8 @@ func TestScanService_GetByTargetID(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	scanRepo := repo.NewScanRepository(db)
+	log := logger.New("info", "")
+	scanRepo := repo.NewScanRepository(db, log)
 	targetRepo := repo.NewTargetRepository(db)
 	eventBus := event.NewBus()
 
@@ -182,7 +186,8 @@ func TestScanService_Create(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	scanRepo := repo.NewScanRepository(db)
+	log := logger.New("info", "")
+	scanRepo := repo.NewScanRepository(db, log)
 	targetRepo := repo.NewTargetRepository(db)
 	eventBus := event.NewBus()
 
@@ -286,7 +291,8 @@ func TestScanService_Delete(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	scanRepo := repo.NewScanRepository(db)
+	log := logger.New("info", "")
+	scanRepo := repo.NewScanRepository(db, log)
 	targetRepo := repo.NewTargetRepository(db)
 	eventBus := event.NewBus()
 
@@ -349,7 +355,8 @@ func TestScanService_GetStats(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	scanRepo := repo.NewScanRepository(db)
+	log := logger.New("info", "")
+	scanRepo := repo.NewScanRepository(db, log)
 	targetRepo := repo.NewTargetRepository(db)
 	eventBus := event.NewBus()
 

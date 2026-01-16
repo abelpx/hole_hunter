@@ -99,7 +99,7 @@ func (a *App) startup(ctx context.Context) error {
 func (a *App) initLayers() {
 	// 初始化 Repository
 	targetRepo := repo.NewTargetRepository(a.db)
-	scanRepo := repo.NewScanRepository(a.db)
+	scanRepo := repo.NewScanRepository(a.db, a.logger)
 	vulnRepo := repo.NewVulnerabilityRepository(a.db)
 	dashboardRepo := repo.NewDashboardRepository(a.db)
 	templateRepo := repo.NewTemplateRepository(a.db)

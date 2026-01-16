@@ -6,17 +6,19 @@ import (
 	"encoding/json"
 
 	"github.com/holehunter/holehunter/internal/infrastructure/errors"
+	"github.com/holehunter/holehunter/internal/infrastructure/logger"
 	"github.com/holehunter/holehunter/internal/models"
 )
 
 // ScanRepository 扫描任务仓储
 type ScanRepository struct {
-	db *sql.DB
+	db     *sql.DB
+	logger *logger.Logger
 }
 
 // NewScanRepository 创建扫描任务仓储
-func NewScanRepository(db *sql.DB) *ScanRepository {
-	return &ScanRepository{db: db}
+func NewScanRepository(db *sql.DB, logger *logger.Logger) *ScanRepository {
+	return &ScanRepository{db: db, logger: logger}
 }
 
 // GetAll 获取所有扫描任务
@@ -82,33 +84,7 @@ func (r *ScanRepository) GetByID(ctx context.Context, id int) (*models.ScanTask,
 		return nil, errors.DBError("failed to query scan task", err)
 	}
 
-	// 处理可空字段
-	if name.Valid {
-		t.Name = &name.String
-	}
-	if startedAt.Valid {
-		t.StartedAt = &startedAt.String
-	}
-	if completedAt.Valid {
-		t.CompletedAt = &completedAt.String
-	}
-	if templatesUsed.Valid {
-		json.Unmarshal([]byte(templatesUsed.String), &t.TemplatesUsed)
-	}
-	if totalTemplates.Valid {
-		val := int(totalTemplates.Int64)
-		t.TotalTemplates = &val
-	}
-	if executedTemplates.Valid {
-		val := int(executedTemplates.Int64)
-		t.ExecutedTemplates = &val
-	}
-	if currentTemplate.Valid {
-		t.CurrentTemplate = &currentTemplate.String
-	}
-	if errStr.Valid {
-		t.Error = &errStr.String
-	}
+	r.mapScanTaskFields(&t, name, startedAt, completedAt, templatesUsed, currentTemplate, errStr, totalTemplates, executedTemplates)
 
 	return &t, nil
 }
@@ -264,20 +240,11 @@ func (r *ScanRepository) CountByStatus(ctx context.Context) (map[string]int, err
 	return result, nil
 }
 
-// scanTask 扫描一行扫描任务数据
-func (r *ScanRepository) scanTask(rows *sql.Rows) (*models.ScanTask, error) {
-	var t models.ScanTask
-	var name, startedAt, completedAt, templatesUsed, currentTemplate, errStr sql.NullString
-	var totalTemplates, executedTemplates sql.NullInt64
+// mapScanTaskFields 映射可空字段到 ScanTask
+func (r *ScanRepository) mapScanTaskFields(t *models.ScanTask,
+	name, startedAt, completedAt, templatesUsed, currentTemplate, errStr sql.NullString,
+	totalTemplates, executedTemplates sql.NullInt64) {
 
-	err := rows.Scan(&t.ID, &name, &t.TargetID, &t.Status, &t.Strategy, &templatesUsed,
-		&startedAt, &completedAt, &totalTemplates, &executedTemplates,
-		&t.Progress, &currentTemplate, &errStr, &t.CreatedAt)
-	if err != nil {
-		return nil, err
-	}
-
-	// 处理可空字段
 	if name.Valid {
 		t.Name = &name.String
 	}
@@ -288,7 +255,9 @@ func (r *ScanRepository) scanTask(rows *sql.Rows) (*models.ScanTask, error) {
 		t.CompletedAt = &completedAt.String
 	}
 	if templatesUsed.Valid {
-		json.Unmarshal([]byte(templatesUsed.String), &t.TemplatesUsed)
+		if err := json.Unmarshal([]byte(templatesUsed.String), &t.TemplatesUsed); err != nil {
+			r.logger.Warn("Failed to unmarshal templates_used for scan task %d: %v", t.ID, err)
+		}
 	}
 	if totalTemplates.Valid {
 		val := int(totalTemplates.Int64)
@@ -304,6 +273,22 @@ func (r *ScanRepository) scanTask(rows *sql.Rows) (*models.ScanTask, error) {
 	if errStr.Valid {
 		t.Error = &errStr.String
 	}
+}
+
+// scanTask 扫描一行扫描任务数据
+func (r *ScanRepository) scanTask(rows *sql.Rows) (*models.ScanTask, error) {
+	var t models.ScanTask
+	var name, startedAt, completedAt, templatesUsed, currentTemplate, errStr sql.NullString
+	var totalTemplates, executedTemplates sql.NullInt64
+
+	err := rows.Scan(&t.ID, &name, &t.TargetID, &t.Status, &t.Strategy, &templatesUsed,
+		&startedAt, &completedAt, &totalTemplates, &executedTemplates,
+		&t.Progress, &currentTemplate, &errStr, &t.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+
+	r.mapScanTaskFields(&t, name, startedAt, completedAt, templatesUsed, currentTemplate, errStr, totalTemplates, executedTemplates)
 
 	return &t, nil
 }

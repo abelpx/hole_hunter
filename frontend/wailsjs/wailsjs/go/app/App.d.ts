@@ -8,6 +8,8 @@ export function CreateBrutePayloadSet(arg1:string,arg2:string,arg3:Record<string
 
 export function CreateBruteTask(arg1:string,arg2:number,arg3:string):Promise<number>;
 
+export function CreateCustomTemplate(arg1:models.CreateTemplateRequest):Promise<models.Template>;
+
 export function CreateDomainBruteTask(arg1:string,arg2:Array<string>,arg3:number,arg4:number):Promise<number>;
 
 export function CreateHttpRequest(arg1:string,arg2:string,arg3:string,arg4:Record<string, string>,arg5:string,arg6:string,arg7:Array<string>):Promise<models.HttpRequest>;
@@ -21,6 +23,8 @@ export function CreateScenarioGroup(arg1:string,arg2:string,arg3:string,arg4:Arr
 export function CreateTarget(arg1:string,arg2:string,arg3:string,arg4:Array<string>):Promise<models.Target>;
 
 export function DeleteBruteTask(arg1:number):Promise<void>;
+
+export function DeleteCustomTemplate(arg1:number):Promise<void>;
 
 export function DeleteHttpRequest(arg1:number):Promise<void>;
 
@@ -44,7 +48,7 @@ export function GetAllScenarioGroups():Promise<Array<models.ScenarioGroup>>;
 
 export function GetAllTargets():Promise<Array<models.Target>>;
 
-export function GetAllTemplates():Promise<Array<models.NucleiTemplate>>;
+export function GetAllTemplates():Promise<Array<models.Template>>;
 
 export function GetAllVulnerabilities():Promise<Array<models.Vulnerability>>;
 
@@ -68,7 +72,9 @@ export function GetScenarioGroupByID(arg1:string):Promise<models.ScenarioGroup>;
 
 export function GetTargetByID(arg1:number):Promise<models.Target>;
 
-export function GetTemplateByID(arg1:string):Promise<models.NucleiTemplate>;
+export function GetTemplateAuthors():Promise<Array<string>>;
+
+export function GetTemplateByID(arg1:number):Promise<models.Template>;
 
 export function GetTemplateCategories():Promise<Array<string>>;
 
@@ -76,13 +82,9 @@ export function GetTemplateSeverities():Promise<Array<string>>;
 
 export function GetTemplateStats():Promise<Record<string, number>>;
 
-export function GetTemplatesByCategory(arg1:string):Promise<Array<models.NucleiTemplate>>;
+export function GetTemplatesPage(arg1:number,arg2:number):Promise<Array<models.Template>>;
 
-export function GetTemplatesBySeverity(arg1:string):Promise<Array<models.NucleiTemplate>>;
-
-export function GetTemplatesPage(arg1:number,arg2:number):Promise<Array<models.NucleiTemplate>>;
-
-export function GetTemplatesPageByFilter(arg1:models.TemplateFilter,arg2:number,arg3:number):Promise<Array<models.NucleiTemplate>>;
+export function GetTemplatesPageByFilter(arg1:models.TemplateFilterUnified,arg2:number,arg3:number):Promise<Array<models.Template>>;
 
 export function GetVulnerabilitiesByTaskID(arg1:number):Promise<Array<models.Vulnerability>>;
 
@@ -103,6 +105,10 @@ export function SendHttpRequest(arg1:number,arg2:number):Promise<models.HttpResp
 export function StartScan(arg1:number):Promise<void>;
 
 export function StopScan(arg1:number):Promise<void>;
+
+export function ToggleCustomTemplate(arg1:number,arg2:boolean):Promise<void>;
+
+export function UpdateCustomTemplate(arg1:number,arg2:models.UpdateTemplateRequest):Promise<void>;
 
 export function UpdateHttpRequest(arg1:number,arg2:any,arg3:any,arg4:any,arg5:Record<string, string>,arg6:any,arg7:any,arg8:Array<string>):Promise<void>;
 

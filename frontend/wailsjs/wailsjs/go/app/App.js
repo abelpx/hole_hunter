@@ -14,6 +14,10 @@ export function CreateBruteTask(arg1, arg2, arg3) {
   return window['go']['app']['App']['CreateBruteTask'](arg1, arg2, arg3);
 }
 
+export function CreateCustomTemplate(arg1) {
+  return window['go']['app']['App']['CreateCustomTemplate'](arg1);
+}
+
 export function CreateDomainBruteTask(arg1, arg2, arg3, arg4) {
   return window['go']['app']['App']['CreateDomainBruteTask'](arg1, arg2, arg3, arg4);
 }
@@ -40,6 +44,10 @@ export function CreateTarget(arg1, arg2, arg3, arg4) {
 
 export function DeleteBruteTask(arg1) {
   return window['go']['app']['App']['DeleteBruteTask'](arg1);
+}
+
+export function DeleteCustomTemplate(arg1) {
+  return window['go']['app']['App']['DeleteCustomTemplate'](arg1);
 }
 
 export function DeleteHttpRequest(arg1) {
@@ -134,6 +142,10 @@ export function GetTargetByID(arg1) {
   return window['go']['app']['App']['GetTargetByID'](arg1);
 }
 
+export function GetTemplateAuthors() {
+  return window['go']['app']['App']['GetTemplateAuthors']();
+}
+
 export function GetTemplateByID(arg1) {
   return window['go']['app']['App']['GetTemplateByID'](arg1);
 }
@@ -148,14 +160,6 @@ export function GetTemplateSeverities() {
 
 export function GetTemplateStats() {
   return window['go']['app']['App']['GetTemplateStats']();
-}
-
-export function GetTemplatesByCategory(arg1) {
-  return window['go']['app']['App']['GetTemplatesByCategory'](arg1);
-}
-
-export function GetTemplatesBySeverity(arg1) {
-  return window['go']['app']['App']['GetTemplatesBySeverity'](arg1);
 }
 
 export function GetTemplatesPage(arg1, arg2) {
@@ -204,6 +208,14 @@ export function StartScan(arg1) {
 
 export function StopScan(arg1) {
   return window['go']['app']['App']['StopScan'](arg1);
+}
+
+export function ToggleCustomTemplate(arg1, arg2) {
+  return window['go']['app']['App']['ToggleCustomTemplate'](arg1, arg2);
+}
+
+export function UpdateCustomTemplate(arg1, arg2) {
+  return window['go']['app']['App']['UpdateCustomTemplate'](arg1, arg2);
 }
 
 export function UpdateHttpRequest(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) {

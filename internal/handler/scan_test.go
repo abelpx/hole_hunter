@@ -31,7 +31,7 @@ func TestScanHandler_GetNucleiStatus(t *testing.T) {
 	eventBus := event.NewBus()
 	log := logger.New("info", "")
 
-	scanRepo := repo.NewScanRepository(nil)
+	scanRepo := repo.NewScanRepository(nil, log)
 	targetRepo := repo.NewTargetRepository(nil)
 
 	service := svc.NewScanService(

@@ -56,6 +56,32 @@ export namespace models {
 	        this.updated_at = source["updated_at"];
 	    }
 	}
+	export class CreateTemplateRequest {
+	    name: string;
+	    content: string;
+	    severity: string;
+	    category: string;
+	    author: string;
+	    description: string;
+	    tags: string[];
+	    enabled: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new CreateTemplateRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.content = source["content"];
+	        this.severity = source["severity"];
+	        this.category = source["category"];
+	        this.author = source["author"];
+	        this.description = source["description"];
+	        this.tags = source["tags"];
+	        this.enabled = source["enabled"];
+	    }
+	}
 	export class DashboardStats {
 	    total_targets: number;
 	    total_scans: number;
@@ -198,42 +224,6 @@ export namespace models {
 	        this.ready = source["ready"];
 	    }
 	}
-	export class NucleiTemplate {
-	    id: string;
-	    name: string;
-	    severity: string;
-	    author: string;
-	    path: string;
-	    category: string;
-	    tags: string[];
-	    enabled: boolean;
-	    description?: string;
-	    impact?: string;
-	    remediation?: string;
-	    reference?: string[];
-	    metadata?: Record<string, string>;
-	
-	    static createFrom(source: any = {}) {
-	        return new NucleiTemplate(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.id = source["id"];
-	        this.name = source["name"];
-	        this.severity = source["severity"];
-	        this.author = source["author"];
-	        this.path = source["path"];
-	        this.category = source["category"];
-	        this.tags = source["tags"];
-	        this.enabled = source["enabled"];
-	        this.description = source["description"];
-	        this.impact = source["impact"];
-	        this.remediation = source["remediation"];
-	        this.reference = source["reference"];
-	        this.metadata = source["metadata"];
-	    }
-	}
 	export class PortScanResult {
 	    id: number;
 	    task_id: number;
@@ -370,26 +360,106 @@ export namespace models {
 	        this.updated_at = source["updated_at"];
 	    }
 	}
-	export class TemplateFilter {
+	export class Template {
+	    id: number;
+	    source: string;
+	    template_id: string;
+	    name: string;
+	    severity: string;
+	    category: string;
+	    author: string;
+	    path: string;
+	    content: string;
+	    enabled: boolean;
+	    description: string;
+	    impact: string;
+	    remediation: string;
+	    tags: string[];
+	    reference: string[];
+	    metadata: Record<string, string>;
+	    nuclei_version?: string;
+	    official_path?: string;
+	    created_at: string;
+	    updated_at: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Template(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.source = source["source"];
+	        this.template_id = source["template_id"];
+	        this.name = source["name"];
+	        this.severity = source["severity"];
+	        this.category = source["category"];
+	        this.author = source["author"];
+	        this.path = source["path"];
+	        this.content = source["content"];
+	        this.enabled = source["enabled"];
+	        this.description = source["description"];
+	        this.impact = source["impact"];
+	        this.remediation = source["remediation"];
+	        this.tags = source["tags"];
+	        this.reference = source["reference"];
+	        this.metadata = source["metadata"];
+	        this.nuclei_version = source["nuclei_version"];
+	        this.official_path = source["official_path"];
+	        this.created_at = source["created_at"];
+	        this.updated_at = source["updated_at"];
+	    }
+	}
+	export class TemplateFilterUnified {
 	    page: number;
 	    pageSize: number;
+	    source: string;
 	    category: string;
 	    search: string;
 	    severity: string;
 	    author: string;
+	    enabled?: boolean;
 	
 	    static createFrom(source: any = {}) {
-	        return new TemplateFilter(source);
+	        return new TemplateFilterUnified(source);
 	    }
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.page = source["page"];
 	        this.pageSize = source["pageSize"];
+	        this.source = source["source"];
 	        this.category = source["category"];
 	        this.search = source["search"];
 	        this.severity = source["severity"];
 	        this.author = source["author"];
+	        this.enabled = source["enabled"];
+	    }
+	}
+	export class UpdateTemplateRequest {
+	    name?: string;
+	    content?: string;
+	    severity?: string;
+	    category?: string;
+	    author?: string;
+	    description?: string;
+	    tags?: string[];
+	    enabled?: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new UpdateTemplateRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.content = source["content"];
+	        this.severity = source["severity"];
+	        this.category = source["category"];
+	        this.author = source["author"];
+	        this.description = source["description"];
+	        this.tags = source["tags"];
+	        this.enabled = source["enabled"];
 	    }
 	}
 	export class Vulnerability {
