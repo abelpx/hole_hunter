@@ -14,11 +14,17 @@ if ! command -v golangci-lint &> /dev/null; then
 fi
 
 echo "▶️  运行 golangci-lint..."
-golangci-lint run --timeout=5m
+if ! golangci-lint run --timeout=5m; then
+    echo "❌ golangci-lint 检查失败，请修复后再推送"
+    exit 1
+fi
 
 # 运行后端测试
 echo "▶️  运行后端测试..."
-go test ./internal/... -short
+if ! go test ./internal/... -short; then
+    echo "❌ 后端测试失败，请修复后再推送"
+    exit 1
+fi
 
 # 检查前端
 if [ -d "frontend" ]; then
