@@ -25,6 +25,8 @@ jobs:
         with:
           files: ./coverage.out
           flags: backend
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
 
   frontend-test:
     name: Frontend Test
@@ -41,4 +43,11 @@ jobs:
         run: npm ci
       - name: Run tests
         working-directory: ./frontend
-        run: npm run test -- --run --reporter=verbose
+        run: npm run test -- --run --coverage
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./frontend/coverage/lcov.info
+          flags: frontend
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false

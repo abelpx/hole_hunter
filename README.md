@@ -5,6 +5,7 @@
 现代化 Web 安全扫描工具
 
 [![CI Status](https://github.com/abelpx/hole_hunter/actions/workflows/CI/badge.svg)](https://github.com/abelpx/hole_hunter/actions/workflows/CI.yml)
+[![codecov](https://codecov.io/gh/abelpx/hole_hunter/branch/master/graph/badge.svg)](https://codecov.io/gh/abelpx/hole_hunter)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Go Version](https://img.shields.io/badge/Go-1.25+-00ADD8?logo=go)](https://go.dev/)
 [![React](https://img.shields.io/badge/React-18+-61DAFB?logo=react)](https://react.dev/)
