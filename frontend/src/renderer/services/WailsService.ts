@@ -23,6 +23,7 @@ import {
 // 导入 Wails 自动生成的绑定
 // 使用 vite 别名导入 wailsjs
 import * as WailsApp from '@wailsjs/go/app/App';
+import * as WailsRuntime from '@wailsjs/runtime/runtime';
 
 // 统一的 Wails 调用包装器 - 处理异常和超时
 async function safeWailsCall<T>(
@@ -37,7 +38,9 @@ async function safeWailsCall<T>(
   }
 
   try {
-    return await fn();
+    const result = await fn();
+    // 确保返回值不是 null 或 undefined
+    return result ?? defaultValue;
   } catch (error) {
     console.error(`[WailsService] ${context} failed:`, error);
     return defaultValue;
@@ -46,8 +49,8 @@ async function safeWailsCall<T>(
 
 // Wails 服务实现
 class WailsServiceImpl {
-  private getRuntime(): WailsRuntime | null {
-    return getWailsRuntime();
+  private getRuntime(): any {
+    return (window as any).runtime;
   }
 
   // ==================== 目标管理 ====================
@@ -56,7 +59,12 @@ class WailsServiceImpl {
     return safeWailsCall(
       async () => {
         const targets = await (WailsApp as any).GetAllTargets();
-        return targets ? targets.map((t: any) => ({ ...t, tags: t.tags || [] })) : [];
+        // 确保 targets 是数组
+        if (!Array.isArray(targets)) {
+          console.warn('[WailsService] GetAllTargets did not return an array:', targets);
+          return [];
+        }
+        return targets.map((t: any) => ({ ...t, tags: Array.isArray(t.tags) ? t.tags : [] }));
       },
       [],
       'getAllTargets'
@@ -474,23 +482,19 @@ class WailsServiceImpl {
   // ==================== 事件监听 ====================
 
   onScanProgress(callback: Function): void {
-    const runtime = this.getRuntime();
-    if (runtime) runtime.EventsOn('scan-progress', callback);
+    WailsRuntime.EventsOn('scan-progress', callback);
   }
 
   onScanLog(callback: Function): void {
-    const runtime = this.getRuntime();
-    if (runtime) runtime.EventsOn('scan-log', callback);
+    WailsRuntime.EventsOn('scan-log', callback);
   }
 
   onVulnFound(callback: Function): void {
-    const runtime = this.getRuntime();
-    if (runtime) runtime.EventsOn('vuln-found', callback);
+    WailsRuntime.EventsOn('vuln-found', callback);
   }
 
   offScanProgress(callback?: Function): void {
-    const runtime = this.getRuntime();
-    if (runtime) runtime.EventsOff('scan-progress', callback);
+    WailsRuntime.EventsOff('scan-progress', callback);
   }
 
   // ==================== HTTP 重放 ====================
