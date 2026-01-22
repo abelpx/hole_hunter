@@ -94,7 +94,11 @@ build: nuclei-download prepare-templates
 	@echo "$(GREEN)构建 $(APP_NAME) 桌面应用...$(NC)"
 	@echo "$(BLUE)平台: $(DETECTED_OS)$(NC)"
 	@echo "$(BLUE)模式: 生产（优化）$(NC)"
+ifeq ($(DETECTED_OS),Windows)
+	@export PATH="/c/ProgramData/mingw64/mingw64/bin:$$PATH" && export CGO_ENABLED=1 && "$(WAILS)" build
+else
 	@"$(WAILS)" build
+endif
 	@$(MAKE) copy-nuclei
 	@echo ""
 	@echo "$(GREEN)✓ 构建完成$(NC)"
