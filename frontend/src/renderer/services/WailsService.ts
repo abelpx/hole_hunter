@@ -179,7 +179,13 @@ class WailsServiceImpl {
   async getAllScans(): Promise<ScanTask[]> {
     return safeWailsCall(
       async () => {
-        return await (WailsApp as any).GetAllScanTasks() || [];
+        const scans = await (WailsApp as any).GetAllScanTasks();
+        // 确保 scans 是数组
+        if (!Array.isArray(scans)) {
+          console.warn('[WailsService] GetAllScanTasks did not return an array:', scans);
+          return [];
+        }
+        return scans;
       },
       [],
       'getAllScans'
@@ -233,7 +239,11 @@ class WailsServiceImpl {
     return safeWailsCall(
       async () => {
         const result = await (WailsApp as any).GetAllVulnerabilities();
-        if (!result) return [];
+        // 确保 result 是数组
+        if (!result || !Array.isArray(result)) {
+          console.warn('[WailsService] GetAllVulnerabilities did not return an array:', result);
+          return [];
+        }
 
         return result.map((v: any) => ({
           id: String(v.id),
