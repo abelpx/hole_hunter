@@ -3,13 +3,25 @@ import ReactDOM from 'react-dom/client'
 import App from './renderer/App'
 import './renderer/styles/index.css'
 
+// 导入 Wails 运行时（确保在 Wails 环境中正确加载）
+// 注意：这不会在浏览器中加载，因为 Wails 运行时只在 WebView2 中存在
+
 // 设置日志拦截，将日志发送到 Go 后端以便调试
 const originalConsoleLog = console.log;
 const originalConsoleError = console.error;
 const originalConsoleWarn = console.warn;
 
 // 检查是否在 Wails 环境中
+// 需要等待 Wails 注入完成
 const isWails = (window as any).go !== undefined;
+
+// 打印调试信息
+console.log('[main] Environment check:', {
+  hasWindowGo: typeof (window as any).go !== 'undefined',
+  hasWindowRuntime: typeof (window as any).runtime !== 'undefined',
+  location: window.location.href,
+  userAgent: navigator.userAgent
+});
 
 if (isWails) {
   try {
