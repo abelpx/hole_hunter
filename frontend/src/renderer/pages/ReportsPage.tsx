@@ -19,7 +19,7 @@ import {
   Eye,
 } from 'lucide-react';
 import { Button, Input, Select, Modal, Badge } from '../components/ui';
-import { ipcService } from '../services/IPCService';
+import { getService } from '../services/WailsService';
 
 interface ScanReport {
   id: number;
@@ -110,7 +110,8 @@ export const ReportsPage: React.FC = () => {
 
   const loadAvailableScans = async () => {
     try {
-      const scans = await ipcService.getAllScans();
+      const service = getService();
+      const scans = await service.getAllScans();
       // 只显示已完成的扫描
       setAvailableScans(scans.filter((s: any) => s.status === 'completed'));
     } catch (error) {

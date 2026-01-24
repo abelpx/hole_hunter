@@ -389,6 +389,10 @@ class WailsServiceImpl {
 
   // ==================== 应用信息 ====================
 
+  getEnvironment(): string {
+    return 'wails';
+  }
+
   async getAppVersion(): Promise<string> {
     return '2.0.0';
   }
@@ -495,6 +499,10 @@ class WailsServiceImpl {
 
   offScanProgress(callback?: Function): void {
     WailsRuntime.EventsOff('scan-progress', callback);
+  }
+
+  offScanLog(callback?: Function): void {
+    WailsRuntime.EventsOff('scan-log', callback);
   }
 
   // ==================== HTTP 重放 ====================

@@ -50,22 +50,6 @@ function App() {
           const errMsg = error instanceof Error ? error.message : 'Unknown error';
           newEnvInfo.dbHealth = 'Error: ' + errMsg;
         }
-      } else if (env === 'electron') {
-        newEnvInfo = { runtimeType: 'Electron', platform: '', dbHealth: '' };
-        const plat = service.getPlatform();
-        newEnvInfo.platform = plat;
-        try {
-          const healthResult = await (window as any).electronAPI.database.healthCheck();
-          if (healthResult.success) {
-            const { healthy, type } = healthResult.data;
-            newEnvInfo.dbHealth = healthy ? `Connected (${type})` : 'Disconnected';
-          } else {
-            newEnvInfo.dbHealth = 'Error: ' + (healthResult as any).error;
-          }
-        } catch (error: unknown) {
-          const errMsg = error instanceof Error ? error.message : 'Unknown error';
-          newEnvInfo.dbHealth = 'Error: ' + errMsg;
-        }
       } else {
         newEnvInfo = { runtimeType: 'Browser (Demo)', platform: 'web', dbHealth: '' };
         try {
@@ -82,6 +66,9 @@ function App() {
     };
 
     checkEnvironment();
+
+    // 设置全局导航函数供其他页面使用
+    (window as any).navigateToPage = handlePageChange;
   }, []);
 
   const handlePageChange = (page: PageKey) => {

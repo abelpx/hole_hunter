@@ -276,8 +276,10 @@ export const DashboardPage: React.FC = () => {
             type="primary"
             icon={<Play size={16} />}
             onClick={() => {
-              // 导航到扫描页面
-              window.dispatchEvent(new CustomEvent('navigate', { detail: 'scans' }));
+              // 导航到扫描页面 - 使用全局导航
+              if ((window as any).navigateToPage) {
+                (window as any).navigateToPage('tasks');
+              }
             }}
           >
             新建扫描
@@ -286,7 +288,9 @@ export const DashboardPage: React.FC = () => {
             type="secondary"
             icon={<Target size={16} />}
             onClick={() => {
-              window.dispatchEvent(new CustomEvent('navigate', { detail: 'targets' }));
+              if ((window as any).navigateToPage) {
+                (window as any).navigateToPage('targets');
+              }
             }}
           >
             管理目标
@@ -295,7 +299,9 @@ export const DashboardPage: React.FC = () => {
             type="ghost"
             icon={<Bug size={16} />}
             onClick={() => {
-              window.dispatchEvent(new CustomEvent('navigate', { detail: 'vulnerabilities' }));
+              if ((window as any).navigateToPage) {
+                (window as any).navigateToPage('vulnerabilities');
+              }
             }}
           >
             查看漏洞

@@ -95,10 +95,9 @@ export const useSettingsStore = create<SettingsState>()(
 
             set({ settings: updated, loading: false });
 
-            // TODO: 保存到主进程
-            if (typeof window !== 'undefined' && window.electronAPI) {
-              // await window.electronAPI.settings.save(updated);
-            }
+            // Wails 环境: 设置会话存储（暂不支持持久化到本地文件）
+            // TODO: 实现 Wails 绑定来持久化设置
+            console.log('[settingsStore] Settings updated (not persisted in Wails environment)');
           } catch (error: any) {
             set({ error: error.message, loading: false });
             throw error;

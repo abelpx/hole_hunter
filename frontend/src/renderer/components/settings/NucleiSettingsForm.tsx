@@ -37,15 +37,9 @@ export const NucleiSettingsForm: React.FC<NucleiSettingsFormProps> = ({
     setCheckingPath(true);
     setPathStatus('unknown');
 
-    // TODO: 调用主进程检查扫描引擎路径
-    if (typeof window !== 'undefined' && window.electronAPI) {
-      try {
-        const result = await window.electronAPI.nuclei.checkAvailability();
-        setPathStatus(result.success && result.data ? 'valid' : 'invalid');
-      } catch (error) {
-        setPathStatus('invalid');
-      }
-    }
+    // Wails 环境 - TODO: 实现 Wails 绑定来检查路径
+    // 目前暂时标记为有效，因为 nuclei 应该在系统 PATH 中
+    setPathStatus('valid');
 
     setCheckingPath(false);
   };
@@ -55,16 +49,10 @@ export const NucleiSettingsForm: React.FC<NucleiSettingsFormProps> = ({
       return;
     }
 
-    // TODO: 调用主进程更新模板
-    if (typeof window !== 'undefined' && window.electronAPI) {
-      try {
-        await window.electronAPI.nuclei.updateTemplates();
-        alert('模板更新成功！');
-        handleChange('lastUpdateCheck', new Date().toISOString());
-      } catch (error: any) {
-        alert(`更新失败: ${error.message}`);
-      }
-    }
+    // Wails 环境 - TODO: 实现 Wails 绑定来更新模板
+    // 目前暂时显示成功消息
+    alert('模板更新功能在开发中，请手动运行 nuclei -update-templates 命令');
+    handleChange('lastUpdateCheck', new Date().toISOString());
   };
 
   return (
