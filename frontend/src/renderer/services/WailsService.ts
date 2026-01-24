@@ -31,9 +31,10 @@ async function safeWailsCall<T>(
   defaultValue: T,
   context: string
 ): Promise<T> {
-  const App = (WailsApp as any);
-  if (!App || typeof App.GetAllTargets !== 'function') {
-    console.warn(`[WailsService] ${context}: Wails not available, returning default value`);
+  // 检查 Wails 运行时是否可用（检查 window.go）
+  const windowGo = (window as any).go;
+  if (!windowGo || !windowGo.app || !windowGo.app.App) {
+    console.warn(`[WailsService] ${context}: window.go not available (running in browser mode), returning default value`);
     return defaultValue;
   }
 
@@ -389,8 +390,28 @@ class WailsServiceImpl {
 
   // ==================== 应用信息 ====================
 
+  /**
+   * 检测当前运行环境
+   * @returns 'wails' | 'browser'
+   */
   getEnvironment(): string {
-    return 'wails';
+    // 检查 window.go 是否存在（Wails 运行时注入）
+    if (typeof window !== 'undefined' && (window as any).go) {
+      return 'wails';
+    }
+    // 检查 window.electronAPI 是否存在（Electron）
+    if (typeof window !== 'undefined' && (window as any).electronAPI) {
+      return 'electron';
+    }
+    // 默认为浏览器模式
+    return 'browser';
+  }
+
+  /**
+   * 检查 Wails 是否可用
+   */
+  isWailsAvailable(): boolean {
+    return this.getEnvironment() === 'wails';
   }
 
   async getAppVersion(): Promise<string> {
