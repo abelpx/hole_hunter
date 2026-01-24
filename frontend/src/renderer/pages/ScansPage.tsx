@@ -107,28 +107,17 @@ export const ScansPage: React.FC = () => {
       addLog(scanId, level as any, message, timestamp);
     };
 
-    // 注册事件监听器（Wails 或 Electron 环境）
+    // 注册事件监听器（Wails 环境）
     const service = getService();
-    const isWails = typeof window !== 'undefined' && (window as any).go !== undefined;
 
-    if (isWails) {
-      // Wails 事件监听
-      service.onScanProgress(handleScanProgress);
-    } else if (typeof window !== 'undefined' && window.electronAPI) {
-      window.electronAPI.on('scan-started', handleScanStarted);
-      window.electronAPI.on('scan-progress', handleScanProgress);
-      window.electronAPI.on('scan-finding', handleScanFinding);
-      window.electronAPI.on('scan-completed', handleScanCompleted);
-      window.electronAPI.on('scan-error', handleScanError);
-      window.electronAPI.on('scan-log', handleScanLog);
-    }
+    // Wails 事件监听
+    service.onScanProgress(handleScanProgress);
+    service.onScanLog(handleScanLog);
 
     return () => {
       // 清理事件监听器
-      if (isWails) {
-        service.offScanProgress();
-      }
-      // TODO: 添加 Electron 的清理逻辑
+      service.offScanProgress();
+      service.offScanLog?.();
     };
   }, []);
 
