@@ -357,15 +357,29 @@ class WailsServiceImpl {
     return safeWailsCall(
       async () => {
         const stats = await (WailsApp as any).GetDashboardStats();
+        // 检查 stats 是否存在，如果不存在则返回默认值
+        if (!stats || typeof stats !== 'object') {
+          console.warn('[WailsService] GetDashboardStats did not return a valid object:', stats);
+          return {
+            total_targets: 0,
+            total_scans: 0,
+            running_scans: 0,
+            total_vulnerabilities: 0,
+            critical_vulns: 0,
+            high_vulns: 0,
+            medium_vulns: 0,
+            low_vulns: 0,
+          };
+        }
         return {
-          total_targets: stats.TotalTargets,
-          total_scans: stats.TotalScans,
-          running_scans: stats.RunningScans,
-          total_vulnerabilities: stats.TotalVulnerabilities,
-          critical_vulns: stats.CriticalVulns,
-          high_vulns: stats.HighVulns,
-          medium_vulns: stats.MediumVulns,
-          low_vulns: stats.LowVulns,
+          total_targets: stats.TotalTargets || 0,
+          total_scans: stats.TotalScans || 0,
+          running_scans: stats.RunningScans || 0,
+          total_vulnerabilities: stats.TotalVulnerabilities || 0,
+          critical_vulns: stats.CriticalVulns || 0,
+          high_vulns: stats.HighVulns || 0,
+          medium_vulns: stats.MediumVulns || 0,
+          low_vulns: stats.LowVulns || 0,
         };
       },
       {
