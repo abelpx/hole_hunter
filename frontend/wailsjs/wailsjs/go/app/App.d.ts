@@ -104,9 +104,9 @@ export function GetTemplateSeverities():Promise<Array<string>>;
 
 export function GetTemplateStats():Promise<Record<string, number>>;
 
-export function GetTemplatesPage(arg1:number,arg2:number):Promise<Array<models.Template>>;
+export function GetTemplatesPage(arg1:number,arg2:number):Promise<models.TemplatePageResponse>;
 
-export function GetTemplatesPageByFilter(arg1:models.TemplateFilterUnified,arg2:number,arg3:number):Promise<Array<models.Template>>;
+export function GetTemplatesPageByFilter(arg1:models.TemplateFilterUnified,arg2:number,arg3:number):Promise<models.TemplatePageResponse>;
 
 export function GetVulnerabilitiesByTaskID(arg1:number):Promise<Array<models.Vulnerability>>;
 

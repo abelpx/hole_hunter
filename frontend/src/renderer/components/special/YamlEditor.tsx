@@ -118,31 +118,49 @@ export const YamlEditor: React.FC<YamlEditorProps> = ({
       <div className="flex items-center justify-between px-4 py-2 bg-slate-800 border-b border-slate-700">
         <div className="flex items-center gap-2">
           <FileCode size={16} className="text-slate-400" />
-          <span className="text-sm text-slate-300">POC Template Editor</span>
+          <span className="text-sm text-slate-300">
+            {readOnly ? 'POC Template Viewer' : 'POC Template Editor'}
+          </span>
         </div>
 
         <div className="flex items-center gap-2">
-          {/* 快速插入模板 */}
-          <div className="relative group">
-            <button
-              type="button"
-              className="px-3 py-1 text-xs bg-slate-700 text-slate-300 rounded hover:bg-slate-600 transition-colors"
-              onClick={() => insertTemplate(httpTemplate)}
-            >
-              HTTP 模板
-            </button>
-            <button
-              type="button"
-              className="px-3 py-1 text-xs bg-slate-700 text-slate-300 rounded hover:bg-slate-600 transition-colors ml-1"
-              onClick={() => insertTemplate(matcherTemplate)}
-            >
-              Matcher
-            </button>
-          </div>
+          {!readOnly && (
+            <>
+              {/* 快速插入模板 - 只在编辑模式显示 */}
+              <div className="relative group">
+                <button
+                  type="button"
+                  className="px-3 py-1 text-xs bg-slate-700 text-slate-300 rounded hover:bg-slate-600 transition-colors"
+                  onClick={() => insertTemplate(httpTemplate)}
+                >
+                  HTTP 模板
+                </button>
+                <button
+                  type="button"
+                  className="px-3 py-1 text-xs bg-slate-700 text-slate-300 rounded hover:bg-slate-600 transition-colors ml-1"
+                  onClick={() => insertTemplate(matcherTemplate)}
+                >
+                  Matcher
+                </button>
+              </div>
 
-          <div className="h-4 w-px bg-slate-600 mx-1" />
+              <div className="h-4 w-px bg-slate-600 mx-1" />
 
-          {/* 文件操作 */}
+              {/* 上传按钮 - 只在编辑模式显示 */}
+              <button
+                type="button"
+                onClick={handleUpload}
+                className="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-700 rounded transition-colors"
+                title="导入"
+              >
+                <Upload size={14} />
+              </button>
+
+              <div className="h-4 w-px bg-slate-600 mx-1" />
+            </>
+          )}
+
+          {/* 文件操作 - 始终显示 */}
           <button
             type="button"
             onClick={handleCopy}
@@ -159,26 +177,22 @@ export const YamlEditor: React.FC<YamlEditorProps> = ({
           >
             <Download size={14} />
           </button>
-          <button
-            type="button"
-            onClick={handleUpload}
-            className="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-700 rounded transition-colors"
-            title="导入"
-          >
-            <Upload size={14} />
-          </button>
 
-          <div className="h-4 w-px bg-slate-600 mx-1" />
+          {!readOnly && (
+            <>
+              <div className="h-4 w-px bg-slate-600 mx-1" />
 
-          {/* 验证按钮 */}
-          <button
-            type="button"
-            onClick={handleValidate}
-            disabled={isValidating || !content}
-            className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-500 disabled:bg-slate-600 disabled:text-slate-400 transition-colors flex items-center gap-1"
-          >
-            {isValidating ? '验证中...' : '验证语法'}
-          </button>
+              {/* 验证按钮 - 只在编辑模式显示 */}
+              <button
+                type="button"
+                onClick={handleValidate}
+                disabled={isValidating || !content}
+                className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-500 disabled:bg-slate-600 disabled:text-slate-400 transition-colors flex items-center gap-1"
+              >
+                {isValidating ? '验证中...' : '验证语法'}
+              </button>
+            </>
+          )}
         </div>
       </div>
 

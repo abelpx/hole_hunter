@@ -370,16 +370,16 @@ func (r *TemplateRepository) SyncBuiltin(ctx context.Context, templates []*model
 			}
 			stats.Inserted++
 		} else if err == nil {
-			// 更新现有模板
+			// 更新现有模板 - 包括 enabled 字段以确保模板保持启用状态
 			_, err := r.db.ExecContext(ctx, `
 				UPDATE templates SET
 					name = ?, severity = ?, category = ?, author = ?,
-					path = ?, description = ?, impact = ?, remediation = ?,
+					path = ?, enabled = ?, description = ?, impact = ?, remediation = ?,
 					tags = ?, reference = ?, metadata = ?,
 					nuclei_version = ?, official_path = ?, updated_at = CURRENT_TIMESTAMP
 				WHERE source = 'builtin' AND template_id = ?
 			`, tmpl.Name, tmpl.Severity, tmpl.Category, tmpl.Author,
-				tmpl.Path, tmpl.Description, tmpl.Impact, tmpl.Remediation,
+				tmpl.Path, tmpl.Enabled, tmpl.Description, tmpl.Impact, tmpl.Remediation,
 				stringSliceToJSON(tmpl.Tags), stringSliceToJSON(tmpl.Reference),
 				mapToJSON(tmpl.Metadata), tmpl.NucleiVersion, tmpl.OfficialPath,
 				tmpl.TemplateID,
@@ -473,14 +473,19 @@ func (r *TemplateRepository) scanTemplate(row *sql.Row) (*models.Template, error
 		t.OfficialPath = officialPath.String
 	}
 
-	// 解析 JSON 字段
-	if tagsJSON.Valid {
+	// 解析 JSON 字段为标准类型
+	t.Tags = []string{}
+	if tagsJSON.Valid && tagsJSON.String != "" && tagsJSON.String != "[]" {
 		json.Unmarshal([]byte(tagsJSON.String), &t.Tags)
 	}
-	if referenceJSON.Valid {
+
+	t.Reference = []string{}
+	if referenceJSON.Valid && referenceJSON.String != "" && referenceJSON.String != "[]" {
 		json.Unmarshal([]byte(referenceJSON.String), &t.Reference)
 	}
-	if metadataJSON.Valid {
+
+	t.Metadata = make(map[string]string)
+	if metadataJSON.Valid && metadataJSON.String != "" && metadataJSON.String != "{}" {
 		json.Unmarshal([]byte(metadataJSON.String), &t.Metadata)
 	}
 
@@ -532,14 +537,19 @@ func (r *TemplateRepository) scanTemplates(rows *sql.Rows) ([]*models.Template, 
 			t.OfficialPath = officialPath.String
 		}
 
-		// 解析 JSON 字段
-		if tagsJSON.Valid {
+		// 解析 JSON 字段为标准类型
+		t.Tags = []string{}
+		if tagsJSON.Valid && tagsJSON.String != "" && tagsJSON.String != "[]" {
 			json.Unmarshal([]byte(tagsJSON.String), &t.Tags)
 		}
-		if referenceJSON.Valid {
+
+		t.Reference = []string{}
+		if referenceJSON.Valid && referenceJSON.String != "" && referenceJSON.String != "[]" {
 			json.Unmarshal([]byte(referenceJSON.String), &t.Reference)
 		}
-		if metadataJSON.Valid {
+
+		t.Metadata = make(map[string]string)
+		if metadataJSON.Valid && metadataJSON.String != "" && metadataJSON.String != "{}" {
 			json.Unmarshal([]byte(metadataJSON.String), &t.Metadata)
 		}
 
@@ -553,18 +563,18 @@ func (r *TemplateRepository) scanTemplates(rows *sql.Rows) ([]*models.Template, 
 	return templates, nil
 }
 
-// 辅助函数：将 StringSlice 转换为 JSON 字符串
+// 辅助函数：将标准类型转换为 JSON 字符串（用于数据库存储）
 func stringSliceToJSON(slice []string) string {
-	if slice == nil {
+	if slice == nil || len(slice) == 0 {
 		return "[]"
 	}
 	data, _ := json.Marshal(slice)
 	return string(data)
 }
 
-// 辅助函数：将 map 转换为 JSON 字符串
+// 辅助函数：将 map 转换为 JSON 字符串（用于数据库存储）
 func mapToJSON(m map[string]string) string {
-	if m == nil {
+	if m == nil || len(m) == 0 {
 		return "{}"
 	}
 	data, _ := json.Marshal(m)

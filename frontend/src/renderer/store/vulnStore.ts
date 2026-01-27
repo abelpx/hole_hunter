@@ -117,10 +117,36 @@ export const useVulnStore = create<VulnState>()(
           }
 
           // 调用后端分页 API
-          const [result, totalCount] = await GetVulnerabilitiesPageByFilter(filter, page, pageSize);
+          // 检查 Wails runtime 是否可用
+          const windowGo = (window as any).go;
+          if (!windowGo || !windowGo.app || !windowGo.app.App) {
+            console.warn('[vulnStore] Wails runtime not available (running in browser mode), returning empty result');
+            set({
+              vulnerabilities: [],
+              total: 0,
+              currentPage: page,
+              loading: false,
+            });
+            return;
+          }
 
-          // 确保返回有效的漏洞数组
-          const vulnerabilities = (result || []).map(v => ({
+          const apiResult = await GetVulnerabilitiesPageByFilter(filter, page, pageSize);
+
+          // Wails 只返回数组，不返回 [数组, 总数]
+          // 验证返回值是否为数组
+          if (!apiResult || !Array.isArray(apiResult)) {
+            console.warn('[vulnStore] GetVulnerabilitiesPageByFilter did not return a valid array:', apiResult);
+            set({
+              vulnerabilities: [],
+              total: 0,
+              currentPage: page,
+              loading: false,
+            });
+            return;
+          }
+
+          // apiResult 就是漏洞数组，直接使用
+          const vulnerabilities = apiResult.map((v: any) => ({
             id: String(v?.id ?? ''),
             name: v?.name ?? '',
             severity: v?.severity as any,
@@ -135,11 +161,15 @@ export const useVulnStore = create<VulnState>()(
             is_false_positive: v?.false_positive ?? false,
             cve: v?.cve ? [v.cve] : undefined,
             cvss: v?.cvss,
-          })).filter(v => v.id); // 过滤掉无效数据
+          })).filter((v: any) => v.id); // 过滤掉无效数据
+
+          // 由于 Wails 不返回总数，使用当前返回的数量作为估算
+          // TODO: 需要添加专门获取总数的 API
+          const estimatedTotal = page * pageSize + vulnerabilities.length;
 
           set({
             vulnerabilities,
-            total: totalCount || 0,
+            total: estimatedTotal,
             currentPage: page,
             loading: false,
           });

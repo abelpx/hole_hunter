@@ -9,26 +9,26 @@ import (
 
 // Template 统一的模板模型（内置 + 自定义）
 type Template struct {
-	ID            int         `json:"id"`
-	Source        string      `json:"source"`      // "builtin" | "custom"
-	TemplateID    string      `json:"template_id"` // 原始模板 ID
-	Name          string      `json:"name"`
-	Severity      string      `json:"severity"`
-	Category      string      `json:"category"`
-	Author        string      `json:"author"`
-	Path          string      `json:"path"`
-	Content       string      `json:"content"` // 自定义模板的 YAML 内容
-	Enabled       bool        `json:"enabled"`
-	Description   string      `json:"description"`
-	Impact        string      `json:"impact"`
-	Remediation   string      `json:"remediation"`
-	Tags          StringSlice `json:"tags"`
-	Reference     StringSlice `json:"reference"`
-	Metadata      JSONMap     `json:"metadata"`
-	NucleiVersion string      `json:"nuclei_version,omitempty"`
-	OfficialPath  string      `json:"official_path,omitempty"`
-	CreatedAt     string      `json:"created_at"`
-	UpdatedAt     string      `json:"updated_at"`
+	ID            int              `json:"id"`
+	Source        string          `json:"source"`      // "builtin" | "custom"
+	TemplateID    string          `json:"template_id"` // 原始模板 ID
+	Name          string          `json:"name"`
+	Severity      string          `json:"severity"`
+	Category      string          `json:"category"`
+	Author        string          `json:"author"`
+	Path          string          `json:"path"`
+	Content       string          `json:"content"` // 自定义模板的 YAML 内容
+	Enabled       bool            `json:"enabled"`
+	Description   string          `json:"description"`
+	Impact        string          `json:"impact"`
+	Remediation   string          `json:"remediation"`
+	Tags          []string        `json:"tags"`       // 改为标准类型
+	Reference     []string        `json:"reference"`  // 改为标准类型
+	Metadata      map[string]string `json:"metadata"`   // 改为标准类型
+	NucleiVersion string          `json:"nuclei_version,omitempty"`
+	OfficialPath  string          `json:"official_path,omitempty"`
+	CreatedAt     string          `json:"created_at"`
+	UpdatedAt     string          `json:"updated_at"`
 }
 
 // TemplateFilter 模板过滤器
@@ -71,6 +71,14 @@ func (s *StringSlice) Scan(value interface{}) error {
 	return json.Unmarshal(data, s)
 }
 
+// MarshalJSON 实现 json.Marshaler 接口，确保 Wails 能正确序列化
+func (s StringSlice) MarshalJSON() ([]byte, error) {
+	if s == nil {
+		return []byte("[]"), nil
+	}
+	return json.Marshal([]string(s))
+}
+
 // JSONMap 用于存储 JSON 对象到数据库
 type JSONMap map[string]string
 
@@ -97,6 +105,14 @@ func (j *JSONMap) Scan(value interface{}) error {
 		return fmt.Errorf("unsupported type for JSONMap: %T", value)
 	}
 	return json.Unmarshal(data, j)
+}
+
+// MarshalJSON 实现 json.Marshaler 接口，确保 Wails 能正确序列化
+func (j JSONMap) MarshalJSON() ([]byte, error) {
+	if j == nil {
+		return []byte("{}"), nil
+	}
+	return json.Marshal(map[string]string(j))
 }
 
 // Match 检查模板是否匹配过滤条件
@@ -222,4 +238,37 @@ type SyncStats struct {
 	Updated  int `json:"updated"`
 	Deleted  int `json:"deleted"`
 	Total    int `json:"total"`
+}
+
+// TemplatePageResponse 分页响应（Wails 可序列化）
+// 使用值类型而非指针，确保 Wails 能正确序列化
+type TemplatePageResponse struct {
+	Templates []Template `json:"templates"`
+	Total     int        `json:"total"`
+}
+
+// ToDTO 将 Template 转换为可序列化的 DTO
+func (t *Template) ToDTO() map[string]interface{} {
+	return map[string]interface{}{
+		"id":             t.ID,
+		"source":         t.Source,
+		"template_id":    t.TemplateID,
+		"name":           t.Name,
+		"severity":       t.Severity,
+		"category":       t.Category,
+		"author":         t.Author,
+		"path":           t.Path,
+		"content":        t.Content,
+		"enabled":        t.Enabled,
+		"description":    t.Description,
+		"impact":         t.Impact,
+		"remediation":    t.Remediation,
+		"tags":           []string(t.Tags),
+		"reference":      []string(t.Reference),
+		"metadata":       map[string]string(t.Metadata),
+		"nuclei_version": t.NucleiVersion,
+		"official_path":  t.OfficialPath,
+		"created_at":     t.CreatedAt,
+		"updated_at":     t.UpdatedAt,
+	}
 }
