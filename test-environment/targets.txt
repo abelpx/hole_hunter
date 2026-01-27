@@ -1,0 +1,11 @@
+# Hole Hunter 测试目标
+# 使用这些 URL 来测试扫描功能
+
+# 本地测试环境
+http://localhost:8080    # DVWA - PHP 漏洞应用
+http://localhost:3000    # Juice Shop - Node.js 漏洞应用
+http://localhost:8082    # Nginx 1.15.0 - 已知 CVE
+
+# 公共测试站点 (请勿滥用)
+# http://testphp.vulnweb.com     # Acunetix 测试站点
+# http://testhtml5.vulnweb.com   # HTML5 测试站点

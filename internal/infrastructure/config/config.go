@@ -112,13 +112,18 @@ func getTemplatesDir(dataDir string) string {
 		}
 	}
 
-	// 2. 使用用户数据目录的模板
+	// 2. 开发模式：检查 build/bin 目录
+	if _, err := os.Stat("build/bin/nuclei-templates"); err == nil {
+		return "build/bin/nuclei-templates"
+	}
+
+	// 3. 使用用户数据目录的模板
 	userTemplates := filepath.Join(dataDir, "nuclei-templates")
 	if _, err := os.Stat(userTemplates); err == nil {
 		return userTemplates
 	}
 
-	// 3. 创建用户数据目录的模板目录
+	// 4. 创建用户数据目录的模板目录
 	_ = os.MkdirAll(userTemplates, 0755)
 	return userTemplates
 }

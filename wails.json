@@ -19,5 +19,6 @@
   "wailsjsdir": "./frontend/wailsjs",
   "version": "2",
   "outputType": "desktop",
-  "build:pre": "./build/copy-templates.sh"
+  "build:pre": "./build/copy-templates.sh",
+  "build:post": "powershell -ExecutionPolicy Bypass -File ./build/copy-binaries.ps1"
 }
