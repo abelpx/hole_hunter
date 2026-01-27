@@ -222,19 +222,61 @@ func (a *App) GetTemplateByID(id int) (*models.Template, error) {
 }
 
 // GetTemplatesPage 获取分页模板
-func (a *App) GetTemplatesPage(page, pageSize int) ([]*models.Template, int, error) {
+// 返回单个结构体，Wails 可以正确序列化
+func (a *App) GetTemplatesPage(page, pageSize int) (*models.TemplatePageResponse, error) {
+	a.logger.Info("[GetTemplatesPage] Called with page=%d, pageSize=%d", page, pageSize)
+
 	if err := a.checkInitialized(); err != nil {
-		return nil, 0, err
+		a.logger.Error("[GetTemplatesPage] checkInitialized failed: %v", err)
+		return nil, err
 	}
-	return a.templateHandler.GetPage(a.ctx, page, pageSize)
+
+	result, total, err := a.templateHandler.GetPage(a.ctx, page, pageSize)
+	if err != nil {
+		a.logger.Error("[GetTemplatesPage] GetPage failed: %v", err)
+		return nil, err
+	}
+
+	// 将 []*models.Template 转换为 []models.Template（值类型）
+	templates := make([]models.Template, len(result))
+	for i, t := range result {
+		templates[i] = *t
+	}
+
+	a.logger.Info("[GetTemplatesPage] Returning %d templates, total=%d", len(result), total)
+	return &models.TemplatePageResponse{
+		Templates: templates,
+		Total:     total,
+	}, nil
 }
 
 // GetTemplatesPageByFilter 根据过滤条件获取分页模板
-func (a *App) GetTemplatesPageByFilter(filter *models.TemplateFilterUnified, page, pageSize int) ([]*models.Template, int, error) {
+// 返回单个结构体，Wails 可以正确序列化
+func (a *App) GetTemplatesPageByFilter(filter *models.TemplateFilterUnified, page, pageSize int) (*models.TemplatePageResponse, error) {
+	a.logger.Info("[GetTemplatesPageByFilter] Called with filter: %+v, page: %d, pageSize: %d", filter, page, pageSize)
+
 	if err := a.checkInitialized(); err != nil {
-		return nil, 0, err
+		a.logger.Error("[GetTemplatesPageByFilter] checkInitialized failed: %v", err)
+		return nil, err
 	}
-	return a.templateHandler.GetPageByFilter(a.ctx, filter, page, pageSize)
+
+	result, total, err := a.templateHandler.GetPageByFilter(a.ctx, filter, page, pageSize)
+	if err != nil {
+		a.logger.Error("[GetTemplatesPageByFilter] GetPageByFilter failed: %v", err)
+		return nil, err
+	}
+
+	// 将 []*models.Template 转换为 []models.Template（值类型）
+	templates := make([]models.Template, len(result))
+	for i, t := range result {
+		templates[i] = *t
+	}
+
+	a.logger.Info("[GetTemplatesPageByFilter] Returning %d templates, total: %d", len(result), total)
+	return &models.TemplatePageResponse{
+		Templates: templates,
+		Total:     total,
+	}, nil
 }
 
 // GetTemplateStats 获取模板统计信息

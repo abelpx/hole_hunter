@@ -69,40 +69,28 @@ export const ReportsPage: React.FC = () => {
   const loadReports = async () => {
     try {
       setLoading(true);
-      // TODO: 实现 getReports API
-      // const data = await ipcService.getAllReports();
-      // setReports(data);
+      const service = getService();
+      const data = await service.getAllReports();
 
-      // 临时模拟数据
-      setReports([
-        {
-          id: 1,
-          name: '目标扫描报告 - example.com',
-          scan_id: 1,
-          target_name: 'Example Target',
-          target_url: 'https://example.com',
-          status: 'completed',
-          format: 'pdf',
-          file_path: '/reports/report_1.pdf',
-          vulnerabilities_count: 15,
-          created_at: new Date(Date.now() - 86400000).toISOString(),
-          updated_at: new Date(Date.now() - 86400000).toISOString(),
-        },
-        {
-          id: 2,
-          name: '漏洞扫描报告 - test.com',
-          scan_id: 2,
-          target_name: 'Test Target',
-          target_url: 'https://test.com',
-          status: 'generating',
-          format: 'html',
-          vulnerabilities_count: 0,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-      ]);
+      // 转换数据格式
+      const formattedReports: ScanReport[] = data.map((r: any) => ({
+        id: r.id,
+        name: r.name,
+        scan_id: r.scan_id,
+        target_name: `Scan ${r.scan_id}`, // 可以从 scan 数据中获取真实名称
+        target_url: '',
+        status: r.status as ScanReport['status'],
+        format: r.format as ScanReport['format'],
+        file_path: r.file_path,
+        vulnerabilities_count: 0, // 可以从配置中获取
+        created_at: r.created_at,
+        updated_at: r.generated_at || r.created_at,
+      }));
+
+      setReports(formattedReports);
     } catch (error) {
       console.error('Failed to load reports:', error);
+      setReports([]);
     } finally {
       setLoading(false);
     }

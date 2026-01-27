@@ -9,6 +9,7 @@ import {
   Filter,
   RefreshCw,
   FileCode,
+  FileText,
   Plus,
   Eye,
   Edit,
@@ -22,11 +23,14 @@ import {
   AlertCircle,
   Tag,
   Code,
+  Shield,
+  Copy,
 } from 'lucide-react';
 import { Button, Input, Badge } from '../components/ui';
 import { YamlEditor } from '../components/special/YamlEditor';
 import { motion } from 'framer-motion';
 import {
+  GetTemplatesPage,
   GetTemplatesPageByFilter,
   GetTemplateStats,
   GetTemplateByID,
@@ -110,6 +114,7 @@ export const PoCPage: React.FC = () => {
   // 预览状态
   const [showPreview, setShowPreview] = useState(false);
   const [previewContent, setPreviewContent] = useState('');
+  const [previewPoc, setPreviewPoc] = useState<UnifiedPoC | null>(null);
 
   // 标记是否为初始加载
   const [isInitialLoad, setIsInitialLoad] = useState(true);
@@ -141,61 +146,100 @@ export const PoCPage: React.FC = () => {
   }, [currentPage]);
 
   const loadStats = async () => {
+    // 检查 Wails 运行时是否可用
+    const windowGo = (window as any).go;
+    if (!windowGo || !windowGo.app || !windowGo.app.App) {
+      console.warn('[PoCPage] Wails runtime not available (running in browser mode), skipping stats load');
+      setStats({ builtin: 0, custom: 0 });
+      return;
+    }
+
     try {
       const stats = await GetTemplateStats();
       // stats 包含分类统计和严重程度统计
       // 通过 source 过滤来获取 builtin 和 custom 的数量
-      const builtinFilter = new models.TemplateFilterUnified();
-      builtinFilter.source = 'builtin';
-      builtinFilter.enabled = true;
-      const [, builtinTotal] = await GetTemplatesPageByFilter(builtinFilter, 1, 1);
+      const builtinFilter = models.TemplateFilterUnified.createFrom({
+        page: 1,
+        pageSize: 1,
+        source: 'builtin',
+        category: '',
+        search: '',
+        severity: '',
+        author: '',
+        enabled: true
+      });
 
-      const customFilter = new models.TemplateFilterUnified();
-      customFilter.source = 'custom';
-      customFilter.enabled = true;
-      const [, customTotal] = await GetTemplatesPageByFilter(customFilter, 1, 1);
+      const builtinResponse = await GetTemplatesPageByFilter(builtinFilter, 1, 1);
+      if (!builtinResponse) {
+        console.warn('[PoCPage] GetTemplatesPageByFilter did not return a valid response for builtin');
+        setStats({ builtin: 0, custom: 0 });
+        return;
+      }
+
+      const customFilter = models.TemplateFilterUnified.createFrom({
+        page: 1,
+        pageSize: 1,
+        source: 'custom',
+        category: '',
+        search: '',
+        severity: '',
+        author: '',
+        enabled: true
+      });
+
+      const customResponse = await GetTemplatesPageByFilter(customFilter, 1, 1);
+      if (!customResponse) {
+        console.warn('[PoCPage] GetTemplatesPageByFilter did not return a valid response for custom');
+        setStats({ builtin: builtinResponse.total || 0, custom: 0 });
+        return;
+      }
 
       setStats({
-        builtin: builtinTotal || 0,
-        custom: customTotal || 0
+        builtin: builtinResponse.total || 0,
+        custom: customResponse.total || 0
       });
     } catch (error) {
       console.error('Failed to load stats:', error);
+      setStats({ builtin: 0, custom: 0 });
     }
   };
 
   const loadPocs = async () => {
     console.log('[PoCPage] loadPocs called');
+
+    // 检查 Wails 运行时是否可用
+    const windowGo = (window as any).go;
+    if (!windowGo || !windowGo.app || !windowGo.app.App) {
+      console.warn('[PoCPage] Wails runtime not available (running in browser mode), returning empty result');
+      setDisplayPocs([]);
+      setCurrentTotal(0);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
-      const filter = new models.TemplateFilterUnified();
+      // GetTemplatesPage 现在返回 TemplatePageResponse 对象
+      console.log('[PoCPage] 测试 GetTemplatesPage');
 
-      // 设置来源过滤
-      if (sourceFilter !== 'all') {
-        filter.source = sourceFilter;
+      const response = await GetTemplatesPage(currentPage, pageSize);
+
+      console.log('[PoCPage] GetTemplatesPage response:', response, 'Type:', typeof response);
+
+      // 检查响应是否有效
+      if (!response || !response.templates) {
+        console.warn('[PoCPage] GetTemplatesPage did not return a valid response:', response);
+        setDisplayPocs([]);
+        setCurrentTotal(0);
+        return;
       }
 
-      // 设置分类过滤
-      if (categoryFilter !== 'all' && categoryFilter !== '') {
-        filter.category = categoryFilter;
-      }
+      const templates = response.templates;
+      const totalCount = response.total || 0;
 
-      // 设置严重程度过滤
-      if (severityFilter !== 'all' && severityFilter !== '') {
-        filter.severity = severityFilter;
-      }
+      console.log('[PoCPage] Received templates:', templates.length, 'Total:', totalCount);
 
-      // 设置搜索
-      if (searchQuery) {
-        filter.search = searchQuery;
-      }
-
-      // 只显示启用的模板
-      filter.enabled = true;
-
-      const [result, totalCount] = await GetTemplatesPageByFilter(filter, currentPage, pageSize);
-
-      const unifiedPocs = (result || []).map((poc) => ({
+      const unifiedPocs = (templates || []).map((poc) => ({
         ...poc,
         id: String(poc.id),
         source: (poc.source || 'builtin') as 'builtin' | 'custom',
@@ -207,23 +251,44 @@ export const PoCPage: React.FC = () => {
       setCurrentTotal(totalCount);
 
       // 更新统计（用于顶部显示）
+      // 现在我们可以直接使用 totalCount
       if (sourceFilter === 'builtin') {
         setBuiltinTotal(totalCount);
       } else if (sourceFilter === 'custom') {
         setCustomTotal(totalCount);
       } else {
         // all 模式下，需要分别获取统计
-        const builtinFilter2 = new models.TemplateFilterUnified();
-        builtinFilter2.source = 'builtin';
-        builtinFilter2.enabled = true;
-        const [, builtinCount] = await GetTemplatesPageByFilter(builtinFilter2, 1, 1);
-        setBuiltinTotal(builtinCount);
+        const builtinFilter = models.TemplateFilterUnified.createFrom({
+          page: 1,
+          pageSize: 1,
+          source: 'builtin',
+          category: '',
+          search: '',
+          severity: '',
+          author: '',
+          enabled: true
+        });
 
-        const customFilter2 = new models.TemplateFilterUnified();
-        customFilter2.source = 'custom';
-        customFilter2.enabled = true;
-        const [, customCount] = await GetTemplatesPageByFilter(customFilter2, 1, 1);
-        setCustomTotal(customCount);
+        const builtinResponse = await GetTemplatesPageByFilter(builtinFilter, 1, 1);
+        if (builtinResponse) {
+          setBuiltinTotal(builtinResponse.total || 0);
+        }
+
+        const customFilter = models.TemplateFilterUnified.createFrom({
+          page: 1,
+          pageSize: 1,
+          source: 'custom',
+          category: '',
+          search: '',
+          severity: '',
+          author: '',
+          enabled: true
+        });
+
+        const customResponse = await GetTemplatesPageByFilter(customFilter, 1, 1);
+        if (customResponse) {
+          setCustomTotal(customResponse.total || 0);
+        }
       }
     } catch (error) {
       console.error('Failed to load PoCs:', error);
@@ -266,6 +331,8 @@ export const PoCPage: React.FC = () => {
   // 预览 PoC
   const handlePreview = async (poc: UnifiedPoC) => {
     try {
+      setPreviewPoc(poc);
+
       if (poc.source === 'custom' && poc.content) {
         setPreviewContent(poc.content);
       } else if (poc.source === 'custom') {
@@ -275,7 +342,39 @@ export const PoCPage: React.FC = () => {
         setPreviewContent(fullTemplate.content || '');
       } else {
         // 内置 PoC 显示路径信息
-        setPreviewContent(`ID: ${poc.id}\n路径: ${poc.path}\n分类: ${poc.category}\n作者: ${poc.author || '未知'}\n\n描述:\n${poc.description || '无'}`);
+        setPreviewContent(`# ${poc.name}
+
+## 基本信息
+- **ID**: ${poc.id}
+- **模板 ID**: ${poc.template_id || 'N/A'}
+- **分类**: ${poc.category || '未分类'}
+- **严重程度**: ${poc.severity || '未知'}
+- **作者**: ${poc.author || '未知'}
+
+## 描述
+${poc.description || '暂无描述'}
+
+## 影响
+${poc.impact || '暂无影响说明'}
+
+## 修复建议
+${poc.remediation || '暂无修复建议'}
+
+## 路径
+\`${poc.path || 'N/A'}\`
+
+## 标签
+${poc.tags && poc.tags.length > 0 ? poc.tags.map((tag: string) => `\`${tag}\``).join(', ') : '无'}
+
+## 参考资料
+${poc.reference && poc.reference.length > 0 ? poc.reference.map((ref: string) => `- ${ref}`).join('\n') : '无'}
+
+## 元数据
+${poc.metadata && Object.keys(poc.metadata).length > 0 ? Object.entries(poc.metadata).map(([k, v]) => `- **${k}**: ${v}`).join('\n') : '无'}
+
+## Nuclei 版本
+${poc.nuclei_version || '未知'}`);
+
       }
       setShowPreview(true);
     } catch (error) {
@@ -714,23 +813,235 @@ export const PoCPage: React.FC = () => {
       )}
 
       {/* 预览模态框 */}
-      {showPreview && (
+      {showPreview && previewPoc && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-slate-800 rounded-xl w-[90vw] h-[85vh] flex flex-col">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700">
-              <h2 className="text-xl font-semibold text-slate-100">PoC 预览</h2>
+          <div className="bg-slate-800 rounded-xl w-[95vw] h-[90vh] flex flex-col shadow-2xl">
+            {/* 标题栏 */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700 bg-slate-800/50">
+              <div className="flex items-center gap-3 flex-1">
+                <FileCode size={24} className="text-sky-400" />
+                <div className="flex-1">
+                  <h2 className="text-xl font-semibold text-slate-100">{previewPoc.name}</h2>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Badge
+                      variant={previewPoc.source === 'builtin' ? 'info' : 'success'}
+                      className="text-xs"
+                    >
+                      {previewPoc.source === 'builtin' ? '内置 PoC' : '自定义 PoC'}
+                    </Badge>
+                    {previewPoc.severity && (
+                      <span
+                        className={`text-xs px-2 py-0.5 rounded ${getSeverityColor(
+                          previewPoc.severity
+                        )}`}
+                      >
+                        {getSeverityLabel(previewPoc.severity)}
+                      </span>
+                    )}
+                    {previewPoc.category && (
+                      <span className="text-xs px-2 py-0.5 rounded bg-slate-700 text-slate-300">
+                        {previewPoc.category}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
               <Button
                 type="secondary"
                 icon={<X size={14} />}
-                onClick={() => setShowPreview(false)}
+                onClick={() => {
+                  setShowPreview(false);
+                  setPreviewPoc(null);
+                  setPreviewContent('');
+                }}
               >
                 关闭
               </Button>
             </div>
-            <div className="flex-1 overflow-auto p-6">
-              <pre className="text-sm text-slate-300 whitespace-pre-wrap font-mono">
-                {previewContent}
-              </pre>
+
+            {/* 内容区域 - 两列布局 */}
+            <div className="flex-1 flex overflow-hidden">
+              {/* 左侧 - 元数据面板 */}
+              <div className="w-80 border-r border-slate-700 bg-slate-900/30 overflow-y-auto p-4 space-y-4">
+                {/* 基本信息 */}
+                <div className="space-y-2">
+                  <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wide flex items-center gap-2">
+                    <AlertCircle size={14} />
+                    基本信息
+                  </h3>
+                  <div className="bg-slate-800/50 rounded-lg p-3 space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">ID:</span>
+                      <span className="text-slate-200 font-mono">{previewPoc.id}</span>
+                    </div>
+                    {previewPoc.template_id && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">模板 ID:</span>
+                        <span className="text-slate-200 font-mono text-xs">{previewPoc.template_id}</span>
+                      </div>
+                    )}
+                    {previewPoc.author && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">作者:</span>
+                        <span className="text-slate-200">{previewPoc.author}</span>
+                      </div>
+                    )}
+                    {previewPoc.path && (
+                      <div className="flex flex-col gap-1">
+                        <span className="text-slate-400">路径:</span>
+                        <span className="text-slate-200 font-mono text-xs break-all">{previewPoc.path}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* 描述 */}
+                {previewPoc.description && (
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wide flex items-center gap-2">
+                      <FileText size={14} />
+                      描述
+                    </h3>
+                    <div className="bg-slate-800/50 rounded-lg p-3 text-sm text-slate-300">
+                      {previewPoc.description}
+                    </div>
+                  </div>
+                )}
+
+                {/* 影响和修复 */}
+                {(previewPoc.impact || previewPoc.remediation) && (
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wide flex items-center gap-2">
+                      <Shield size={14} />
+                      影响与修复
+                    </h3>
+                    <div className="bg-slate-800/50 rounded-lg p-3 space-y-2 text-sm">
+                      {previewPoc.impact && (
+                        <div>
+                          <span className="text-slate-400 block mb-1">影响:</span>
+                          <span className="text-slate-300">{previewPoc.impact}</span>
+                        </div>
+                      )}
+                      {previewPoc.remediation && (
+                        <div>
+                          <span className="text-slate-400 block mb-1">修复建议:</span>
+                          <span className="text-slate-300">{previewPoc.remediation}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* 标签 */}
+                {previewPoc.tags && previewPoc.tags.length > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wide flex items-center gap-2">
+                      <Tag size={14} />
+                      标签
+                    </h3>
+                    <div className="flex flex-wrap gap-1">
+                      {previewPoc.tags.map((tag, idx) => (
+                        <span
+                          key={idx}
+                          className="text-xs px-2 py-1 bg-sky-500/20 text-sky-300 rounded"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 参考资料 */}
+                {previewPoc.reference && previewPoc.reference.length > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wide flex items-center gap-2">
+                      <Code size={14} />
+                      参考资料
+                    </h3>
+                    <div className="bg-slate-800/50 rounded-lg p-3 space-y-1 text-sm">
+                      {previewPoc.reference.map((ref, idx) => (
+                        <a
+                          key={idx}
+                          href={ref}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block text-sky-400 hover:text-sky-300 truncate"
+                          title={ref}
+                        >
+                          {ref}
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 元数据 */}
+                {previewPoc.metadata && Object.keys(previewPoc.metadata).length > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wide">
+                      元数据
+                    </h3>
+                    <div className="bg-slate-800/50 rounded-lg p-3 space-y-1 text-sm">
+                      {Object.entries(previewPoc.metadata).map(([key, value]) => (
+                        <div key={key} className="flex justify-between">
+                          <span className="text-slate-400">{key}:</span>
+                          <span className="text-slate-200 font-mono text-xs">{value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 时间信息 */}
+                <div className="space-y-2">
+                  <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wide">
+                    时间信息
+                  </h3>
+                  <div className="bg-slate-800/50 rounded-lg p-3 space-y-1 text-sm">
+                    {previewPoc.created_at && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">创建时间:</span>
+                        <span className="text-slate-200 text-xs">{new Date(previewPoc.created_at).toLocaleString('zh-CN')}</span>
+                      </div>
+                    )}
+                    {previewPoc.updated_at && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">更新时间:</span>
+                        <span className="text-slate-200 text-xs">{new Date(previewPoc.updated_at).toLocaleString('zh-CN')}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* 右侧 - 代码/内容区域 */}
+              <div className="flex-1 flex flex-col overflow-hidden">
+                {/* 内容标题 */}
+                <div className="px-4 py-2 border-b border-slate-700 bg-slate-900/30 flex items-center justify-between">
+                  <span className="text-sm text-slate-400">
+                    {previewPoc.source === 'custom' ? 'YAML 内容' : '详细信息'}
+                  </span>
+                  {previewPoc.nuclei_version && (
+                    <span className="text-xs text-slate-500">Nuclei {previewPoc.nuclei_version}</span>
+                  )}
+                </div>
+                {/* 内容显示区域 */}
+                <div className="flex-1 overflow-auto p-4">
+                  {previewPoc.source === 'custom' ? (
+                    <YamlEditor
+                      value={previewContent}
+                      onChange={() => {}}
+                      onValidate={() => {}}
+                      readOnly={true}
+                    />
+                  ) : (
+                    <pre className="text-sm text-slate-300 whitespace-pre-wrap font-mono leading-relaxed">
+                      {previewContent}
+                    </pre>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div>
