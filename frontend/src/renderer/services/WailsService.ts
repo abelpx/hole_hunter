@@ -143,16 +143,27 @@ class WailsServiceImpl {
   async createScan(data: CreateScanRequest): Promise<ScanTask> {
     return safeWailsCall(
       async () => {
-        const id = await (WailsApp as any).CreateScanTask(
+        // CreateScanTask 直接返回 ScanTask 对象，不是 id
+        const scanTask = await (WailsApp as any).CreateScanTask(
           data.name || null,
           data.target_id,
           data.strategy,
           data.templates || []
         );
-        return await (WailsApp as any).GetScanTaskByID(Number(id));
+        return scanTask;
       },
       null as unknown as ScanTask,
       'createScan'
+    );
+  }
+
+  async startScan(id: number): Promise<void> {
+    return safeWailsCall(
+      async () => {
+        await (WailsApp as any).StartScan(id);
+      },
+      undefined,
+      'startScan'
     );
   }
 
@@ -531,23 +542,35 @@ class WailsServiceImpl {
   // ==================== 事件监听 ====================
 
   onScanProgress(callback: Function): void {
-    WailsRuntime.EventsOn('scan-progress', callback);
+    WailsRuntime.EventsOn('scan.progress', callback);
+  }
+
+  onScanStarted(callback: Function): void {
+    WailsRuntime.EventsOn('scan.started', callback);
+  }
+
+  onScanCompleted(callback: Function): void {
+    WailsRuntime.EventsOn('scan.completed', callback);
+  }
+
+  onScanFailed(callback: Function): void {
+    WailsRuntime.EventsOn('scan.failed', callback);
   }
 
   onScanLog(callback: Function): void {
-    WailsRuntime.EventsOn('scan-log', callback);
+    WailsRuntime.EventsOn('scan.log', callback);
   }
 
   onVulnFound(callback: Function): void {
-    WailsRuntime.EventsOn('vuln-found', callback);
+    WailsRuntime.EventsOn('vulnerability.found', callback);
   }
 
   offScanProgress(callback?: Function): void {
-    WailsRuntime.EventsOff('scan-progress', callback);
+    WailsRuntime.EventsOff('scan.progress', callback);
   }
 
   offScanLog(callback?: Function): void {
-    WailsRuntime.EventsOff('scan-log', callback);
+    WailsRuntime.EventsOff('scan.log', callback);
   }
 
   // ==================== HTTP 重放 ====================

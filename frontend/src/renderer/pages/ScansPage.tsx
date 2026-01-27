@@ -69,35 +69,52 @@ export const ScansPage: React.FC = () => {
     };
 
     const handleScanProgress = (data: any) => {
-      console.log('Scan progress:', data);
+      console.log('Scan progress raw data:', data);
+
+      // 后端发送的数据结构: {taskId, progress: ScanProgress}
+      // ScanProgress 包含: {TaskID, Status, TotalTemplates, Executed, Progress, CurrentTemplate}
+      const scanId = data.taskId || data.scanId;
+      const progressData = data.progress || {};
+
       setScans((prev) =>
         prev.map((scan) =>
-          scan.id === data.scanId
+          scan.id === scanId
             ? {
                 ...scan,
-                progress: data.progress,
-                current_template: data.currentTemplate,
-                completed_templates: data.completedTemplates,
-                total_templates: data.totalTemplates,
-                findings_count: data.findings,
+                progress: progressData.progress || progressData.Progress || 0,
+                current_template: progressData.currentTemplate || progressData.CurrentTemplate || '',
+                completed_templates: progressData.executed || progressData.Executed || 0,
+                total_templates: progressData.totalTemplates || progressData.TotalTemplates || 0,
+                findings_count: progressData.vulnCount || progressData.VulnCount || 0,
               }
             : scan
         )
       );
     };
 
-    const handleScanFinding = ({ scanId, finding }: { scanId: number; finding: any }) => {
-      console.log('Finding found:', finding);
-      addLog(scanId, 'info', `Found: ${finding.info.name} (${finding.info.severity})`);
+    const handleScanFinding = (data: any) => {
+      // 后端发送: {taskId, vuln: NucleiOutput}
+      const scanId = data.taskId || data.scanId;
+      const vuln = data.vuln || data.finding;
+      console.log('Finding found:', scanId, vuln);
+      if (vuln && vuln.info) {
+        addLog(scanId, 'info', `Found: ${vuln.name || vuln.info.name} (${vuln.severity || vuln.info.severity})`);
+      }
     };
 
-    const handleScanCompleted = ({ scanId, status, findings }: { scanId: number; status: string; findings: number }) => {
-      console.log('Scan completed:', scanId, status, findings);
+    const handleScanCompleted = (data: any) => {
+      // 后端发送: {taskId, vulnCount}
+      const scanId = data.taskId || data.scanId;
+      const findings = data.vulnCount || data.findings || 0;
+      console.log('Scan completed:', scanId, 'findings:', findings);
       loadScans();
       addLog(scanId, 'info', `Scan completed with ${findings} findings`);
     };
 
-    const handleScanError = ({ scanId, error }: { scanId: number; error: string }) => {
+    const handleScanError = (data: any) => {
+      // 后端发送: {taskId, error}
+      const scanId = data.taskId || data.scanId;
+      const error = data.error || 'Unknown error';
       console.error('Scan error:', scanId, error);
       addLog(scanId, 'error', `Scan failed: ${error}`);
       loadScans();
@@ -112,6 +129,10 @@ export const ScansPage: React.FC = () => {
 
     // Wails 事件监听
     service.onScanProgress(handleScanProgress);
+    service.onScanStarted(handleScanStarted);
+    service.onScanCompleted(handleScanCompleted);
+    service.onScanFailed(handleScanError);
+    service.onVulnFound(handleScanFinding);
     service.onScanLog(handleScanLog);
 
     return () => {
@@ -198,8 +219,19 @@ export const ScansPage: React.FC = () => {
       });
 
       console.log('[ScansPage] Scan created successfully:', scan);
+
+      // 检查 scan 是否有效
+      if (!scan || !scan.id) {
+        throw new Error('创建扫描失败: 返回的扫描任务无效');
+      }
+
+      // 启动扫描
+      console.log('[ScansPage] Starting scan:', scan.id);
+      await service.startScan(scan.id);
+      console.log('[ScansPage] Scan started successfully');
+
       setShowConfigModal(false);
-      addLog(scan.id, 'info', `Scan created for target: ${target.name}`);
+      addLog(scan.id, 'info', `Scan created and started for target: ${target.name}`);
       loadScans();
     } catch (error: any) {
       console.error('Failed to start scan:', error);

@@ -25,6 +25,17 @@ func NewNucleiClient(userDataDir string) *NucleiClient {
 	}
 }
 
+// NewNucleiClientWithTemplates 创建 Nuclei 客户端（指定模板目录）
+func NewNucleiClientWithTemplates(userDataDir, templatesDir string) *NucleiClient {
+	if templatesDir != "" {
+		return &NucleiClient{
+			binaryPath:   findNucleiBinary(),
+			templatesDir: templatesDir,
+		}
+	}
+	return NewNucleiClient(userDataDir)
+}
+
 // IsAvailable 检查 Nuclei 是否可用
 func (n *NucleiClient) IsAvailable() bool {
 	if n.binaryPath == "" {
@@ -144,9 +155,35 @@ func findNucleiBinary() string {
 		}
 	}
 
-	// 开发环境可能使用本地 nuclei
+	// 开发环境：检查项目根目录
 	if _, err := os.Stat("./nuclei"); err == nil {
 		return "./nuclei"
+	}
+	if runtime.GOOS == "windows" {
+		if _, err := os.Stat("./nuclei.exe"); err == nil {
+			return "./nuclei.exe"
+		}
+	}
+
+	// 开发环境：检查 build/bin 目录
+	buildBinPath := filepath.Join("build", "bin", "nuclei")
+	if runtime.GOOS == "windows" {
+		buildBinPath += ".exe"
+	}
+	if _, err := os.Stat(buildBinPath); err == nil {
+		return buildBinPath
+	}
+
+	// 生产环境使用应用包内的 nuclei
+	if exePath, err := os.Executable(); err == nil {
+		appDir := filepath.Dir(exePath)
+		nucleiPath := filepath.Join(appDir, "nuclei")
+		if runtime.GOOS == "windows" {
+			nucleiPath += ".exe"
+		}
+		if _, err := os.Stat(nucleiPath); err == nil {
+			return nucleiPath
+		}
 	}
 
 	// 根据操作系统查找

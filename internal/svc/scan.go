@@ -31,7 +31,7 @@ func NewScanService(
 	logger *logger.Logger,
 	cfg *config.Config,
 ) *ScanService {
-	nucleiClient := scanner.NewNucleiClient(cfg.DataDir)
+	nucleiClient := scanner.NewNucleiClientWithTemplates(cfg.DataDir, cfg.TemplatesDir)
 	orchestrator := scanner.NewOrchestrator(nucleiClient, eventBus, logger, cfg.MaxConcurrent, metrics.Global)
 
 	return &ScanService{
