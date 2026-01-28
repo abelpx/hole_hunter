@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/holehunter/holehunter/internal/assets"
 	"github.com/holehunter/holehunter/internal/handler"
 	"github.com/holehunter/holehunter/internal/infrastructure/config"
 	"github.com/holehunter/holehunter/internal/infrastructure/database"
@@ -70,6 +71,12 @@ func (a *App) startup(ctx context.Context) error {
 	// 初始化日志
 	a.logger = logger.New(a.config.LogLevel, a.config.LogFile)
 
+	// 初始化资源（nuclei.exe + templates）- 必须在数据库之前
+	if err := a.initResources(ctx); err != nil {
+		a.logger.Warn("Resource initialization failed: %v", err)
+		// 不阻塞启动，但记录警告
+	}
+
 	// 初始化数据库
 	db, err := database.Open(a.config.DBPath)
 	if err != nil {
@@ -101,6 +108,23 @@ func (a *App) startup(ctx context.Context) error {
 
 	a.logger.Info("HoleHunter started successfully")
 	return nil
+}
+
+// initResources 初始化资源（nuclei.exe + templates）
+func (a *App) initResources(ctx context.Context) error {
+	return assets.InitResources(a.config.DataDir, a.logger)
+}
+
+// GetResourceStatus 获取资源状态（供前端调用）
+func (a *App) GetResourceStatus() map[string]interface{} {
+	return assets.GetResourceStatus(a.config.DataDir)
+}
+
+// UpdateTemplates 更新模板（供前端调用）
+func (a *App) UpdateTemplates(ctx context.Context) error {
+	a.logger.Info("Updating nuclei-templates...")
+	// 触发重新下载模板
+	return assets.InitResources(a.config.DataDir, a.logger)
 }
 
 // initLayers 初始化各个层

@@ -85,6 +85,16 @@ func getNucleiPath() string {
 		return path
 	}
 
+	// 优先使用用户数据目录中的 nuclei（从嵌入资源解压的）
+	dataDir := getUserDataDir()
+	nucleiPath := filepath.Join(dataDir, "nuclei")
+	if runtime.GOOS == "windows" {
+		nucleiPath += ".exe"
+	}
+	if _, err := os.Stat(nucleiPath); err == nil {
+		return nucleiPath
+	}
+
 	// 开发环境可能使用本地 nuclei
 	if _, err := os.Stat("./nuclei"); err == nil {
 		return "./nuclei"
@@ -93,7 +103,10 @@ func getNucleiPath() string {
 	// 生产环境使用应用包内的 nuclei
 	if exePath, err := os.Executable(); err == nil {
 		appDir := filepath.Dir(exePath)
-		nucleiPath := filepath.Join(appDir, "nuclei")
+		nucleiPath = filepath.Join(appDir, "nuclei")
+		if runtime.GOOS == "windows" {
+			nucleiPath += ".exe"
+		}
 		if _, err := os.Stat(nucleiPath); err == nil {
 			return nucleiPath
 		}

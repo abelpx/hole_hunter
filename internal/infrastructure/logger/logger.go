@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"path/filepath"
 	"sync"
 )
 
@@ -48,11 +49,15 @@ func New(levelStr string, logFile string) *Logger {
 
 	// 如果指定了日志文件，尝试打开
 	if logFile != "" {
-		file, err := os.OpenFile(logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
-		if err == nil {
-			l.file = file
-			l.useFile = true
-			l.output = io.MultiWriter(os.Stdout, file)
+		// 确保目录存在
+		logDir := filepath.Dir(logFile)
+		if err := os.MkdirAll(logDir, 0755); err == nil {
+			file, err := os.OpenFile(logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+			if err == nil {
+				l.file = file
+				l.useFile = true
+				l.output = io.MultiWriter(os.Stdout, file)
+			}
 		}
 	}
 
