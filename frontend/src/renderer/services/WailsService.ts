@@ -150,6 +150,17 @@ class WailsServiceImpl {
           data.strategy,
           data.templates || []
         );
+        console.log('[WailsService] createScan returned:', JSON.stringify(scanTask), scanTask);
+        if (!scanTask) {
+          throw new Error('CreateScanTask returned null/undefined');
+        }
+        if (!scanTask.ID && !scanTask.id) {
+          throw new Error('CreateScanTask returned task without ID');
+        }
+        // 确保 id 字段存在 (Wails 可能使用 ID 而不是 id)
+        if (scanTask.ID && !scanTask.id) {
+          scanTask.id = scanTask.ID;
+        }
         return scanTask;
       },
       null as unknown as ScanTask,
