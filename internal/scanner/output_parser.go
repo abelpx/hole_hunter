@@ -185,6 +185,14 @@ func parseStatsJSONProgress(line string) (ScanProgress, bool) {
 		fmt.Sscanf(stats.Matched, "%d", &vulnCount)
 	}
 
+	// 如果 total 为 0，说明 nuclei 还在初始化，不返回进度
+	if total == 0 && executed == 0 {
+		return ScanProgress{
+			Status:    "running",
+			VulnCount: vulnCount,
+		}, true
+	}
+
 	return ScanProgress{
 		Status:          "running",
 		Progress:        progress,
