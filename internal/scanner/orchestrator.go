@@ -295,6 +295,9 @@ func (o *Orchestrator) onVulnerability(taskID int) func(*NucleiOutput) {
 // onProgress 处理进度更新
 func (o *Orchestrator) onProgress(taskID int) func(ScanProgress) {
 	return func(progress ScanProgress) {
+		o.logger.Debug("Progress update: task_id=%d, progress=%d, status=%s, template=%s",
+			taskID, progress.Progress, progress.Status, progress.CurrentTemplate)
+
 		o.mu.RLock()
 		scanCtx, exists := o.scans[taskID]
 		o.mu.RUnlock()
@@ -311,12 +314,17 @@ func (o *Orchestrator) onProgress(taskID int) func(ScanProgress) {
 			}
 			scanCtx.ProgressMu.Unlock()
 
+			o.logger.Debug("Progress updated in scanCtx: task_id=%d, progress=%d%%",
+				taskID, progress.Progress)
+
 			// 记录模板执行指标
 			if progress.Executed > 0 {
 				for i := 0; i < progress.Executed; i++ {
 					metrics.Global.RecordTemplateExecuted()
 				}
 			}
+		} else {
+			o.logger.Warn("Scan context not found for progress update: task_id=%d", taskID)
 		}
 
 		// 使用 scanCtx 的 context（如果存在），否则使用 Background
