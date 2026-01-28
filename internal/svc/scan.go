@@ -294,3 +294,11 @@ func (s *ScanService) UpdateStatus(ctx context.Context, taskID int, status strin
 
 	return s.scanRepo.UpdateStatus(ctx, taskID, status)
 }
+
+// GetLogs 获取扫描任务的日志
+func (s *ScanService) GetLogs(ctx context.Context, taskID int) ([]*models.ScanLog, error) {
+	if taskID <= 0 {
+		return nil, errors.InvalidInput("invalid scan task id")
+	}
+	return s.scanRepo.GetLogsByScanID(ctx, taskID)
+}

@@ -149,7 +149,7 @@ func (a *App) initLayers() {
 	// 初始化 Service
 	targetSvc := svc.NewTargetService(targetRepo, a.eventBus)
 	scanSvc := svc.NewScanService(scanRepo, targetRepo, a.eventBus, a.logger, a.config)
-	vulnSvc := svc.NewVulnerabilityService(vulnRepo)
+	vulnSvc := svc.NewVulnerabilityService(vulnRepo, a.logger)
 	dashboardSvc := svc.NewDashboardService(dashboardRepo)
 	templateSvc := svc.NewTemplateService(templateRepo)
 	scenarioSvc := svc.NewScenarioService(scenarioRepo)

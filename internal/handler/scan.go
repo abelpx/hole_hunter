@@ -76,3 +76,8 @@ func (h *ScanHandler) GetNucleiStatus() *models.NucleiStatus {
 func (h *ScanHandler) UpdateStatus(ctx context.Context, taskID int, status string) error {
 	return h.service.UpdateStatus(ctx, taskID, status)
 }
+
+// GetLogs 获取扫描任务的日志
+func (h *ScanHandler) GetLogs(ctx context.Context, taskID int) ([]*models.ScanLog, error) {
+	return h.service.GetLogs(ctx, taskID)
+}

@@ -166,6 +166,10 @@ export function GetReportById(arg1) {
   return window['go']['app']['App']['GetReportById'](arg1);
 }
 
+export function GetScanLogs(arg1) {
+  return window['go']['app']['App']['GetScanLogs'](arg1);
+}
+
 export function GetScanProgress(arg1) {
   return window['go']['app']['App']['GetScanProgress'](arg1);
 }

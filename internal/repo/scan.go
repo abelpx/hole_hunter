@@ -31,7 +31,7 @@ func (r *ScanRepository) GetAllPaged(ctx context.Context, offset, limit int) ([]
 	query := `
 		SELECT id, name, target_id, status, strategy, templates_used,
 		       started_at, completed_at, total_templates, executed_templates,
-		       progress, current_template, error, created_at
+		       progress, current_template, error, findings_count, created_at
 		FROM scan_tasks ORDER BY created_at DESC
 	`
 
@@ -66,16 +66,16 @@ func (r *ScanRepository) GetAllPaged(ctx context.Context, offset, limit int) ([]
 func (r *ScanRepository) GetByID(ctx context.Context, id int) (*models.ScanTask, error) {
 	var t models.ScanTask
 	var name, startedAt, completedAt, templatesUsed, currentTemplate, errStr sql.NullString
-	var totalTemplates, executedTemplates sql.NullInt64
+	var totalTemplates, executedTemplates, findingsCount sql.NullInt64
 
 	err := r.db.QueryRowContext(ctx,
 		`SELECT id, name, target_id, status, strategy, templates_used,
 		         started_at, completed_at, total_templates, executed_templates,
-		         progress, current_template, error, created_at
+		         progress, current_template, error, findings_count, created_at
 		  FROM scan_tasks WHERE id = ?`, id).
 		Scan(&t.ID, &name, &t.TargetID, &t.Status, &t.Strategy, &templatesUsed,
 			&startedAt, &completedAt, &totalTemplates, &executedTemplates,
-			&t.Progress, &currentTemplate, &errStr, &t.CreatedAt)
+			&t.Progress, &currentTemplate, &errStr, &findingsCount, &t.CreatedAt)
 
 	if err == sql.ErrNoRows {
 		return nil, errors.NotFound("scan task not found")
@@ -84,7 +84,7 @@ func (r *ScanRepository) GetByID(ctx context.Context, id int) (*models.ScanTask,
 		return nil, errors.DBError("failed to query scan task", err)
 	}
 
-	r.mapScanTaskFields(&t, name, startedAt, completedAt, templatesUsed, currentTemplate, errStr, totalTemplates, executedTemplates)
+	r.mapScanTaskFields(&t, name, startedAt, completedAt, templatesUsed, currentTemplate, errStr, totalTemplates, executedTemplates, findingsCount)
 
 	return &t, nil
 }
@@ -189,6 +189,17 @@ func (r *ScanRepository) UpdateProgress(ctx context.Context, id int, progress mo
 	return nil
 }
 
+// UpdateFindingsCount 更新扫描任务的漏洞数量
+func (r *ScanRepository) UpdateFindingsCount(ctx context.Context, scanID int, count int) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE scan_tasks SET findings_count = ? WHERE id = ?`,
+		count, scanID)
+	if err != nil {
+		return errors.DBError("failed to update scan findings_count", err)
+	}
+	return nil
+}
+
 // Update 更新扫描任务
 func (r *ScanRepository) Update(ctx context.Context, t *models.ScanTask) error {
 	templatesJSON, err := json.Marshal(t.TemplatesUsed)
@@ -243,7 +254,7 @@ func (r *ScanRepository) CountByStatus(ctx context.Context) (map[string]int, err
 // mapScanTaskFields 映射可空字段到 ScanTask
 func (r *ScanRepository) mapScanTaskFields(t *models.ScanTask,
 	name, startedAt, completedAt, templatesUsed, currentTemplate, errStr sql.NullString,
-	totalTemplates, executedTemplates sql.NullInt64) {
+	totalTemplates, executedTemplates, findingsCount sql.NullInt64) {
 
 	if name.Valid {
 		t.Name = &name.String
@@ -273,22 +284,72 @@ func (r *ScanRepository) mapScanTaskFields(t *models.ScanTask,
 	if errStr.Valid {
 		t.Error = &errStr.String
 	}
+	if findingsCount.Valid {
+		val := int(findingsCount.Int64)
+		t.FindingsCount = &val
+	}
 }
 
 // scanTask 扫描一行扫描任务数据
 func (r *ScanRepository) scanTask(rows *sql.Rows) (*models.ScanTask, error) {
 	var t models.ScanTask
 	var name, startedAt, completedAt, templatesUsed, currentTemplate, errStr sql.NullString
-	var totalTemplates, executedTemplates sql.NullInt64
+	var totalTemplates, executedTemplates, findingsCount sql.NullInt64
 
 	err := rows.Scan(&t.ID, &name, &t.TargetID, &t.Status, &t.Strategy, &templatesUsed,
 		&startedAt, &completedAt, &totalTemplates, &executedTemplates,
-		&t.Progress, &currentTemplate, &errStr, &t.CreatedAt)
+		&t.Progress, &currentTemplate, &errStr, &findingsCount, &t.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
 
-	r.mapScanTaskFields(&t, name, startedAt, completedAt, templatesUsed, currentTemplate, errStr, totalTemplates, executedTemplates)
+	r.mapScanTaskFields(&t, name, startedAt, completedAt, templatesUsed, currentTemplate, errStr, totalTemplates, executedTemplates, findingsCount)
 
 	return &t, nil
+}
+
+// AddLog 添加扫描日志
+func (r *ScanRepository) AddLog(ctx context.Context, scanID int, level, message string) error {
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO scan_logs (scan_id, level, message) VALUES (?, ?, ?)`,
+		scanID, level, message)
+	if err != nil {
+		return errors.DBError("failed to add scan log", err)
+	}
+	return nil
+}
+
+// GetLogsByScanID 获取扫描的所有日志
+func (r *ScanRepository) GetLogsByScanID(ctx context.Context, scanID int) ([]*models.ScanLog, error) {
+	query := `
+		SELECT id, scan_id, level, message, timestamp, created_at
+		FROM scan_logs
+		WHERE scan_id = ?
+		ORDER BY timestamp ASC
+	`
+	rows, err := r.db.QueryContext(ctx, query, scanID)
+	if err != nil {
+		return nil, errors.DBError("failed to query scan logs", err)
+	}
+	defer rows.Close()
+
+	var logs []*models.ScanLog
+	for rows.Next() {
+		var log models.ScanLog
+		if err := rows.Scan(&log.ID, &log.ScanID, &log.Level, &log.Message, &log.Timestamp, &log.CreatedAt); err != nil {
+			return nil, err
+		}
+		logs = append(logs, &log)
+	}
+
+	return logs, nil
+}
+
+// DeleteLogsByScanID 删除扫描的所有日志
+func (r *ScanRepository) DeleteLogsByScanID(ctx context.Context, scanID int) error {
+	_, err := r.db.ExecContext(ctx, "DELETE FROM scan_logs WHERE scan_id = ?", scanID)
+	if err != nil {
+		return errors.DBError("failed to delete scan logs", err)
+	}
+	return nil
 }

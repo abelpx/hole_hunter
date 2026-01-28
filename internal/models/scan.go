@@ -15,6 +15,7 @@ type ScanTask struct {
 	Progress          int      `json:"progress"`
 	CurrentTemplate   *string  `json:"current_template,omitempty"`
 	Error             *string  `json:"error,omitempty"`
+	FindingsCount     *int     `json:"findings_count,omitempty"`
 	CreatedAt         string   `json:"created_at"`
 }
 
@@ -28,4 +29,14 @@ type ScanProgress struct {
 	CurrentTemplate string `json:"current_template"`
 	VulnCount       int    `json:"vuln_count"`
 	Error           string `json:"error,omitempty"`
+}
+
+// ScanLog represents a log entry for a scan
+type ScanLog struct {
+	ID        int    `json:"id"`
+	ScanID    int    `json:"scan_id"`
+	Level     string `json:"level"`
+	Message   string `json:"message"`
+	Timestamp string `json:"timestamp"`
+	CreatedAt string `json:"created_at"`
 }

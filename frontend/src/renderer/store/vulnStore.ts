@@ -132,10 +132,9 @@ export const useVulnStore = create<VulnState>()(
 
           const apiResult = await GetVulnerabilitiesPageByFilter(filter, page, pageSize);
 
-          // Wails 只返回数组，不返回 [数组, 总数]
-          // 验证返回值是否为数组
-          if (!apiResult || !Array.isArray(apiResult)) {
-            console.warn('[vulnStore] GetVulnerabilitiesPageByFilter did not return a valid array:', apiResult);
+          // API 返回对象: { vulnerabilities: [], total: number }
+          if (!apiResult || !apiResult.vulnerabilities) {
+            console.warn('[vulnStore] GetVulnerabilitiesPageByFilter did not return a valid result:', apiResult);
             set({
               vulnerabilities: [],
               total: 0,
@@ -145,8 +144,8 @@ export const useVulnStore = create<VulnState>()(
             return;
           }
 
-          // apiResult 就是漏洞数组，直接使用
-          const vulnerabilities = apiResult.map((v: any) => ({
+          // apiResult.vulnerabilities 是漏洞数组
+          const vulnerabilities = apiResult.vulnerabilities.map((v: any) => ({
             id: String(v?.id ?? ''),
             name: v?.name ?? '',
             severity: v?.severity as any,
@@ -157,19 +156,16 @@ export const useVulnStore = create<VulnState>()(
             reference: v?.reference || [],
             target_id: v?.task_id ?? 0,
             scan_id: v?.task_id ?? 0,
-            discovered_at: v?.matched_at || v?.created_at || new Date().toISOString(),
+            discovered_at: v?.created_at || new Date().toISOString(),
+            matched_at: v?.matched_at || '',
             is_false_positive: v?.false_positive ?? false,
             cve: v?.cve ? [v.cve] : undefined,
             cvss: v?.cvss,
           })).filter((v: any) => v.id); // 过滤掉无效数据
 
-          // 由于 Wails 不返回总数，使用当前返回的数量作为估算
-          // TODO: 需要添加专门获取总数的 API
-          const estimatedTotal = page * pageSize + vulnerabilities.length;
-
           set({
             vulnerabilities,
-            total: estimatedTotal,
+            total: apiResult.total || 0,
             currentPage: page,
             loading: false,
           });
