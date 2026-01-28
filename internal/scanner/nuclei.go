@@ -89,8 +89,9 @@ func (n *NucleiClient) buildArgs(targetURL, strategy string, templates []string,
 	args := []string{
 		"-u", targetURL,
 		"-json",
-		"-silent",
 		"-no-color",
+		// 注意：不使用 -silent，因为它会抑制 stderr 中的进度输出
+		// 进度信息对于实时显示扫描状态很重要
 	}
 
 	// 添加模板目录
