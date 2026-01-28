@@ -20,20 +20,26 @@ type NucleiClient struct {
 // NewNucleiClient 创建 Nuclei 客户端
 func NewNucleiClient(userDataDir string) *NucleiClient {
 	return &NucleiClient{
-		binaryPath:   findNucleiBinary(),
+		binaryPath:   findNucleiBinaryInDir(userDataDir),
 		templatesDir: filepath.Join(userDataDir, "nuclei-templates"),
 	}
 }
 
 // NewNucleiClientWithTemplates 创建 Nuclei 客户端（指定模板目录）
 func NewNucleiClientWithTemplates(userDataDir, templatesDir string) *NucleiClient {
-	if templatesDir != "" {
-		return &NucleiClient{
-			binaryPath:   findNucleiBinary(),
-			templatesDir: templatesDir,
-		}
+	// 确定 binary 路径 - 优先从用户数据目录查找
+	binaryPath := findNucleiBinaryInDir(userDataDir)
+
+	// 确定 templates 路径
+	templatePath := templatesDir
+	if templatePath == "" {
+		templatePath = filepath.Join(userDataDir, "nuclei-templates")
 	}
-	return NewNucleiClient(userDataDir)
+
+	return &NucleiClient{
+		binaryPath:   binaryPath,
+		templatesDir: templatePath,
+	}
 }
 
 // IsAvailable 检查 Nuclei 是否可用
