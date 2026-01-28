@@ -32,7 +32,7 @@ func NewScanService(
 	cfg *config.Config,
 ) *ScanService {
 	nucleiClient := scanner.NewNucleiClientWithTemplates(cfg.DataDir, cfg.TemplatesDir)
-	orchestrator := scanner.NewOrchestrator(nucleiClient, eventBus, logger, cfg.MaxConcurrent, metrics.Global)
+	orchestrator := scanner.NewOrchestrator(nucleiClient, eventBus, logger, cfg.MaxConcurrent, metrics.Global, scanRepo)
 
 	return &ScanService{
 		scanRepo:   scanRepo,

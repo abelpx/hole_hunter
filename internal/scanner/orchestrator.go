@@ -11,6 +11,7 @@ import (
 	"github.com/holehunter/holehunter/internal/infrastructure/logger"
 	"github.com/holehunter/holehunter/internal/metrics"
 	"github.com/holehunter/holehunter/internal/models"
+	"github.com/holehunter/holehunter/internal/repo"
 )
 
 // Scanner 扫描器接口
@@ -46,6 +47,7 @@ type Orchestrator struct {
 	eventBus      *event.Bus
 	logger        *logger.Logger
 	maxConcurrent int
+	scanRepo      *repo.ScanRepository
 
 	mu    sync.RWMutex
 	scans map[int]*ScanContext
@@ -70,6 +72,7 @@ func NewOrchestrator(
 	logger *logger.Logger,
 	maxConcurrent int,
 	metrics *metrics.Metrics,
+	scanRepo *repo.ScanRepository,
 ) *Orchestrator {
 	return &Orchestrator{
 		nuclei:        nuclei,
@@ -77,6 +80,7 @@ func NewOrchestrator(
 		eventBus:      eventBus,
 		logger:        logger,
 		maxConcurrent: maxConcurrent,
+		scanRepo:      scanRepo,
 		scans:         make(map[int]*ScanContext),
 	}
 }
@@ -321,6 +325,21 @@ func (o *Orchestrator) onProgress(taskID int) func(ScanProgress) {
 				"progress": progress,
 			},
 		})
+
+		// 更新数据库中的进度
+		if o.scanRepo != nil {
+			dbProgress := models.ScanProgress{
+				TaskID:          progress.TaskID,
+				Status:          progress.Status,
+				TotalTemplates:  progress.TotalTemplates,
+				Executed:        progress.Executed,
+				Progress:        progress.Progress,
+				CurrentTemplate: progress.CurrentTemplate,
+			}
+			if err := o.scanRepo.UpdateProgress(ctx, taskID, dbProgress); err != nil {
+				o.logger.Warn("Failed to update scan progress in database: task_id=%d, error=%v", taskID, err)
+			}
+		}
 	}
 }
 
