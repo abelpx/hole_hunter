@@ -8,6 +8,12 @@ import { devtools } from 'zustand/middleware';
 import { ScanTask, CreateScanRequest, ScanConfigOptions } from '../types';
 import { getService } from '../services/WailsService';
 
+// 创建扫描请求
+export interface CreateScanData {
+  target_id: number;
+  config?: ScanConfigOptions & { taskName?: string };
+}
+
 // Store 状态
 interface ScanState {
   // 数据
@@ -21,7 +27,7 @@ interface ScanState {
 
   // Actions
   fetchScans: () => Promise<void>;
-  createScan: (data: Omit<CreateScanRequest, 'target_name'>) => Promise<number>;
+  createScan: (data: CreateScanData) => Promise<number>;
   cancelScan: (id: number) => Promise<void>;
   deleteScan: (id: number) => Promise<void>;
   batchDeleteScans: (ids: number[]) => Promise<void>;
@@ -66,18 +72,34 @@ export const useScanStore = create<ScanState>()(
         set({ loading: true, error: null });
         try {
           const service = getService();
-          // 获取目标名称
+          // 获取目标信息
           const targets = await service.getAllTargets();
           const target = targets.find((t) => t.id === data.target_id);
           if (!target) {
             throw new Error(`Target with id ${data.target_id} not found`);
           }
 
+          // 从 config 构建策略字符串
+          const config = data.config || {};
+          let strategy = 'default';
+
+          if (config.scenarioGroupId) {
+            strategy = `scenario:${config.scenarioGroupId}`;
+          } else if (config.severity && config.severity.length > 0) {
+            strategy = config.severity.join(',');
+          } else if (config.tags && config.tags.length > 0) {
+            strategy = `tags:${config.tags.join(',')}`;
+          }
+
           const createRequest: CreateScanRequest = {
+            name: config.taskName || `${target.name} 扫描`,
             target_id: data.target_id,
-            target_name: target.name,
-            config: data.config,
+            strategy: strategy,
+            templates: config.templates || [],
+            scenarioGroupId: config.scenarioGroupId,
           };
+
+          console.log('[scanStore] Creating scan with request:', createRequest);
 
           const scan = await service.createScan(createRequest);
           set({ activeScanId: scan.id, loading: false });

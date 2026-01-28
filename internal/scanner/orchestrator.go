@@ -117,7 +117,9 @@ func (o *Orchestrator) Scan(ctx context.Context, req ScanRequest) error {
 		"NUCLEI_TEMPLATES_DIR="+o.nuclei.templatesDir,
 	)
 
-	o.logger.Debug("Nuclei command: %s with templates dir: %s", cmd.Path, o.nuclei.templatesDir)
+	o.logger.Debug("Nuclei command: %s with templates dir: %s, strategy: %s",
+		cmd.Path, o.nuclei.templatesDir, req.Strategy)
+	o.logger.Debug("Nuclei args: %v", cmd.Args)
 
 	// 创建扫描上下文
 	ctx, cancel := context.WithCancel(ctx)
@@ -308,6 +310,8 @@ func (o *Orchestrator) onProgress(taskID int) func(ScanProgress) {
 		}
 
 		scanCtx.ProgressMu.Lock()
+		// 使用 scanCtx 中的实际漏洞计数，而不是 stats-json 中的值
+		actualVulnCount := int(scanCtx.VulnCount.Load())
 		scanCtx.Progress = &models.ScanProgress{
 			TaskID:          progress.TaskID,
 			Status:          progress.Status,
@@ -315,7 +319,7 @@ func (o *Orchestrator) onProgress(taskID int) func(ScanProgress) {
 			Executed:        progress.Executed,
 			Progress:        progress.Progress,
 			CurrentTemplate: progress.CurrentTemplate,
-			VulnCount:       progress.VulnCount,
+			VulnCount:       actualVulnCount,
 		}
 		// 复制一份用于事件发布（避免锁内调用）
 		progressCopy := *scanCtx.Progress
@@ -368,7 +372,29 @@ func (o *Orchestrator) onProgress(taskID int) func(ScanProgress) {
 
 // onScanCompleted 处理扫描完成
 func (o *Orchestrator) onScanCompleted(taskID int, vulnCount int) {
-	o.eventBus.PublishAsync(context.Background(), event.Event{
+	o.logger.Info("onScanCompleted: task_id=%d, vuln_count=%d", taskID, vulnCount)
+
+	// 更新数据库状态为 completed
+	ctx := context.Background()
+	if o.scanRepo != nil {
+		if err := o.scanRepo.UpdateStatus(ctx, taskID, "completed"); err != nil {
+			o.logger.Error("Failed to update scan status to completed: task_id=%d, error=%v", taskID, err)
+		} else {
+			o.logger.Info("Updated scan status to completed: task_id=%d", taskID)
+		}
+
+		// 更新最终进度为 100%
+		if err := o.scanRepo.UpdateProgress(ctx, taskID, models.ScanProgress{
+			TaskID:   taskID,
+			Status:   "completed",
+			Progress: 100,
+		}); err != nil {
+			o.logger.Warn("Failed to update final progress: task_id=%d, error=%v", taskID, err)
+		}
+	}
+
+	// 发布完成事件
+	o.eventBus.PublishAsync(ctx, event.Event{
 		Type: event.EventScanCompleted,
 		Data: map[string]interface{}{
 			"taskId":    taskID,
@@ -384,12 +410,23 @@ func (o *Orchestrator) onScanCompleted(taskID int, vulnCount int) {
 	if exists {
 		duration := time.Since(scanCtx.StartTime)
 		metrics.Global.IncrementScanCompleted(duration)
+		o.logger.Info("Scan completed: task_id=%d, duration=%s, vuln_count=%d", taskID, duration, vulnCount)
 	}
 }
 
 // handleScanError 处理扫描错误
 func (o *Orchestrator) handleScanError(taskID int, err error) {
-	o.eventBus.PublishAsync(context.Background(), event.Event{
+	o.logger.Error("handleScanError: task_id=%d, error=%v", taskID, err)
+
+	// 更新数据库状态为 failed
+	ctx := context.Background()
+	if o.scanRepo != nil {
+		if updateErr := o.scanRepo.UpdateStatus(ctx, taskID, "failed"); updateErr != nil {
+			o.logger.Error("Failed to update scan status to failed: task_id=%d, error=%v", taskID, updateErr)
+		}
+	}
+
+	o.eventBus.PublishAsync(ctx, event.Event{
 		Type: event.EventScanFailed,
 		Data: map[string]interface{}{
 			"taskId": taskID,

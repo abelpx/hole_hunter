@@ -100,12 +100,12 @@ export const ScanConfigModal: React.FC<ScanConfigModalProps> = ({
   onConfirm,
   targetName = '',
 }) => {
-  const [selectedPreset, setSelectedPreset] = useState<string>('quick');
+  const [selectedPreset, setSelectedPreset] = useState<string>('full');
   const [taskName, setTaskName] = useState<string>('');
   const [scenarioGroups, setScenarioGroups] = useState<ScenarioGroup[]>([]);
   const [useScenarioGroup, setUseScenarioGroup] = useState<boolean>(false);
   const [customConfig, setCustomConfig] = useState<ScanConfigOptions>({
-    severity: ['critical', 'high'],
+    severity: ['critical', 'high', 'medium', 'low', 'info'],
     tags: [],
     excludeTags: [],
     rateLimit: 150,

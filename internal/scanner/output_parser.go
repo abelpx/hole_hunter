@@ -150,56 +150,55 @@ func parseStatsProgress(line string) (ScanProgress, bool) {
 // parseStatsJSONProgress 解析 JSON 格式的统计输出
 // 格式: {"duration":"0:00:02","errors":"0","hosts":"1","matched":"1","percent":"100","requests":"1","rps":"0","startedAt":"...","templates":"1","total":"1"}
 func parseStatsJSONProgress(line string) (ScanProgress, bool) {
-	var stats struct {
-		Percent   string `json:"percent"`
-		Templates string `json:"templates"`
-		Total     string `json:"total"`
-		Matched   string `json:"matched"`
-	}
-
+	// 使用 map 来解析，以便看到完整的 JSON 结构
+	var stats map[string]interface{}
 	if err := json.Unmarshal([]byte(line), &stats); err != nil {
 		return ScanProgress{}, false
 	}
 
+	progress := ScanProgress{Status: "running"}
+
 	// 解析百分比
-	var progress int
-	if stats.Percent != "" {
-		fmt.Sscanf(stats.Percent, "%d", &progress)
+	if percentVal, ok := stats["percent"]; ok {
+		switch v := percentVal.(type) {
+		case string:
+			fmt.Sscanf(v, "%d", &progress.Progress)
+		case float64:
+			progress.Progress = int(v)
+		}
 	}
 
 	// 解析已执行模板数
-	var executed int
-	if stats.Templates != "" {
-		fmt.Sscanf(stats.Templates, "%d", &executed)
+	if templatesVal, ok := stats["templates"]; ok {
+		switch v := templatesVal.(type) {
+		case string:
+			fmt.Sscanf(v, "%d", &progress.Executed)
+		case float64:
+			progress.Executed = int(v)
+		}
 	}
 
 	// 解析总模板数
-	var total int
-	if stats.Total != "" {
-		fmt.Sscanf(stats.Total, "%d", &total)
+	if totalVal, ok := stats["total"]; ok {
+		switch v := totalVal.(type) {
+		case string:
+			fmt.Sscanf(v, "%d", &progress.TotalTemplates)
+		case float64:
+			progress.TotalTemplates = int(v)
+		}
 	}
 
 	// 解析发现的漏洞数
-	var vulnCount int
-	if stats.Matched != "" {
-		fmt.Sscanf(stats.Matched, "%d", &vulnCount)
+	if matchedVal, ok := stats["matched"]; ok {
+		switch v := matchedVal.(type) {
+		case string:
+			fmt.Sscanf(v, "%d", &progress.VulnCount)
+		case float64:
+			progress.VulnCount = int(v)
+		}
 	}
 
-	// 如果 total 为 0，说明 nuclei 还在初始化，不返回进度
-	if total == 0 && executed == 0 {
-		return ScanProgress{
-			Status:    "running",
-			VulnCount: vulnCount,
-		}, true
-	}
-
-	return ScanProgress{
-		Status:          "running",
-		Progress:        progress,
-		Executed:        executed,
-		TotalTemplates:  total,
-		VulnCount:       vulnCount,
-	}, true
+	return progress, true
 }
 
 // OutputParser 解析 Nuclei 输出

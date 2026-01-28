@@ -110,12 +110,31 @@ func (n *NucleiClient) buildArgs(targetURL, strategy string, templates []string,
 	case "quick":
 		args = append(args, "-severity", "critical,high,medium")
 	case "deep":
-		// 使用所有模板
+		// 使用所有模板（默认行为）
 	case "passive":
 		args = append(args, "-passive")
 	default:
-		// 使用指定的模板
-		if len(templates) > 0 {
+		// 动态策略解析
+		if strings.HasPrefix(strategy, "tags:") {
+			// tags 策略：tags:cve,rce,sqli
+			tags := strings.TrimPrefix(strategy, "tags:")
+			args = append(args, "-tags", tags)
+		} else if strings.HasPrefix(strategy, "scenario:") {
+			// scenario 策略：scenario:xxx
+			// 场景分组由 templates 列表处理
+			if len(templates) > 0 {
+				for _, template := range templates {
+					if !isValidTemplateID(template) {
+						continue
+					}
+					args = append(args, "-id", template)
+				}
+			}
+		} else if isSeverityStrategy(strategy) {
+			// severity 策略：critical,high,medium
+			args = append(args, "-severity", strategy)
+		} else if len(templates) > 0 {
+			// 使用指定的模板 ID
 			for _, template := range templates {
 				if !isValidTemplateID(template) {
 					continue
@@ -123,9 +142,35 @@ func (n *NucleiClient) buildArgs(targetURL, strategy string, templates []string,
 				args = append(args, "-id", template)
 			}
 		}
+		// 如果策略不匹配任何格式，使用默认（所有模板）
 	}
 
 	return args
+}
+
+// isSeverityStrategy 检查是否是 severity 策略
+func isSeverityStrategy(strategy string) bool {
+	if strategy == "" {
+		return false
+	}
+	// severity 策略包含逗号分隔的严重性级别
+	// 例如: "critical,high", "critical,high,medium,low"
+	severityLevels := []string{"critical", "high", "medium", "low", "info"}
+	parts := strings.Split(strategy, ",")
+	for _, part := range parts {
+		trimmed := strings.TrimSpace(part)
+		found := false
+		for _, level := range severityLevels {
+			if trimmed == level {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	return len(parts) > 0
 }
 
 // isValidTemplateID 验证模板 ID 是否有效
