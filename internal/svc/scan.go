@@ -100,7 +100,13 @@ func (s *ScanService) Create(ctx context.Context, req *CreateScanRequest) (*mode
 		return nil, errors.Wrap(err, "failed to create scan task")
 	}
 
-	return task, nil
+	// 重新获取完整的任务对象（包括数据库生成的 created_at 字段）
+	createdTask, err := s.scanRepo.GetByID(ctx, task.ID)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get created scan task")
+	}
+
+	return createdTask, nil
 }
 
 // Start 启动扫描任务
