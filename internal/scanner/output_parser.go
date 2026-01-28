@@ -58,6 +58,12 @@ func ParseScanProgress(line string) (ScanProgress, bool) {
 	// nuclei 的进度输出格式示例：
 	// [INF] Current template: http/cves/2021/CVE-2021-XXXXX.yaml (0/12035)
 	// [INF] [stats] requests: 123, findings: 5, rps: 10, duration: 12s
+	// {"duration":"0:00:02","errors":"0","hosts":"1","matched":"1","percent":"100","requests":"1","rps":"0","startedAt":"...","templates":"1","total":"1"}
+
+	// 尝试解析 JSON 格式的统计输出
+	if strings.HasPrefix(line, "{") && strings.Contains(line, "percent") {
+		return parseStatsJSONProgress(line)
+	}
 
 	// 尝试解析模板进度
 	if strings.Contains(line, "Current template:") {
@@ -141,6 +147,53 @@ func parseStatsProgress(line string) (ScanProgress, bool) {
 	}, true
 }
 
+// parseStatsJSONProgress 解析 JSON 格式的统计输出
+// 格式: {"duration":"0:00:02","errors":"0","hosts":"1","matched":"1","percent":"100","requests":"1","rps":"0","startedAt":"...","templates":"1","total":"1"}
+func parseStatsJSONProgress(line string) (ScanProgress, bool) {
+	var stats struct {
+		Percent   string `json:"percent"`
+		Templates string `json:"templates"`
+		Total     string `json:"total"`
+		Matched   string `json:"matched"`
+	}
+
+	if err := json.Unmarshal([]byte(line), &stats); err != nil {
+		return ScanProgress{}, false
+	}
+
+	// 解析百分比
+	var progress int
+	if stats.Percent != "" {
+		fmt.Sscanf(stats.Percent, "%d", &progress)
+	}
+
+	// 解析已执行模板数
+	var executed int
+	if stats.Templates != "" {
+		fmt.Sscanf(stats.Templates, "%d", &executed)
+	}
+
+	// 解析总模板数
+	var total int
+	if stats.Total != "" {
+		fmt.Sscanf(stats.Total, "%d", &total)
+	}
+
+	// 解析发现的漏洞数
+	var vulnCount int
+	if stats.Matched != "" {
+		fmt.Sscanf(stats.Matched, "%d", &vulnCount)
+	}
+
+	return ScanProgress{
+		Status:          "running",
+		Progress:        progress,
+		Executed:        executed,
+		TotalTemplates:  total,
+		VulnCount:       vulnCount,
+	}, true
+}
+
 // OutputParser 解析 Nuclei 输出
 type OutputParser struct {
 	onVulnerability func(*NucleiOutput)
@@ -155,12 +208,22 @@ func NewOutputParser(onVuln func(*NucleiOutput), onProgress func(ScanProgress)) 
 	}
 }
 
-// ParseStdout 解析标准输出（JSON 格式的漏洞结果）
+// ParseStdout 解析标准输出（JSON 格式的漏洞结果和统计信息）
 func (p *OutputParser) ParseStdout(reader io.Reader) {
 	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() {
 		line := scanner.Text()
 
+		// 首先检查是否是统计信息 JSON
+		if strings.HasPrefix(line, "{") && (strings.Contains(line, `"percent"`) || strings.Contains(line, `"templates"`)) {
+			progress, ok := parseStatsJSONProgress(line)
+			if ok && p.onProgress != nil {
+				p.onProgress(progress)
+			}
+			continue
+		}
+
+		// 否则尝试解析为漏洞结果
 		output, err := ParseScanJSONLine([]byte(line))
 		if err != nil {
 			continue
