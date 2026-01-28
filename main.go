@@ -13,9 +13,15 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
+//go:embed build/embedded/nuclei
+var nucleiBinary []byte
+
+//go:embed build/poc-templates.zip
+var pocTemplatesZip []byte
+
 func main() {
 	// Create an instance of the app structure
-	application := app.NewApp()
+	application := app.NewApp(app.WithEmbeddedResources(nucleiBinary, pocTemplatesZip))
 
 	// Create application with options
 	err := wails.Run(&options.App{
