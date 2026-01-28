@@ -295,41 +295,45 @@ func (o *Orchestrator) onVulnerability(taskID int) func(*NucleiOutput) {
 // onProgress 处理进度更新
 func (o *Orchestrator) onProgress(taskID int) func(ScanProgress) {
 	return func(progress ScanProgress) {
-		o.logger.Debug("Progress update: task_id=%d, progress=%d, status=%s, template=%s",
-			taskID, progress.Progress, progress.Status, progress.CurrentTemplate)
+		o.logger.Debug("Progress update: task_id=%d, progress=%d, total=%d, executed=%d",
+			taskID, progress.Progress, progress.TotalTemplates, progress.Executed)
 
 		o.mu.RLock()
 		scanCtx, exists := o.scans[taskID]
 		o.mu.RUnlock()
 
-		if exists {
-			scanCtx.ProgressMu.Lock()
-			scanCtx.Progress = &models.ScanProgress{
-				TaskID:          progress.TaskID,
-				Status:          progress.Status,
-				TotalTemplates:  progress.TotalTemplates,
-				Executed:        progress.Executed,
-				Progress:        progress.Progress,
-				CurrentTemplate: progress.CurrentTemplate,
-			}
-			scanCtx.ProgressMu.Unlock()
-
-			o.logger.Debug("Progress updated in scanCtx: task_id=%d, progress=%d%%",
-				taskID, progress.Progress)
-
-			// 记录模板执行指标
-			if progress.Executed > 0 {
-				for i := 0; i < progress.Executed; i++ {
-					metrics.Global.RecordTemplateExecuted()
-				}
-			}
-		} else {
+		if !exists {
 			o.logger.Warn("Scan context not found for progress update: task_id=%d", taskID)
+			return
+		}
+
+		scanCtx.ProgressMu.Lock()
+		scanCtx.Progress = &models.ScanProgress{
+			TaskID:          progress.TaskID,
+			Status:          progress.Status,
+			TotalTemplates:  progress.TotalTemplates,
+			Executed:        progress.Executed,
+			Progress:        progress.Progress,
+			CurrentTemplate: progress.CurrentTemplate,
+			VulnCount:       progress.VulnCount,
+		}
+		// 复制一份用于事件发布（避免锁内调用）
+		progressCopy := *scanCtx.Progress
+		scanCtx.ProgressMu.Unlock()
+
+		o.logger.Debug("Progress updated in scanCtx: task_id=%d, progress=%d%%, total=%d, executed=%d",
+			taskID, progressCopy.Progress, progressCopy.TotalTemplates, progressCopy.Executed)
+
+		// 记录模板执行指标
+		if progress.Executed > 0 {
+			for i := 0; i < progress.Executed; i++ {
+				metrics.Global.RecordTemplateExecuted()
+			}
 		}
 
 		// 使用 scanCtx 的 context（如果存在），否则使用 Background
 		ctx := context.Background()
-		if exists && scanCtx.Request.Context != nil {
+		if scanCtx.Request.Context != nil {
 			ctx = scanCtx.Request.Context
 		}
 
@@ -338,9 +342,12 @@ func (o *Orchestrator) onProgress(taskID int) func(ScanProgress) {
 			Type: event.EventScanProgress,
 			Data: map[string]interface{}{
 				"taskId":   taskID,
-				"progress": progress,
+				"progress": progressCopy,
 			},
 		})
+
+		o.logger.Debug("Published progress event: task_id=%d, total=%d, executed=%d, progress=%d%%",
+			taskID, progressCopy.TotalTemplates, progressCopy.Executed, progressCopy.Progress)
 
 		// 更新数据库中的进度
 		if o.scanRepo != nil {
