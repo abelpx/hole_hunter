@@ -88,8 +88,8 @@ func (n *NucleiClient) BuildCommand(targetURL, strategy string, templates []stri
 func (n *NucleiClient) buildArgs(targetURL, strategy string, templates []string, customDir string) []string {
 	args := []string{
 		"-u", targetURL,
-		"-json",
-		"-no-color",
+		"-jsonl",    // JSONL 格式输出（每行一个 JSON 对象）
+		"-no-color", // 禁用颜色输出
 		// 注意：不使用 -silent，因为它会抑制 stderr 中的进度输出
 		// 进度信息对于实时显示扫描状态很重要
 	}
