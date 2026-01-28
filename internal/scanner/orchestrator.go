@@ -2,6 +2,7 @@ package scanner
 
 import (
 	"context"
+	"os"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -110,6 +111,13 @@ func (o *Orchestrator) Scan(ctx context.Context, req ScanRequest) error {
 	if err != nil {
 		return errors.Internal("failed to build command", err)
 	}
+
+	// 设置环境变量 - nuclei 需要这些来定位模板目录
+	cmd.Env = append(os.Environ(),
+		"NUCLEI_TEMPLATES_DIR="+o.nuclei.templatesDir,
+	)
+
+	o.logger.Debug("Nuclei command: %s with templates dir: %s", cmd.Path, o.nuclei.templatesDir)
 
 	// 创建扫描上下文
 	ctx, cancel := context.WithCancel(ctx)
