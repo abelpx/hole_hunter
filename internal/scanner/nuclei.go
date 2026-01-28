@@ -148,14 +148,31 @@ func (n *NucleiClient) hasCustomTemplates(customDir string) bool {
 
 // findNucleiBinary 查找 Nuclei 二进制文件
 func findNucleiBinary() string {
-	// 优先使用环境变量指定的路径
+	return findNucleiBinaryInDir("")
+}
+
+// findNucleiBinaryInDir 在指定目录查找 Nuclei 二进制文件
+func findNucleiBinaryInDir(userDataDir string) string {
+	// 1. 优先查找用户数据目录（嵌入资源提取位置）
+	if userDataDir != "" {
+		binaryName := "nuclei"
+		if runtime.GOOS == "windows" {
+			binaryName = "nuclei.exe"
+		}
+		userNucleiPath := filepath.Join(userDataDir, binaryName)
+		if _, err := os.Stat(userNucleiPath); err == nil {
+			return userNucleiPath
+		}
+	}
+
+	// 2. 优先使用环境变量指定的路径
 	if path := os.Getenv("NUCLEI_PATH"); path != "" {
 		if _, err := os.Stat(path); err == nil {
 			return path
 		}
 	}
 
-	// 开发环境：检查项目根目录
+	// 3. 开发环境：检查项目根目录
 	if _, err := os.Stat("./nuclei"); err == nil {
 		return "./nuclei"
 	}
@@ -165,7 +182,7 @@ func findNucleiBinary() string {
 		}
 	}
 
-	// 开发环境：检查 build/bin 目录
+	// 4. 开发环境：检查 build/bin 目录
 	buildBinPath := filepath.Join("build", "bin", "nuclei")
 	if runtime.GOOS == "windows" {
 		buildBinPath += ".exe"
@@ -174,7 +191,7 @@ func findNucleiBinary() string {
 		return buildBinPath
 	}
 
-	// 生产环境使用应用包内的 nuclei
+	// 5. 生产环境使用应用包内的 nuclei
 	if exePath, err := os.Executable(); err == nil {
 		appDir := filepath.Dir(exePath)
 		nucleiPath := filepath.Join(appDir, "nuclei")
@@ -186,7 +203,7 @@ func findNucleiBinary() string {
 		}
 	}
 
-	// 根据操作系统查找
+	// 6. 根据操作系统查找
 	paths := []string{
 		"nuclei",
 		"/usr/local/bin/nuclei",

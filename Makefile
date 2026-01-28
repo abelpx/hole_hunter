@@ -69,7 +69,8 @@ help:
 	@echo "$(GREEN)清理:$(NC)"
 	@echo "  $(YELLOW)make clean$(NC)            - 清理构建产物"
 	@echo ""
-	@echo "$(GREEN)Nuclei:$(NC)"
+	@echo "$(GREEN)资源准备:$(NC)"
+	@echo "  $(YELLOW)make prepare-embedded$(NC) - 准备嵌入资源（nuclei + 模板）"
 	@echo "  $(YELLOW)make nuclei-download$(NC)  - 下载 nuclei 二进制文件"
 	@echo "  $(YELLOW)make nuclei-compile-all$(NC) - 交叉编译所有平台 nuclei"
 	@echo ""
@@ -90,7 +91,7 @@ dev:
 	@"$(WAILS)" dev
 
 ## build: 生产构建（优化）
-build: nuclei-download prepare-templates
+build: check-embedded
 	@echo "$(GREEN)构建 $(APP_NAME) 桌面应用...$(NC)"
 	@echo "$(BLUE)平台: $(DETECTED_OS)$(NC)"
 	@echo "$(BLUE)模式: 生产（优化）$(NC)"
@@ -99,20 +100,18 @@ ifeq ($(DETECTED_OS),Windows)
 else
 	@"$(WAILS)" build
 endif
-	@$(MAKE) copy-nuclei
 	@echo ""
-	@echo "$(GREEN)✓ 构建完成$(NC)"
+	@echo "$(GREEN)✓ 构建完成（资源已嵌入到 exe）$(NC)"
 	@$(MAKE) show-build-info
 
 ## build-debug: 调试构建（包含开发者工具）
-build-debug: nuclei-download prepare-templates
+build-debug: check-embedded
 	@echo "$(GREEN)构建 $(APP_NAME) 桌面应用（调试模式）...$(NC)"
 	@echo "$(BLUE)平台: $(DETECTED_OS)$(NC)"
 	@echo "$(BLUE)模式: 调试（包含开发者工具）$(NC)"
 	@"$(WAILS)" build -debug
-	@$(MAKE) copy-nuclei
 	@echo ""
-	@echo "$(GREEN)✓ 构建完成$(NC)"
+	@echo "$(GREEN)✓ 构建完成（资源已嵌入到 exe）$(NC)"
 	@$(MAKE) show-build-info
 
 ## copy-nuclei: 复制 nuclei 到应用包（内部目标）
@@ -191,6 +190,41 @@ prepare-templates:
 		echo "$(YELLOW)警告: nuclei-templates 子模块未初始化$(NC)"; \
 		echo "$(YELLOW)运行: git submodule update --init --recursive$(NC)"; \
 	fi
+
+## prepare-embedded: 准备嵌入资源（nuclei 二进制和 POC 模板）
+prepare-embedded:
+	@echo "$(BLUE)准备嵌入资源...$(NC)"
+	@echo "$(BLUE)1. 下载 nuclei 二进制...$(NC)"
+	@./scripts/download-nuclei.sh
+	@mkdir -p build/embedded
+	@cp -f build/binaries/nuclei build/embedded/nuclei
+	@echo "$(GREEN)  ✓ nuclei 已复制到 build/embedded/$(NC)"
+	@echo ""
+	@echo "$(BLUE)2. 构建核心 POC 模板...$(NC)"
+	@if [ -d "nuclei-templates" ]; then \
+		./build/copy-poc-templates.sh; \
+	else \
+		echo "$(YELLOW)警告: nuclei-templates 子模块未初始化$(NC)"; \
+		echo "$(YELLOW)运行: git submodule update --init --recursive$(NC)"; \
+		exit 1; \
+	fi
+	@echo ""
+	@echo "$(GREEN)✓ 嵌入资源准备完成$(NC)"
+
+## check-embedded: 检查嵌入资源是否已准备
+check-embedded:
+	@echo "$(BLUE)检查嵌入资源...$(NC)"
+	@if [ ! -f "build/embedded/nuclei" ]; then \
+		echo "$(RED)错误: build/embedded/nuclei 不存在$(NC)"; \
+		echo "$(YELLOW)请先运行: make prepare-embedded$(NC)"; \
+		exit 1; \
+	fi
+	@if [ ! -f "build/poc-templates.zip" ]; then \
+		echo "$(RED)错误: build/poc-templates.zip 不存在$(NC)"; \
+		echo "$(YELLOW)请先运行: make prepare-embedded$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(GREEN)✓ 嵌入资源检查通过$(NC)"
 
 ## run: 运行已构建的应用
 run:
