@@ -166,6 +166,10 @@ export function GetReportById(arg1) {
   return window['go']['app']['App']['GetReportById'](arg1);
 }
 
+export function GetResourceStatus() {
+  return window['go']['app']['App']['GetResourceStatus']();
+}
+
 export function GetScanProgress(arg1) {
   return window['go']['app']['App']['GetScanProgress'](arg1);
 }
@@ -284,6 +288,10 @@ export function UpdateScenarioGroup(arg1, arg2, arg3, arg4) {
 
 export function UpdateTarget(arg1, arg2, arg3, arg4, arg5) {
   return window['go']['app']['App']['UpdateTarget'](arg1, arg2, arg3, arg4, arg5);
+}
+
+export function UpdateTemplates(arg1) {
+  return window['go']['app']['App']['UpdateTemplates'](arg1);
 }
 
 export function UpdateVulnerability(arg1, arg2, arg3) {
