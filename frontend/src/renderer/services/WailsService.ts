@@ -86,13 +86,25 @@ class WailsServiceImpl {
   async createTarget(data: CreateTargetRequest): Promise<Target> {
     return safeWailsCall(
       async () => {
-        const id = await (WailsApp as any).CreateTarget(
+        const target = await (WailsApp as any).CreateTarget(
           data.name,
           data.url,
           data.description || '',
           data.tags || []
         );
-        return await this.getTargetById(Number(id));
+        console.log('[WailsService] createTarget returned:', target);
+        if (!target || !target.id) {
+          throw new Error('CreateTarget returned invalid target');
+        }
+        // 确保返回的对象有正确的格式
+        return {
+          id: target.id,
+          name: target.name,
+          url: target.url,
+          tags: target.tags || [],
+          status: target.status || 'active',
+          created_at: target.created_at,
+        };
       },
       null as unknown as Target,
       'createTarget'
