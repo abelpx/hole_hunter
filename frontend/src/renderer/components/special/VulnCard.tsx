@@ -122,13 +122,21 @@ export const VulnCard: React.FC<VulnCardProps> = React.memo(({
 
   // 使用 useMemo 缓存格式化的时间
   const formattedDate = useMemo(() => {
-    return new Date(vuln.discovered_at).toLocaleString('zh-CN', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    try {
+      const date = new Date(vuln.discovered_at);
+      if (isNaN(date.getTime())) {
+        return '未知时间';
+      }
+      return date.toLocaleString('zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch {
+      return '未知时间';
+    }
   }, [vuln.discovered_at]);
 
   return (
@@ -183,6 +191,16 @@ export const VulnCard: React.FC<VulnCardProps> = React.memo(({
               {vuln.name}
             </h3>
             <div className="flex items-center gap-2 flex-shrink-0">
+              {/* 严重程度标签 */}
+              <span className={clsx(
+                'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
+                config.bgColor,
+                config.textColor,
+                'border',
+                config.borderColor
+              )}>
+                {config.label}
+              </span>
               {cvssRating && (
                 <Badge variant="danger" size="sm">
                   CVSS {vuln.cvss?.toFixed(1)}

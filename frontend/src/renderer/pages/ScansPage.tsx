@@ -43,12 +43,39 @@ interface ScanTask {
 export const ScansPage: React.FC = () => {
   const [scans, setScans] = useState<ScanTask[]>([]);
   const [logs, setLogs] = useState<Map<number, LogEntry[]>>(new Map());
+  const [logsLoaded, setLogsLoaded] = useState<Set<number>>(new Set());
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [selectedTargetId, setSelectedTargetId] = useState<number | null>(null);
   const [selectedScanIds, setSelectedScanIds] = useState<number[]>([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const { targets } = useTargetStore();
+
+  // 加载扫描历史日志
+  const loadScanLogs = async (scanId: number) => {
+    if (logsLoaded.has(scanId)) {
+      return; // 已加载过
+    }
+    try {
+      const service = getService();
+      const scanLogs = await service.getScanLogs(scanId);
+      if (scanLogs && scanLogs.length > 0) {
+        const logEntries: LogEntry[] = scanLogs.map((log: any) => ({
+          timestamp: log.timestamp || log.created_at,
+          level: log.level as 'info' | 'warning' | 'error' | 'debug',
+          message: log.message,
+        }));
+        setLogs((prev) => {
+          const newLogs = new Map(prev);
+          newLogs.set(scanId, logEntries);
+          return newLogs;
+        });
+      }
+      setLogsLoaded((prev) => new Set(prev).add(scanId));
+    } catch (error) {
+      console.error(`Failed to load logs for scan ${scanId}:`, error);
+    }
+  };
 
   useEffect(() => {
     loadScans();
@@ -160,6 +187,7 @@ export const ScansPage: React.FC = () => {
         total_templates: scan.total_templates,
         executed_templates: scan.executed_templates,
         current_template: scan.current_template,
+        findings_count: scan.findings_count,
         started_at: scan.started_at,
         completed_at: scan.completed_at,
         error: scan.error,
@@ -167,6 +195,13 @@ export const ScansPage: React.FC = () => {
       }));
 
       setScans(convertedScans);
+
+      // 加载已完成扫描的历史日志
+      for (const scan of convertedScans) {
+        if (scan.status === 'completed' || scan.status === 'failed' || scan.status === 'stopped') {
+          loadScanLogs(scan.id);
+        }
+      }
     } catch (error) {
       console.error('Failed to load scans:', error);
     } finally {
@@ -527,9 +562,17 @@ export const ScansPage: React.FC = () => {
               </div>
 
               {/* 日志查看器 */}
-              {logs.has(scan.id) && logs.get(scan.id)!.length > 0 && (
+              {(scan.status === 'completed' || scan.status === 'failed' || scan.status === 'stopped' || scan.status === 'running') && (
                 <div className="mt-4">
-                  <ScanLogViewer logs={logs.get(scan.id)!} maxLogs={50} />
+                  {logs.has(scan.id) && logs.get(scan.id)!.length > 0 ? (
+                    <ScanLogViewer logs={logs.get(scan.id)!} maxLogs={50} />
+                  ) : scan.status === 'running' ? (
+                    <div className="text-sm text-slate-400 italic">正在扫描中，等待日志...</div>
+                  ) : logsLoaded.has(scan.id) ? (
+                    <div className="text-sm text-slate-500 italic">暂无扫描日志</div>
+                  ) : (
+                    <div className="text-sm text-slate-500 italic">加载日志中...</div>
+                  )}
                 </div>
               )}
             </motion.div>

@@ -2,6 +2,7 @@ package scanner
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"sync"
 	"sync/atomic"
@@ -117,9 +118,8 @@ func (o *Orchestrator) Scan(ctx context.Context, req ScanRequest) error {
 		"NUCLEI_TEMPLATES_DIR="+o.nuclei.templatesDir,
 	)
 
-	o.logger.Debug("Nuclei command: %s with templates dir: %s, strategy: %s",
-		cmd.Path, o.nuclei.templatesDir, req.Strategy)
-	o.logger.Debug("Nuclei args: %v", cmd.Args)
+	o.logger.Info("Nuclei command: %s %s", cmd.Path, cmd.String())
+	o.logger.Info("Templates dir: %s, Strategy: %s", o.nuclei.templatesDir, req.Strategy)
 
 	// 创建扫描上下文
 	ctx, cancel := context.WithCancel(ctx)
@@ -155,6 +155,9 @@ func (o *Orchestrator) Scan(ctx context.Context, req ScanRequest) error {
 
 	// 记录指标
 	metrics.Global.IncrementScanStarted()
+
+	// 记录扫描日志到数据库
+	o.addScanLog(ctx, req.TaskID, "info", fmt.Sprintf("Scan started: target=%s, strategy=%s", req.TargetURL, req.Strategy))
 
 	// 启动扫描
 	go o.runScan(scanContext, process)
@@ -194,6 +197,9 @@ func (o *Orchestrator) Stop(ctx context.Context, taskID int) error {
 	duration := time.Since(scanCtx.StartTime)
 	metrics.Global.IncrementScanStopped()
 	metrics.Global.RecordScanDuration(duration)
+
+	// 记录停止日志到数据库
+	o.addScanLog(ctx, taskID, "info", fmt.Sprintf("Scan stopped by user: duration=%s", duration.Round(time.Second)))
 
 	o.logger.Info("Scan stopped: task_id=%d", taskID)
 	return nil
@@ -258,7 +264,6 @@ func (o *Orchestrator) runScan(scanCtx *ScanContext, process *ScanProcess) {
 
 	// 扫描完成
 	vulnCount := int(scanCtx.VulnCount.Load())
-	o.logger.Info("Scan completed: task_id=%d, vuln_count=%d", scanCtx.TaskID, vulnCount)
 	o.onScanCompleted(scanCtx.TaskID, vulnCount)
 }
 
@@ -279,6 +284,9 @@ func (o *Orchestrator) onVulnerability(taskID int) func(*NucleiOutput) {
 		if exists && scanCtx.Request.Context != nil {
 			ctx = scanCtx.Request.Context
 		}
+
+		// 记录漏洞发现日志到数据库
+		o.addScanLog(ctx, taskID, "info", fmt.Sprintf("Vulnerability found: %s [%s] at %s", output.Name, output.Severity, output.MatchedAt))
 
 		// 发布漏洞发现事件
 		o.eventBus.PublishAsync(ctx, event.Event{
@@ -372,11 +380,14 @@ func (o *Orchestrator) onProgress(taskID int) func(ScanProgress) {
 
 // onScanCompleted 处理扫描完成
 func (o *Orchestrator) onScanCompleted(taskID int, vulnCount int) {
-	o.logger.Info("onScanCompleted: task_id=%d, vuln_count=%d", taskID, vulnCount)
-
 	// 更新数据库状态为 completed
 	ctx := context.Background()
 	if o.scanRepo != nil {
+		// 更新漏洞数量
+		if err := o.scanRepo.UpdateFindingsCount(ctx, taskID, vulnCount); err != nil {
+			o.logger.Error("Failed to update scan findings_count: task_id=%d, error=%v", taskID, err)
+		}
+
 		if err := o.scanRepo.UpdateStatus(ctx, taskID, "completed"); err != nil {
 			o.logger.Error("Failed to update scan status to completed: task_id=%d, error=%v", taskID, err)
 		} else {
@@ -402,7 +413,7 @@ func (o *Orchestrator) onScanCompleted(taskID int, vulnCount int) {
 		},
 	})
 
-	// 记录指标
+	// 记录指标和详细日志
 	o.mu.RLock()
 	scanCtx, exists := o.scans[taskID]
 	o.mu.RUnlock()
@@ -410,7 +421,19 @@ func (o *Orchestrator) onScanCompleted(taskID int, vulnCount int) {
 	if exists {
 		duration := time.Since(scanCtx.StartTime)
 		metrics.Global.IncrementScanCompleted(duration)
-		o.logger.Info("Scan completed: task_id=%d, duration=%s, vuln_count=%d", taskID, duration, vulnCount)
+
+		// 获取进度信息用于详细日志
+		scanCtx.ProgressMu.RLock()
+		totalTemplates := scanCtx.Progress.TotalTemplates
+		executedTemplates := scanCtx.Progress.Executed
+		scanCtx.ProgressMu.RUnlock()
+
+		// 记录完成日志到数据库
+		o.addScanLog(ctx, taskID, "info", fmt.Sprintf("Scan completed: duration=%s, vuln_count=%d, templates_executed=%d/%d",
+			duration.Round(time.Second), vulnCount, executedTemplates, totalTemplates))
+
+		o.logger.Info("Scan completed: task_id=%d, duration=%s, vuln_count=%d, templates_executed=%d/%d",
+			taskID, duration.Round(time.Second), vulnCount, executedTemplates, totalTemplates)
 	}
 }
 
@@ -425,6 +448,9 @@ func (o *Orchestrator) handleScanError(taskID int, err error) {
 			o.logger.Error("Failed to update scan status to failed: task_id=%d, error=%v", taskID, updateErr)
 		}
 	}
+
+	// 记录错误日志到数据库
+	o.addScanLog(ctx, taskID, "error", fmt.Sprintf("Scan failed: %s", errors.SanitizeUserError(err)))
 
 	o.eventBus.PublishAsync(ctx, event.Event{
 		Type: event.EventScanFailed,
@@ -451,5 +477,15 @@ func (o *Orchestrator) GetStatus() models.NucleiStatus {
 		Available: o.nuclei.IsAvailable(),
 		Version:   o.nuclei.GetVersion(),
 		Path:      o.nuclei.GetBinary(),
+	}
+}
+
+// addScanLog 添加扫描日志到数据库
+func (o *Orchestrator) addScanLog(ctx context.Context, taskID int, level, message string) {
+	if o.scanRepo == nil {
+		return
+	}
+	if err := o.scanRepo.AddLog(ctx, taskID, level, message); err != nil {
+		o.logger.Warn("Failed to persist scan log: task_id=%d, error=%v", taskID, err)
 	}
 }

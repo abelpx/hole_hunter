@@ -84,6 +84,8 @@ export function GetPortScanResults(arg1:number):Promise<Array<models.PortScanRes
 
 export function GetReportById(arg1:number):Promise<models.Report>;
 
+export function GetScanLogs(arg1:number):Promise<Array<models.ScanLog>>;
+
 export function GetScanProgress(arg1:number):Promise<models.ScanProgress>;
 
 export function GetScanTaskByID(arg1:number):Promise<models.ScanTask>;
@@ -110,9 +112,9 @@ export function GetTemplatesPageByFilter(arg1:models.TemplateFilterUnified,arg2:
 
 export function GetVulnerabilitiesByTaskID(arg1:number):Promise<Array<models.Vulnerability>>;
 
-export function GetVulnerabilitiesPage(arg1:number,arg2:number):Promise<Array<models.Vulnerability>>;
+export function GetVulnerabilitiesPage(arg1:number,arg2:number):Promise<models.VulnerabilityPageResult>;
 
-export function GetVulnerabilitiesPageByFilter(arg1:models.VulnerabilityFilter,arg2:number,arg3:number):Promise<Array<models.Vulnerability>>;
+export function GetVulnerabilitiesPageByFilter(arg1:models.VulnerabilityFilter,arg2:number,arg3:number):Promise<models.VulnerabilityPageResult>;
 
 export function GetVulnerabilityByID(arg1:number):Promise<models.Vulnerability>;
 

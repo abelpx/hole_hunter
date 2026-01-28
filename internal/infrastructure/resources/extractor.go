@@ -110,12 +110,22 @@ func (e *Extractor) ExtractTemplatesFromZip(zipData []byte) error {
 
 // extractZipFile 解压单个 zip 文件
 func (e *Extractor) extractZipFile(file *zip.File, destDir string) error {
+	// 去掉 zip 中的 poc-templates/ 前缀
+	fileName := file.Name
+	if len(fileName) > len("poc-templates/") && fileName[:len("poc-templates/")] == "poc-templates/" {
+		fileName = fileName[len("poc-templates/"):]
+	}
+	// 跳过 poc-templates 目录本身
+	if fileName == "" || fileName == "poc-templates" {
+		return nil
+	}
+
 	// 构建目标路径
-	destPath := filepath.Join(destDir, file.Name)
+	destPath := filepath.Join(destDir, fileName)
 
 	// 确保目标路径在 destDir 内（防止 zip slip 攻击）
-	if !filepath.IsLocal(file.Name) || filepath.HasPrefix(file.Name, "..") {
-		return fmt.Errorf("invalid file path: %s", file.Name)
+	if !filepath.IsLocal(fileName) || filepath.HasPrefix(fileName, "..") {
+		return fmt.Errorf("invalid file path: %s", fileName)
 	}
 
 	// 创建目录

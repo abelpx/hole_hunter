@@ -3,7 +3,6 @@ package scanner
 import (
 	"context"
 	"os/exec"
-	"runtime"
 	"sync"
 	"syscall"
 	"time"
@@ -31,13 +30,8 @@ type ScanProcess struct {
 
 // NewScanProcess 创建新的扫描进程
 func NewScanProcess(id int, cmd *exec.Cmd) *ScanProcess {
-	// Windows: 隐藏命令行窗口
-	if runtime.GOOS == "windows" {
-		cmd.SysProcAttr = &syscall.SysProcAttr{
-			HideWindow:    true,
-			CreationFlags: 0x08000000, // CREATE_NO_WINDOW
-		}
-	}
+	// 调用平台特定的初始化
+	initProcessCmd(cmd)
 
 	return &ScanProcess{
 		ID:        id,

@@ -253,12 +253,12 @@ class WailsServiceImpl {
     );
   }
 
-  async getScanLogs(id: number): Promise<string[]> {
+  async getScanLogs(id: number): Promise<any[]> {
     return safeWailsCall(
       async () => {
-        const task = await (WailsApp as any).GetScanTaskByID(id);
-        if (task.logs && Array.isArray(task.logs)) {
-          return task.logs;
+        const logs = await (WailsApp as any).GetScanLogs(id);
+        if (Array.isArray(logs)) {
+          return logs;
         }
         return [];
       },
@@ -292,7 +292,8 @@ class WailsServiceImpl {
           tags: v.tags || [],
           target_id: v.task_id || 0,
           scan_id: v.task_id || 0,
-          discovered_at: v.matched_at || v.created_at,
+          discovered_at: v.created_at || new Date().toISOString(),
+          matched_at: v.matched_at || '',
           is_false_positive: v.false_positive || false,
           false_positive: v.false_positive || false,
           created_at: v.created_at,
@@ -320,7 +321,8 @@ class WailsServiceImpl {
           tags: [],
           target_id: v.task_id || 0,
           scan_id: v.task_id || 0,
-          discovered_at: v.matched_at || v.created_at,
+          discovered_at: v.created_at || new Date().toISOString(),
+          matched_at: v.matched_at || '',
           is_false_positive: v.false_positive || false,
           false_positive: v.false_positive || false,
           created_at: v.created_at,
@@ -406,14 +408,14 @@ class WailsServiceImpl {
           };
         }
         return {
-          total_targets: stats.TotalTargets || 0,
-          total_scans: stats.TotalScans || 0,
-          running_scans: stats.RunningScans || 0,
-          total_vulnerabilities: stats.TotalVulnerabilities || 0,
-          critical_vulns: stats.CriticalVulns || 0,
-          high_vulns: stats.HighVulns || 0,
-          medium_vulns: stats.MediumVulns || 0,
-          low_vulns: stats.LowVulns || 0,
+          total_targets: stats.total_targets || 0,
+          total_scans: stats.total_scans || 0,
+          running_scans: stats.running_scans || 0,
+          total_vulnerabilities: stats.total_vulnerabilities || 0,
+          critical_vulns: stats.critical_vulns || 0,
+          high_vulns: stats.high_vulns || 0,
+          medium_vulns: stats.medium_vulns || 0,
+          low_vulns: stats.low_vulns || 0,
         };
       },
       {

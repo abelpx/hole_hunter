@@ -113,6 +113,14 @@ func (a *App) GetScanProgress(taskID int) (*models.ScanProgress, error) {
 	return a.scanHandler.GetProgress(a.ctx, taskID)
 }
 
+// GetScanLogs 获取扫描任务的日志
+func (a *App) GetScanLogs(taskID int) ([]*models.ScanLog, error) {
+	if err := a.checkInitialized(); err != nil {
+		return nil, err
+	}
+	return a.scanHandler.GetLogs(a.ctx, taskID)
+}
+
 // DeleteScanTask 删除扫描任务
 func (a *App) DeleteScanTask(id int) error {
 	if err := a.checkInitialized(); err != nil {
@@ -188,17 +196,17 @@ func (a *App) DeleteVulnerability(id int) error {
 }
 
 // GetVulnerabilitiesPage 获取分页漏洞
-func (a *App) GetVulnerabilitiesPage(page, pageSize int) ([]*models.Vulnerability, int, error) {
+func (a *App) GetVulnerabilitiesPage(page, pageSize int) (*models.VulnerabilityPageResult, error) {
 	if err := a.checkInitialized(); err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 	return a.vulnHandler.GetPage(a.ctx, page, pageSize)
 }
 
 // GetVulnerabilitiesPageByFilter 根据过滤条件获取分页漏洞
-func (a *App) GetVulnerabilitiesPageByFilter(filter *models.VulnerabilityFilter, page, pageSize int) ([]*models.Vulnerability, int, error) {
+func (a *App) GetVulnerabilitiesPageByFilter(filter *models.VulnerabilityFilter, page, pageSize int) (*models.VulnerabilityPageResult, error) {
 	if err := a.checkInitialized(); err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 	return a.vulnHandler.GetPageByFilter(a.ctx, filter, page, pageSize)
 }

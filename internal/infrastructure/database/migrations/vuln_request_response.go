@@ -13,11 +13,17 @@ func (m *Vuln_002_AddRequestResponse) Description() string { return "Vulnerabili
 func (m *Vuln_002_AddRequestResponse) Module() string      { return "core" }
 
 func (m *Vuln_002_AddRequestResponse) Up(tx *sql.Tx) error {
-	// 添加 request_response 列（合并 request 和 response）
-	_, err := tx.Exec(`
-		ALTER TABLE vulnerabilities ADD COLUMN request_response TEXT
-	`)
-	return err
+	// 检查列是否已存在
+	var columnName string
+	err := tx.QueryRow("SELECT name FROM pragma_table_info('vulnerabilities') WHERE name = 'request_response'").Scan(&columnName)
+	if err == sql.ErrNoRows {
+		// 列不存在，添加它
+		_, err = tx.Exec(`
+			ALTER TABLE vulnerabilities ADD COLUMN request_response TEXT
+		`)
+		return err
+	}
+	return nil
 }
 
 func (m *Vuln_002_AddRequestResponse) Down(tx *sql.Tx) error {

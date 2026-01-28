@@ -424,7 +424,14 @@ func (r *TemplateRepository) SyncBuiltin(ctx context.Context, templates []*model
 		}
 	}
 
-	stats.Total = stats.Inserted + stats.Updated
+	// Total 应该表示数据库中的实际模板总数，而不是本次同步的操作数
+	var total int
+	err = r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM templates WHERE source = 'builtin'").Scan(&total)
+	if err != nil {
+		return nil, fmt.Errorf("failed to count builtin templates: %w", err)
+	}
+	stats.Total = total
+
 	return stats, nil
 }
 
