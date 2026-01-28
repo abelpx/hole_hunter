@@ -424,7 +424,7 @@ func TestScanService_GetNucleiStatus(t *testing.T) {
 	nucleiClient := scanner.NewNucleiClient(tmpDir)
 	eventBus := event.NewBus()
 
-	orchestrator := scanner.NewOrchestrator(nucleiClient, eventBus, nil, 5, nil)
+	orchestrator := scanner.NewOrchestrator(nucleiClient, eventBus, nil, 5, nil, nil)
 
 	service := &ScanService{
 		scanner:  orchestrator,

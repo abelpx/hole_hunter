@@ -20,7 +20,7 @@ func TestOrchestrator_NewOrchestrator(t *testing.T) {
 	bus := event.NewBus()
 	log := logger.New("info", "")
 
-	orch := NewOrchestrator(client, bus, log, 5, metrics.Global)
+	orch := NewOrchestrator(client, bus, log, 5, metrics.Global, nil)
 
 	if orch == nil {
 		t.Fatal("NewOrchestrator() returned nil")
@@ -39,7 +39,7 @@ func TestOrchestrator_Scan_UnavailableNuclei(t *testing.T) {
 	// 创建一个不可用的客户端（空 binary 路径）
 	client := &NucleiClient{binaryPath: "", templatesDir: "/tmp"}
 
-	orch := NewOrchestrator(client, bus, log, 5, metrics.Global)
+	orch := NewOrchestrator(client, bus, log, 5, metrics.Global, nil)
 
 	ctx := context.Background()
 	req := ScanRequest{
@@ -74,7 +74,7 @@ func TestOrchestrator_Scan_ConcurrentLimit(t *testing.T) {
 	bus := event.NewBus()
 	log := logger.New("info", "")
 
-	orch := NewOrchestrator(client, bus, log, 1, metrics.Global) // maxConcurrent = 1
+	orch := NewOrchestrator(client, bus, log, 1, metrics.Global, nil) // maxConcurrent = 1
 
 	ctx := context.Background()
 	req1 := ScanRequest{
@@ -105,7 +105,7 @@ func TestOrchestrator_Stop(t *testing.T) {
 	bus := event.NewBus()
 	log := logger.New("info", "")
 
-	orch := NewOrchestrator(client, bus, log, 5, metrics.Global)
+	orch := NewOrchestrator(client, bus, log, 5, metrics.Global, nil)
 
 	ctx := context.Background()
 	taskID := 1
@@ -124,7 +124,7 @@ func TestOrchestrator_GetProgress(t *testing.T) {
 	bus := event.NewBus()
 	log := logger.New("info", "")
 
-	orch := NewOrchestrator(client, bus, log, 5, metrics.Global)
+	orch := NewOrchestrator(client, bus, log, 5, metrics.Global, nil)
 
 	ctx := context.Background()
 	taskID := 1
@@ -146,7 +146,7 @@ func TestOrchestrator_IsRunning(t *testing.T) {
 	bus := event.NewBus()
 	log := logger.New("info", "")
 
-	orch := NewOrchestrator(client, bus, log, 5, metrics.Global)
+	orch := NewOrchestrator(client, bus, log, 5, metrics.Global, nil)
 
 	if orch.IsRunning(1) {
 		t.Error("IsRunning(1) = true, want false")
@@ -160,7 +160,7 @@ func TestOrchestrator_GetRunningCount(t *testing.T) {
 	bus := event.NewBus()
 	log := logger.New("info", "")
 
-	orch := NewOrchestrator(client, bus, log, 5, metrics.Global)
+	orch := NewOrchestrator(client, bus, log, 5, metrics.Global, nil)
 
 	count := orch.GetRunningCount()
 	if count != 0 {
@@ -175,7 +175,7 @@ func TestOrchestrator_GetStatus(t *testing.T) {
 	bus := event.NewBus()
 	log := logger.New("info", "")
 
-	orch := NewOrchestrator(client, bus, log, 5, metrics.Global)
+	orch := NewOrchestrator(client, bus, log, 5, metrics.Global, nil)
 
 	status := orch.GetStatus()
 
@@ -269,7 +269,7 @@ func BenchmarkNewOrchestrator(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = NewOrchestrator(client, bus, log, 5, metrics.Global)
+		_ = NewOrchestrator(client, bus, log, 5, metrics.Global, nil)
 	}
 }
 
@@ -279,7 +279,7 @@ func BenchmarkGetRunningCount(b *testing.B) {
 	bus := event.NewBus()
 	log := logger.New("info", "")
 
-	orch := NewOrchestrator(client, bus, log, 5, metrics.Global)
+	orch := NewOrchestrator(client, bus, log, 5, metrics.Global, nil)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
