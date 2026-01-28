@@ -5,12 +5,12 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/holehunter/holehunter/internal/assets"
 	"github.com/holehunter/holehunter/internal/handler"
 	"github.com/holehunter/holehunter/internal/infrastructure/config"
 	"github.com/holehunter/holehunter/internal/infrastructure/database"
 	appEvent "github.com/holehunter/holehunter/internal/infrastructure/event"
 	"github.com/holehunter/holehunter/internal/infrastructure/logger"
+	"github.com/holehunter/holehunter/internal/infrastructure/resources"
 	"github.com/holehunter/holehunter/internal/repo"
 	"github.com/holehunter/holehunter/internal/svc"
 	"github.com/holehunter/holehunter/internal/sync"
@@ -24,6 +24,11 @@ type App struct {
 	db       *sql.DB
 	eventBus *appEvent.Bus
 	logger   *logger.Logger
+
+	// 嵌入资源
+	nucleiBinary     []byte
+	pocTemplatesZip  []byte
+	resourcesExtracted bool
 
 	// Handlers
 	targetHandler      *handler.TargetHandler
@@ -39,9 +44,24 @@ type App struct {
 	reportHandler      *handler.ReportHandler
 }
 
+// AppOption 应用配置选项
+type AppOption func(*App)
+
+// WithEmbeddedResources 设置嵌入资源
+func WithEmbeddedResources(nuclei, templates []byte) AppOption {
+	return func(a *App) {
+		a.nucleiBinary = nuclei
+		a.pocTemplatesZip = templates
+	}
+}
+
 // NewApp 创建新应用
-func NewApp() *App {
-	return &App{}
+func NewApp(opts ...AppOption) *App {
+	app := &App{}
+	for _, opt := range opts {
+		opt(app)
+	}
+	return app
 }
 
 // Startup 应用启动
@@ -71,10 +91,10 @@ func (a *App) startup(ctx context.Context) error {
 	// 初始化日志
 	a.logger = logger.New(a.config.LogLevel, a.config.LogFile)
 
-	// 初始化资源（nuclei.exe + templates）- 必须在数据库之前
-	if err := a.initResources(ctx); err != nil {
-		a.logger.Warn("Resource initialization failed: %v", err)
-		// 不阻塞启动，但记录警告
+	// 提取嵌入资源（如果有）
+	if err := a.extractEmbeddedResources(); err != nil {
+		a.logger.Warn("Failed to extract embedded resources: %v", err)
+		// 不阻塞启动，模板可能已经存在
 	}
 
 	// 初始化数据库
@@ -108,23 +128,6 @@ func (a *App) startup(ctx context.Context) error {
 
 	a.logger.Info("HoleHunter started successfully")
 	return nil
-}
-
-// initResources 初始化资源（nuclei.exe + templates）
-func (a *App) initResources(ctx context.Context) error {
-	return assets.InitResources(a.config.DataDir, a.logger)
-}
-
-// GetResourceStatus 获取资源状态（供前端调用）
-func (a *App) GetResourceStatus() map[string]interface{} {
-	return assets.GetResourceStatus(a.config.DataDir)
-}
-
-// UpdateTemplates 更新模板（供前端调用）
-func (a *App) UpdateTemplates(ctx context.Context) error {
-	a.logger.Info("Updating nuclei-templates...")
-	// 触发重新下载模板
-	return assets.InitResources(a.config.DataDir, a.logger)
 }
 
 // initLayers 初始化各个层
@@ -308,4 +311,40 @@ func (a *App) syncTemplates(ctx context.Context) error {
 
 	// 执行同步
 	return syncer.SyncBuiltinTemplates(ctx)
+}
+
+// extractEmbeddedResources 提取嵌入资源
+func (a *App) extractEmbeddedResources() error {
+	// 没有嵌入资源，跳过
+	if len(a.nucleiBinary) == 0 && len(a.pocTemplatesZip) == 0 {
+		a.logger.Debug("No embedded resources to extract")
+		return nil
+	}
+
+	extractor := resources.NewExtractor(a.config.DataDir, a.logger)
+
+	// 提取 nuclei 二进制
+	if len(a.nucleiBinary) > 0 {
+		a.logger.Info("Extracting nuclei binary...")
+		if err := extractor.ExtractNucleiBinary(a.nucleiBinary); err != nil {
+			return fmt.Errorf("failed to extract nuclei: %w", err)
+		}
+		// 更新配置中的 nuclei 路径
+		a.config.NucleiPath = extractor.GetNucleiPath()
+		a.logger.Info("Nuclei path: %s", a.config.NucleiPath)
+	}
+
+	// 提取模板
+	if len(a.pocTemplatesZip) > 0 {
+		a.logger.Info("Extracting POC templates...")
+		if err := extractor.ExtractTemplatesFromZip(a.pocTemplatesZip); err != nil {
+			return fmt.Errorf("failed to extract templates: %w", err)
+		}
+		// 更新配置中的模板路径
+		a.config.TemplatesDir = extractor.GetTemplatesPath()
+		a.logger.Info("Templates dir: %s", a.config.TemplatesDir)
+	}
+
+	a.resourcesExtracted = true
+	return nil
 }
