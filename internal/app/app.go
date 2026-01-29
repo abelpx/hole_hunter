@@ -349,27 +349,20 @@ func (a *App) syncTemplates(ctx context.Context) error {
 	syncMarkerPath := filepath.Join(a.config.DataDir, ".templates-synced")
 
 	// 检查是否已经同步过
-	hasMarker := false
-	if _, err := os.Stat(syncMarkerPath); err == nil {
-		hasMarker = true
-	}
+	_, statErr := os.Stat(syncMarkerPath)
+	markerExists := statErr == nil
 
-	// 如果有标记，验证是否真的有内置模板
-	if hasMarker {
-		// 使用 GetStats 检查内置模板数量
+	// 如果标记存在，验证数据库中是否真的有内置模板
+	if markerExists {
 		stats, err := a.templateHandler.GetTemplateService().GetStats(ctx)
-		if err != nil {
-			a.logger.Warn("Failed to check templates stats: %v", err)
-		} else {
+		if err == nil {
 			builtinCount := stats["builtin"]
 			if builtinCount > 0 {
 				a.logger.Debug("Templates already synced (%d builtin templates), skipping", builtinCount)
 				return nil
-			} else {
-				a.logger.Warn("Sync marker exists but no builtin templates found, re-syncing...")
-				// 删除无效的标记文件
-				os.Remove(syncMarkerPath)
 			}
+			// 标记存在但内置模板为 0，继续同步
+			a.logger.Info("Sync marker exists but no builtin templates in database, re-syncing...")
 		}
 	}
 
@@ -381,13 +374,19 @@ func (a *App) syncTemplates(ctx context.Context) error {
 	)
 
 	// 执行同步
-	if err := syncer.SyncBuiltinTemplates(ctx); err != nil {
+	syncStats, err := syncer.SyncBuiltinTemplates(ctx)
+	if err != nil {
 		return err
 	}
 
-	// 写入同步标记
-	if err := os.WriteFile(syncMarkerPath, []byte("1"), 0644); err != nil {
-		a.logger.Warn("Failed to write templates sync marker: %v", err)
+	// 只有在同步成功且有模板时才写入标记
+	if syncStats.Total > 0 {
+		if err := os.WriteFile(syncMarkerPath, []byte("1"), 0644); err != nil {
+			a.logger.Warn("Failed to write templates sync marker: %v", err)
+		}
+		a.logger.Info("Template sync completed: %d templates", syncStats.Total)
+	} else {
+		a.logger.Warn("Template sync completed but no templates found, not writing sync marker")
 	}
 
 	return nil
