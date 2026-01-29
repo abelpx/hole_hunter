@@ -92,12 +92,20 @@ func (a *App) startup(ctx context.Context) error {
 	a.logger = logger.New(a.config.LogLevel, a.config.LogFile)
 
 	// 提取嵌入资源（如果有）
+	runtime.EventsEmit(ctx, "app.progress", map[string]interface{}{
+		"stage": "extracting",
+		"message": "正在提取嵌入资源...",
+	})
 	if err := a.extractEmbeddedResources(); err != nil {
 		a.logger.Warn("Failed to extract embedded resources: %v", err)
 		// 不阻塞启动，模板可能已经存在
 	}
 
 	// 初始化数据库
+	runtime.EventsEmit(ctx, "app.progress", map[string]interface{}{
+		"stage": "database",
+		"message": "正在初始化数据库...",
+	})
 	db, err := database.Open(a.config.DBPath)
 	if err != nil {
 		a.logger.Error("Failed to open database: %v", err)
@@ -118,6 +126,10 @@ func (a *App) startup(ctx context.Context) error {
 	a.initLayers()
 
 	// 同步内置模板到数据库
+	runtime.EventsEmit(ctx, "app.progress", map[string]interface{}{
+		"stage": "syncing",
+		"message": "正在同步 POC 模板...",
+	})
 	if err := a.syncTemplates(ctx); err != nil {
 		a.logger.Warn("Failed to sync builtin templates: %v", err)
 		// 不阻塞启动，只记录警告
@@ -125,6 +137,12 @@ func (a *App) startup(ctx context.Context) error {
 
 	// 设置事件转发
 	a.setupEventForwarding()
+
+	// 通知前端应用已准备就绪
+	runtime.EventsEmit(ctx, "app.ready", map[string]interface{}{
+		"success": true,
+		"message": "Application initialized successfully",
+	})
 
 	a.logger.Info("HoleHunter started successfully")
 	return nil
