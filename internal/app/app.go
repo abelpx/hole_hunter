@@ -346,11 +346,31 @@ func (a *App) LogFromFrontend(level, message string) {
 
 // syncTemplates 同步内置模板到数据库
 func (a *App) syncTemplates(ctx context.Context) error {
-	// 检查是否已经同步过
 	syncMarkerPath := filepath.Join(a.config.DataDir, ".templates-synced")
+
+	// 检查是否已经同步过
+	hasMarker := false
 	if _, err := os.Stat(syncMarkerPath); err == nil {
-		a.logger.Debug("Templates already synced, skipping")
-		return nil
+		hasMarker = true
+	}
+
+	// 如果有标记，验证是否真的有内置模板
+	if hasMarker {
+		// 使用 GetStats 检查内置模板数量
+		stats, err := a.templateHandler.GetTemplateService().GetStats(ctx)
+		if err != nil {
+			a.logger.Warn("Failed to check templates stats: %v", err)
+		} else {
+			builtinCount := stats["builtin"]
+			if builtinCount > 0 {
+				a.logger.Debug("Templates already synced (%d builtin templates), skipping", builtinCount)
+				return nil
+			} else {
+				a.logger.Warn("Sync marker exists but no builtin templates found, re-syncing...")
+				// 删除无效的标记文件
+				os.Remove(syncMarkerPath)
+			}
+		}
 	}
 
 	// 创建模板同步器
