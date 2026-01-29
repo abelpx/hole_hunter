@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/holehunter/holehunter/internal/handler"
 	"github.com/holehunter/holehunter/internal/infrastructure/config"
@@ -91,11 +93,26 @@ func (a *App) startup(ctx context.Context) error {
 	// 初始化日志
 	a.logger = logger.New(a.config.LogLevel, a.config.LogFile)
 
+	// 检查是否需要提取嵌入资源
+	needsExtraction := false
+	if len(a.nucleiBinary) > 0 || len(a.pocTemplatesZip) > 0 {
+		// 检查资源是否已提取
+		extractor := resources.NewExtractor(a.config.DataDir, a.logger)
+		if len(a.nucleiBinary) > 0 {
+			needsExtraction = !extractor.IsNucleiExtracted()
+		}
+		if !needsExtraction && len(a.pocTemplatesZip) > 0 {
+			needsExtraction = !extractor.IsTemplatesExtracted()
+		}
+	}
+
 	// 提取嵌入资源（如果有）
-	runtime.EventsEmit(ctx, "app.progress", map[string]interface{}{
-		"stage": "extracting",
-		"message": "正在提取嵌入资源...",
-	})
+	if needsExtraction {
+		runtime.EventsEmit(ctx, "app.progress", map[string]interface{}{
+			"stage": "extracting",
+			"message": "首次启动，正在初始化资源...",
+		})
+	}
 	if err := a.extractEmbeddedResources(); err != nil {
 		a.logger.Warn("Failed to extract embedded resources: %v", err)
 		// 不阻塞启动，模板可能已经存在
@@ -125,10 +142,10 @@ func (a *App) startup(ctx context.Context) error {
 	// 初始化各个层
 	a.initLayers()
 
-	// 同步内置模板到数据库
+	// 同步内置模板到数据库（仅在首次启动时）
 	runtime.EventsEmit(ctx, "app.progress", map[string]interface{}{
-		"stage": "syncing",
-		"message": "正在同步 POC 模板...",
+		"stage": "finalizing",
+		"message": "正在完成初始化...",
 	})
 	if err := a.syncTemplates(ctx); err != nil {
 		a.logger.Warn("Failed to sync builtin templates: %v", err)
@@ -320,6 +337,13 @@ func (a *App) LogFromFrontend(level, message string) {
 
 // syncTemplates 同步内置模板到数据库
 func (a *App) syncTemplates(ctx context.Context) error {
+	// 检查是否已经同步过
+	syncMarkerPath := filepath.Join(a.config.DataDir, ".templates-synced")
+	if _, err := os.Stat(syncMarkerPath); err == nil {
+		a.logger.Debug("Templates already synced, skipping")
+		return nil
+	}
+
 	// 创建模板同步器
 	syncer := sync.NewTemplateSyncer(
 		a.templateHandler.GetTemplateService(),
@@ -328,7 +352,16 @@ func (a *App) syncTemplates(ctx context.Context) error {
 	)
 
 	// 执行同步
-	return syncer.SyncBuiltinTemplates(ctx)
+	if err := syncer.SyncBuiltinTemplates(ctx); err != nil {
+		return err
+	}
+
+	// 写入同步标记
+	if err := os.WriteFile(syncMarkerPath, []byte("1"), 0644); err != nil {
+		a.logger.Warn("Failed to write templates sync marker: %v", err)
+	}
+
+	return nil
 }
 
 // extractEmbeddedResources 提取嵌入资源
