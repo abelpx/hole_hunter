@@ -23,6 +23,14 @@
         justify-content: center;
         z-index: 9999;
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        opacity: 0;
+        transition: opacity 0.3s ease-in;
+        pointer-events: none;
+      }
+
+      #startup-screen.visible {
+        opacity: 1;
+        pointer-events: auto;
       }
 
       #startup-screen.hidden {
@@ -103,16 +111,10 @@
         font-size: 12px;
         color: #64748b;
       }
-
-      /* 确保 root 容器在加载屏幕之上 */
-      #root {
-        position: relative;
-        z-index: 1;
-      }
     </style>
   </head>
   <body class="bg-slate-900 text-slate-100 antialiased">
-    <!-- 启动加载屏幕 -->
+    <!-- 启动加载屏幕（默认隐藏） -->
     <div id="startup-screen">
       <div class="startup-logo">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -130,72 +132,74 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
 
-    <!-- 隐藏启动屏幕的脚本 -->
     <script>
       // 启动屏幕管理
       (function() {
-        let isReactLoaded = false;
-        let isBackendReady = false;
+        const startupScreen = document.getElementById('startup-screen');
         const statusElement = document.getElementById('startup-status');
+        let isVisible = false;
+        let hasBackendProgress = false;
 
-        // 更新状态文本
+        // 显示启动屏幕
+        function showStartupScreen() {
+          if (!isVisible && startupScreen) {
+            startupScreen.classList.add('visible');
+            isVisible = true;
+          }
+        }
+
+        // 隐藏启动屏幕
+        function hideStartupScreen() {
+          if (isVisible && startupScreen) {
+            startupScreen.classList.remove('visible');
+            startupScreen.classList.add('hidden');
+            isVisible = false;
+            setTimeout(function() {
+              if (startupScreen && startupScreen.parentNode) {
+                startupScreen.remove();
+              }
+            }, 300);
+          }
+        }
+
+        // 更新状态
         function updateStatus(text) {
           if (statusElement) {
             statusElement.textContent = text;
           }
         }
 
-        // React 加载完成
-        window.addEventListener('load', function() {
-          isReactLoaded = true;
-          updateStatus('等待后端初始化...');
-          checkHideStartupScreen();
-        });
-
-        // 监听后端初始化进度
+        // 监听后端进度事件 - 只在有进度时才显示启动屏幕
         window.addEventListener('app.progress', function(event) {
+          hasBackendProgress = true;
           const data = event.detail || event.data;
           if (data && data.message) {
+            showStartupScreen();
             updateStatus(data.message);
           }
         });
 
-        // 后端初始化完成
+        // 后端就绪
         window.addEventListener('app.ready', function() {
-          isBackendReady = true;
-          updateStatus('准备就绪');
-          checkHideStartupScreen();
+          if (hasBackendProgress) {
+            updateStatus('准备就绪');
+            setTimeout(hideStartupScreen, 200);
+          }
         });
 
-        // 检查是否可以隐藏启动屏幕
-        function checkHideStartupScreen() {
-          if (isReactLoaded && isBackendReady) {
-            // 等待一小段时间确保 UI 渲染完成
-            setTimeout(function() {
-              const startupScreen = document.getElementById('startup-screen');
-              if (startupScreen) {
-                startupScreen.classList.add('hidden');
-                // 动画结束后移除元素
-                setTimeout(function() {
-                  startupScreen.remove();
-                }, 300);
-              }
-            }, 200);
+        // React 加载完成
+        window.addEventListener('load', function() {
+          // 如果没有后端进度，说明是正常启动，不显示启动屏幕
+          if (!hasBackendProgress) {
+            console.log('[Startup] Normal startup - no loading screen needed');
           }
-        }
+        });
 
-        // 超时保护：15秒后强制隐藏（防止卡住）
+        // 超时保护（15秒）
         setTimeout(function() {
-          const startupScreen = document.getElementById('startup-screen');
-          if (startupScreen && !startupScreen.classList.contains('hidden')) {
+          if (isVisible) {
             console.warn('[Startup] Timeout - forcing hide');
-            updateStatus('加载超时');
-            startupScreen.classList.add('hidden');
-            setTimeout(function() {
-              if (startupScreen.parentNode) {
-                startupScreen.remove();
-              }
-            }, 300);
+            hideStartupScreen();
           }
         }, 15000);
       })();
