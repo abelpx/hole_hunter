@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/holehunter/holehunter/internal/infrastructure/logger"
 )
@@ -124,7 +125,7 @@ func (e *Extractor) extractZipFile(file *zip.File, destDir string) error {
 	destPath := filepath.Join(destDir, fileName)
 
 	// 确保目标路径在 destDir 内（防止 zip slip 攻击）
-	if !filepath.IsLocal(fileName) || filepath.HasPrefix(fileName, "..") {
+	if !filepath.IsLocal(fileName) || strings.HasPrefix(fileName, "..") {
 		return fmt.Errorf("invalid file path: %s", fileName)
 	}
 
