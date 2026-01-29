@@ -366,6 +366,12 @@ func (a *App) syncTemplates(ctx context.Context) error {
 		}
 	}
 
+	// 发送同步开始事件
+	runtime.EventsEmit(ctx, "app.progress", map[string]interface{}{
+		"stage":   "templates",
+		"message": "正在同步 POC 模板...",
+	})
+
 	// 创建模板同步器
 	syncer := sync.NewTemplateSyncer(
 		a.templateHandler.GetTemplateService(),
