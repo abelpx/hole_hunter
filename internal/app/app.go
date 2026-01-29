@@ -374,19 +374,13 @@ func (a *App) syncTemplates(ctx context.Context) error {
 	)
 
 	// 执行同步
-	syncStats, err := syncer.SyncBuiltinTemplates(ctx)
-	if err != nil {
+	if err := syncer.SyncBuiltinTemplates(ctx); err != nil {
 		return err
 	}
 
-	// 只有在同步成功且有模板时才写入标记
-	if syncStats.Total > 0 {
-		if err := os.WriteFile(syncMarkerPath, []byte("1"), 0644); err != nil {
-			a.logger.Warn("Failed to write templates sync marker: %v", err)
-		}
-		a.logger.Info("Template sync completed: %d templates", syncStats.Total)
-	} else {
-		a.logger.Warn("Template sync completed but no templates found, not writing sync marker")
+	// 同步成功，写入标记
+	if err := os.WriteFile(syncMarkerPath, []byte("1"), 0644); err != nil {
+		a.logger.Warn("Failed to write templates sync marker: %v", err)
 	}
 
 	return nil
