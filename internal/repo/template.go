@@ -572,7 +572,7 @@ func (r *TemplateRepository) scanTemplates(rows *sql.Rows) ([]*models.Template, 
 
 // 辅助函数：将标准类型转换为 JSON 字符串（用于数据库存储）
 func stringSliceToJSON(slice []string) string {
-	if slice == nil || len(slice) == 0 {
+	if len(slice) == 0 {
 		return "[]"
 	}
 	data, _ := json.Marshal(slice)
@@ -581,7 +581,7 @@ func stringSliceToJSON(slice []string) string {
 
 // 辅助函数：将 map 转换为 JSON 字符串（用于数据库存储）
 func mapToJSON(m map[string]string) string {
-	if m == nil || len(m) == 0 {
+	if len(m) == 0 {
 		return "{}"
 	}
 	data, _ := json.Marshal(m)

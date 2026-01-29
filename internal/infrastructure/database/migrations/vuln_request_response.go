@@ -8,9 +8,11 @@ func init() {
 
 type Vuln_002_AddRequestResponse struct{}
 
-func (m *Vuln_002_AddRequestResponse) Version() int        { return 2025012702 }
-func (m *Vuln_002_AddRequestResponse) Description() string { return "Vulnerabilities: Add request_response column" }
-func (m *Vuln_002_AddRequestResponse) Module() string      { return "core" }
+func (m *Vuln_002_AddRequestResponse) Version() int { return 2025012702 }
+func (m *Vuln_002_AddRequestResponse) Description() string {
+	return "Vulnerabilities: Add request_response column"
+}
+func (m *Vuln_002_AddRequestResponse) Module() string { return "core" }
 
 func (m *Vuln_002_AddRequestResponse) Up(tx *sql.Tx) error {
 	// 检查列是否已存在

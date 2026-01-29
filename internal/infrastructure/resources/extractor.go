@@ -15,9 +15,9 @@ import (
 
 const (
 	// 资源版本，用于判断是否需要重新提取
-	nucleiVersion     = "v1.0.0"
-	templatesVersion  = "v1.0.0"
-	extractedMarker   = ".extracted"
+	nucleiVersion    = "v1.0.0"
+	templatesVersion = "v1.0.0"
+	extractedMarker  = ".extracted"
 )
 
 // Extractor 资源提取器

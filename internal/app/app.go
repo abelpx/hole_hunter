@@ -28,8 +28,8 @@ type App struct {
 	logger   *logger.Logger
 
 	// 嵌入资源
-	nucleiBinary     []byte
-	pocTemplatesZip  []byte
+	nucleiBinary       []byte
+	pocTemplatesZip    []byte
 	resourcesExtracted bool
 
 	// Handlers
@@ -118,7 +118,7 @@ func (a *App) startup(ctx context.Context) error {
 	// 提取嵌入资源（如果有）
 	if needsExtraction {
 		runtime.EventsEmit(ctx, "app.progress", map[string]interface{}{
-			"stage": "extracting",
+			"stage":   "extracting",
 			"message": "首次启动，正在初始化资源...",
 		})
 	}
@@ -129,7 +129,7 @@ func (a *App) startup(ctx context.Context) error {
 
 	// 初始化数据库
 	runtime.EventsEmit(ctx, "app.progress", map[string]interface{}{
-		"stage": "database",
+		"stage":   "database",
 		"message": "正在初始化数据库...",
 	})
 	db, err := database.Open(a.config.DBPath)
@@ -153,7 +153,7 @@ func (a *App) startup(ctx context.Context) error {
 
 	// 同步内置模板到数据库（仅在首次启动时）
 	runtime.EventsEmit(ctx, "app.progress", map[string]interface{}{
-		"stage": "finalizing",
+		"stage":   "finalizing",
 		"message": "正在完成初始化...",
 	})
 	if err := a.syncTemplates(ctx); err != nil {

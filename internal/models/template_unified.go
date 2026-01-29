@@ -9,26 +9,26 @@ import (
 
 // Template 统一的模板模型（内置 + 自定义）
 type Template struct {
-	ID            int              `json:"id"`
-	Source        string          `json:"source"`      // "builtin" | "custom"
-	TemplateID    string          `json:"template_id"` // 原始模板 ID
-	Name          string          `json:"name"`
-	Severity      string          `json:"severity"`
-	Category      string          `json:"category"`
-	Author        string          `json:"author"`
-	Path          string          `json:"path"`
-	Content       string          `json:"content"` // 自定义模板的 YAML 内容
-	Enabled       bool            `json:"enabled"`
-	Description   string          `json:"description"`
-	Impact        string          `json:"impact"`
-	Remediation   string          `json:"remediation"`
-	Tags          []string        `json:"tags"`       // 改为标准类型
-	Reference     []string        `json:"reference"`  // 改为标准类型
-	Metadata      map[string]string `json:"metadata"`   // 改为标准类型
-	NucleiVersion string          `json:"nuclei_version,omitempty"`
-	OfficialPath  string          `json:"official_path,omitempty"`
-	CreatedAt     string          `json:"created_at"`
-	UpdatedAt     string          `json:"updated_at"`
+	ID            int               `json:"id"`
+	Source        string            `json:"source"`      // "builtin" | "custom"
+	TemplateID    string            `json:"template_id"` // 原始模板 ID
+	Name          string            `json:"name"`
+	Severity      string            `json:"severity"`
+	Category      string            `json:"category"`
+	Author        string            `json:"author"`
+	Path          string            `json:"path"`
+	Content       string            `json:"content"` // 自定义模板的 YAML 内容
+	Enabled       bool              `json:"enabled"`
+	Description   string            `json:"description"`
+	Impact        string            `json:"impact"`
+	Remediation   string            `json:"remediation"`
+	Tags          []string          `json:"tags"`      // 改为标准类型
+	Reference     []string          `json:"reference"` // 改为标准类型
+	Metadata      map[string]string `json:"metadata"`  // 改为标准类型
+	NucleiVersion string            `json:"nuclei_version,omitempty"`
+	OfficialPath  string            `json:"official_path,omitempty"`
+	CreatedAt     string            `json:"created_at"`
+	UpdatedAt     string            `json:"updated_at"`
 }
 
 // TemplateFilter 模板过滤器
