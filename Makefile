@@ -202,7 +202,7 @@ prepare-embedded:
 	@echo ""
 	@echo "$(BLUE)2. 构建核心 POC 模板...$(NC)"
 	@if [ -d "nuclei-templates" ]; then \
-		./build/copy-poc-templates.sh; \
+		./scripts/copy-poc-templates.sh; \
 	else \
 		echo "$(YELLOW)警告: nuclei-templates 子模块未初始化$(NC)"; \
 		echo "$(YELLOW)运行: git submodule update --init --recursive$(NC)"; \
