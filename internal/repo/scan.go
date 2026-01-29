@@ -94,7 +94,7 @@ func (r *ScanRepository) GetByTargetID(ctx context.Context, targetID int) ([]*mo
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT id, name, target_id, status, strategy, templates_used,
 		         started_at, completed_at, total_templates, executed_templates,
-		         progress, current_template, error, created_at
+		         progress, current_template, error, findings_count, created_at
 		  FROM scan_tasks WHERE target_id = ? ORDER BY created_at DESC`, targetID)
 	if err != nil {
 		return nil, errors.DBError("failed to query scan tasks by target", err)

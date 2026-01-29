@@ -206,6 +206,7 @@ func setupReportTestDB(t *testing.T) *sql.DB {
 		progress INTEGER DEFAULT 0,
 		current_template TEXT,
 		error TEXT,
+		findings_count INTEGER DEFAULT 0,
 		created_at TEXT
 	);
 
