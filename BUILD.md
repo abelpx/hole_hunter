@@ -1,23 +1,24 @@
 # HoleHunter 构建指南
 
-## 概述
-
-HoleHunter 采用**资源嵌入**方案：
-- **HoleHunter.exe** - 主程序（包含嵌入的 nuclei 和 POC 模板）
-- 首次运行时自动解压资源到用户数据目录
-- 支持所有平台（Windows、macOS、Linux）
-
-## 开发环境
+## 快速开始
 
 ```bash
 # 1. 克隆项目（包含子模块）
-git clone --recurse-submodules https://github.com/yourusername/holehunter.git
+git clone --recurse-submodules https://github.com/abelpx/holehunter.git
 cd holehunter
 
-# 2. 安装依赖
-npm install
+# 2. 构建
+# Windows
+build-and-package.bat
 
-# 3. 启动开发模式
+# macOS/Linux
+make prepare-embedded && make build
+```
+
+## 开发模式
+
+```bash
+npm install
 make dev
 # 或
 wails dev
@@ -27,141 +28,122 @@ wails dev
 
 ### 前置要求
 
-所有平台都需要先初始化子模块：
 ```bash
+# 初始化子模块（如果克隆时未加 --recurse-submodules）
 git submodule update --init --recursive
 ```
 
 ### Windows
 
-#### 方式一：一键构建（推荐）
-
 ```batch
-# 自动完成所有步骤
+# 一键构建（推荐）
 build-and-package.bat
-```
 
-#### 方式二：手动构建
-
-```powershell
-# 1. 准备嵌入资源（下载 nuclei + 构建模板 zip）
+# 或手动构建
 powershell -ExecutionPolicy Bypass -File .\scripts\prepare-embedded.ps1
-
-# 2. 安装前端依赖
 npm install
-
-# 3. 构建
 wails build
 
-# 4. 输出
-# build\bin\HoleHunter.exe (约 150-200MB，包含所有资源)
+# 输出: build\bin\HoleHunter.exe
 ```
 
 ### macOS/Linux
 
 ```bash
-# 1. 准备嵌入资源
+make prepare-embedded  # 准备嵌入资源
+make build              # 构建
+
+# 输出: build/bin/HoleHunter (Linux) 或 build/bin/HoleHunter.app (macOS)
+```
+
+## 构建原理
+
+```
+准备嵌入资源
+    ├── 下载 nuclei 二进制 (v3.6.2, ~127MB)
+    ├── 精选 POC 模板 (CVE、常见漏洞等，~2000 个)
+    └── 压缩为 poc-templates.zip (~2MB)
+
+嵌入到 exe
+    ├── go:embed build/embedded/nuclei
+    └── go:embed build/poc-templates.zip
+
+首次运行
+    ├── 解压到用户数据目录
+    │   ├── Windows: %LOCALAPPDATA%\HoleHunter\
+    │   └── macOS/Linux: ~/.config/HoleHunter/
+    └── 同步模板到数据库
+```
+
+## 故障排查
+
+### POC 数量为 0
+
+**原因**：构建时未准备嵌入资源
+
+**解决**：
+```batch
+# Windows
+powershell -ExecutionPolicy Bypass -File .\scripts\prepare-embedded.ps1
+wails build
+
+# macOS/Linux
 make prepare-embedded
-
-# 2. 安装依赖
-make deps
-
-# 3. 构建
 make build
-
-# 4. 输出
-# macOS: build/bin/HoleHunter.app
-# Linux: build/bin/HoleHunter
 ```
 
-## 嵌入资源说明
+### 构建失败：找不到子模块
 
-### 资源内容
+**原因**：nuclei-templates 子模块未初始化
 
-**nuclei 二进制**：
-- Windows: `nuclei.exe` (~127MB)
-- macOS/Linux: `nuclei` (~100MB)
-- 版本: v3.6.2
-
-**POC 模板**：
-- 精选核心模板（约 2000+ 个 YAML 文件）
-- 压缩后约 2-3MB
-- 包含：
-  - CVE 模板（2023-2024）
-  - 常见漏洞（SQL注入、XSS、RCE、SSRF 等）
-  - 暴露面板
-  - 技术栈检测
-  - 配置错误
-  - 信息泄露
-
-### 资源准备脚本
-
-| 平台 | 脚本 | 功能 |
-|------|------|------|
-| Windows | `scripts/prepare-embedded.ps1` | 下载 nuclei，构建模板 zip |
-| macOS/Linux | `make prepare-embedded` | 同上（bash 脚本） |
-
-## 首次运行流程
-
-```
-用户启动 HoleHunter.exe
-    ↓
-检查嵌入资源
-    ↓
-解压到 %LOCALAPPDATA%\HoleHunter\
-    ├── nuclei.exe
-    └── nuclei-templates/
-    ↓
-同步模板到数据库
-    ↓
-应用就绪
+**解决**：
+```bash
+git submodule update --init --recursive
 ```
 
-## 文件结构
+### PowerShell 执行策略错误
+
+**错误**：无法加载文件，因为在此系统上禁止运行脚本
+
+**解决**：脚本已使用 `-ExecutionPolicy Bypass`，如果仍报错：
+```powershell
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+```
+
+### 模板同步失败
+
+**检查日志**：`%LOCALAPPDATA%\HoleHunter\app.log`
+
+**常见原因**：
+- 嵌入资源为空 → 重新构建并确保运行了 prepare-embedded
+- 模板目录权限问题 → 检查用户数据目录权限
+
+## 自定义
+
+### 使用完整模板
+
+修改 `build/copy-poc-templates.sh` 或 `scripts/prepare-embedded.ps1`，移除模板数量限制。
+
+### 更新 nuclei 版本
+
+修改 `scripts/download-nuclei.sh` 中的 `NUCLEI_VERSION` 变量。
+
+### 减少 exe 体积
+
+1. 减少 POC 模板数量
+2. 不嵌入 nuclei，改为外部资源模式（需修改代码）
+
+## 项目结构
 
 ```
 HoleHunter/
-├── main.go                        # Go 入口（嵌入资源指令）
+├── main.go                     # go:embed 指令
 ├── build/
-│   ├── poc-templates.zip         # 模板压缩包（生成）
-│   └── embedded/
-│       └── nuclei                # nuclei 二进制（生成）
+│   ├── poc-templates.zip      # 生成（嵌入到 exe）
+│   └── embedded/nuclei         # 生成（嵌入到 exe）
 ├── scripts/
-│   ├── prepare-embedded.ps1      # Windows 资源准备
-│   └── download-nuclei.sh        # nuclei 下载
-├── nuclei-templates/             # Git 子模块（完整模板）
-└── wails.json                     # Wails 配置
+│   ├── prepare-embedded.ps1   # Windows 资源准备
+│   └── download-nuclei.sh     # nuclei 下载
+├── nuclei-templates/          # Git 子模块
+└── wails.json                  # Wails 配置
 ```
-
-## 常见问题
-
-### Q: 为什么 POC 数量为 0？
-
-A: 构建时没有准备嵌入资源。确保在 `wails build` 之前运行：
-- Windows: `scripts/prepare-embedded.ps1`
-- macOS/Linux: `make prepare-embedded`
-
-### Q: 如何使用完整模板而不是精选模板？
-
-A: 修改 `build/copy-poc-templates.sh`（或 PowerShell 版本），复制更多模板。
-
-### Q: 如何更新 nuclei 版本？
-
-A: 修改 `scripts/download-nuclei.sh` 中的 `NUCLEI_VERSION` 变量。
-
-### Q: 如何减少 exe 体积？
-
-A:
-1. 只使用最小模板集
-2. 移除 nuclei 嵌入，改为外部资源模式
-3. 使用 UPX 压缩（可能触发杀软误报）
-
-## 更新日志
-
-### 2025-01-29
-- 切换到资源嵌入方案
-- 添加 Windows PowerShell 构建脚本
-- 修复场景功能未启用的问题
-
-### 旧版本文档
-- 参考 `docs/BUILD.md` 查看外部资源模式的构建方式
