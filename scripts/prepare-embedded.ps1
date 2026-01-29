@@ -97,8 +97,8 @@ if (-not (Test-Path $SOURCE_TEMPLATES)) {
 
     # 定义要复制的模板目录
     $categories = @(
-        @{Source = "http\cves"; Dest = "cves"; Pattern = "2023-*.yaml"},
-        @{Source = "http\cves"; Dest = "cves"; Pattern = "2024-*.yaml"},
+        @{Source = "http\cves\2023"; Dest = "cves\2023"; Pattern = "*.yaml"},
+        @{Source = "http\cves\2024"; Dest = "cves\2024"; Pattern = "*.yaml"},
         @{Source = "http\vulnerabilities"; Dest = "vulnerabilities"; Pattern = ""},
         @{Source = "http\exposed-panels"; Dest = "exposed-panels"; Pattern = ""},
         @{Source = "http\technologies"; Dest = "technologies"; Pattern = ""},
