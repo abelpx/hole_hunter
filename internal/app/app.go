@@ -93,6 +93,15 @@ func (a *App) startup(ctx context.Context) error {
 	// 初始化日志
 	a.logger = logger.New(a.config.LogLevel, a.config.LogFile)
 
+	// 检查嵌入资源
+	if len(a.nucleiBinary) == 0 && len(a.pocTemplatesZip) == 0 {
+		a.logger.Warn("=== 警告：未检测到嵌入资源 ===")
+		a.logger.Warn("POC 模板将不可用！")
+		a.logger.Warn("构建时请先运行：")
+		a.logger.Warn("  Windows: scripts\\prepare-embedded.ps1")
+		a.logger.Warn("  macOS/Linux: make prepare-embedded")
+	}
+
 	// 检查是否需要提取嵌入资源
 	needsExtraction := false
 	if len(a.nucleiBinary) > 0 || len(a.pocTemplatesZip) > 0 {
@@ -366,9 +375,14 @@ func (a *App) syncTemplates(ctx context.Context) error {
 
 // extractEmbeddedResources 提取嵌入资源
 func (a *App) extractEmbeddedResources() error {
+	// 记录嵌入资源大小
+	a.logger.Info("Embedded resources: nuclei=%d bytes, templates=%d bytes",
+		len(a.nucleiBinary), len(a.pocTemplatesZip))
+
 	// 没有嵌入资源，跳过
 	if len(a.nucleiBinary) == 0 && len(a.pocTemplatesZip) == 0 {
-		a.logger.Debug("No embedded resources to extract")
+		a.logger.Warn("No embedded resources found. POC templates will not be available.")
+		a.logger.Warn("Please rebuild with 'make prepare-embedded' (Linux/macOS) or 'scripts/prepare-embedded.ps1' (Windows)")
 		return nil
 	}
 
