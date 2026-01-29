@@ -41,7 +41,7 @@ func (e *Extractor) ExtractNucleiBinary(data []byte) error {
 	}
 
 	// 检查是否已提取
-	if e.isNucleiExtracted() {
+	if e.IsNucleiExtracted() {
 		e.logger.Debug("Nuclei binary already extracted, skipping")
 		return nil
 	}
@@ -76,7 +76,7 @@ func (e *Extractor) ExtractTemplatesFromZip(zipData []byte) error {
 	}
 
 	// 检查是否已提取
-	if e.isTemplatesExtracted() {
+	if e.IsTemplatesExtracted() {
 		e.logger.Debug("Templates already extracted, skipping")
 		return nil
 	}
@@ -160,8 +160,8 @@ func (e *Extractor) extractZipFile(file *zip.File, destDir string) error {
 	return nil
 }
 
-// isNucleiExtracted 检查 nuclei 是否已提取
-func (e *Extractor) isNucleiExtracted() bool {
+// IsNucleiExtracted 检查 nuclei 是否已提取
+func (e *Extractor) IsNucleiExtracted() bool {
 	binaryName := "nuclei"
 	if runtime.GOOS == "windows" {
 		binaryName = "nuclei.exe"
@@ -177,8 +177,8 @@ func (e *Extractor) isNucleiExtracted() bool {
 	return e.checkVersion(binaryName, nucleiVersion)
 }
 
-// isTemplatesExtracted 检查模板是否已提取
-func (e *Extractor) isTemplatesExtracted() bool {
+// IsTemplatesExtracted 检查模板是否已提取
+func (e *Extractor) IsTemplatesExtracted() bool {
 	// 检查目录是否存在
 	templatesDir := filepath.Join(e.dataDir, "nuclei-templates")
 	if _, err := os.Stat(templatesDir); err != nil {
