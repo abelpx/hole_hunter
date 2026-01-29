@@ -6,17 +6,16 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Modal, Input, Select, Button, Badge } from '../ui';
-// TODO: GetScenarioGroups not implemented in backend yet
-// import { GetScenarioGroups } from '@wailsjs/go/app/App';
+import { GetAllScenarioGroups } from '@wailsjs/go/app/App';
 
-// 场景分组接口
+// 场景分组接口 - 对应后端 models.ScenarioGroup
 interface ScenarioGroup {
   id: string;
   name: string;
   description: string;
-  templateIds: string[];
-  createdAt: number;
-  updatedAt: number;
+  template_ids: string[];
+  created_at: string;
+  updated_at: string;
 }
 
 // 预设模板组
@@ -118,10 +117,8 @@ export const ScanConfigModal: React.FC<ScanConfigModalProps> = ({
   useEffect(() => {
     const loadScenarioGroups = async () => {
       try {
-        // TODO: GetScenarioGroups not implemented in backend yet
-        // const groups = await GetScenarioGroups();
-        const groups: ScenarioGroup[] = [];
-        setScenarioGroups(groups);
+        const groups = await GetAllScenarioGroups();
+        setScenarioGroups(groups || []);
       } catch (error) {
         console.error('Failed to load scenario groups:', error);
         setScenarioGroups([]);
@@ -232,7 +229,7 @@ export const ScanConfigModal: React.FC<ScanConfigModalProps> = ({
                   <option value="">选择场景分组</option>
                   {scenarioGroups.map((group) => (
                     <option key={group.id} value={group.id}>
-                      {group.name} ({group.templateIds.length} 个 POC)
+                      {group.name} ({group.template_ids.length} 个 POC)
                     </option>
                   ))}
                 </select>
