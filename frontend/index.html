@@ -132,9 +132,10 @@
 
     <!-- 隐藏启动屏幕的脚本 -->
     <script>
-      // 启动屏幕管理 - 简化版本，快速响应
+      // 启动屏幕管理
       (function() {
-        const startupScreen = document.getElementById('startup-screen');
+        let isReactLoaded = false;
+        let isBackendReady = false;
         const statusElement = document.getElementById('startup-status');
 
         // 更新状态文本
@@ -144,36 +145,51 @@
           }
         }
 
-        // 监听后端进度（仅在有长时间操作时显示）
-        let hasShownProgress = false;
+        // React 加载完成
+        window.addEventListener('load', function() {
+          isReactLoaded = true;
+          updateStatus('等待后端初始化...');
+          checkHideStartupScreen();
+        });
+
+        // 监听后端初始化进度
         window.addEventListener('app.progress', function(event) {
           const data = event.detail || event.data;
-          if (data && data.message && !hasShownProgress) {
-            hasShownProgress = true;
+          if (data && data.message) {
             updateStatus(data.message);
           }
         });
 
-        // React 加载完成后立即隐藏启动屏幕
-        window.addEventListener('load', function() {
+        // 后端初始化完成
+        window.addEventListener('app.ready', function() {
+          isBackendReady = true;
           updateStatus('准备就绪');
-          // 立即淡出，不等后端
-          setTimeout(function() {
-            if (startupScreen) {
-              startupScreen.classList.add('hidden');
-              setTimeout(function() {
-                if (startupScreen.parentNode) {
-                  startupScreen.remove();
-                }
-              }, 300);
-            }
-          }, 100);
+          checkHideStartupScreen();
         });
 
-        // 超时保护：3秒后强制隐藏
+        // 检查是否可以隐藏启动屏幕
+        function checkHideStartupScreen() {
+          if (isReactLoaded && isBackendReady) {
+            // 等待一小段时间确保 UI 渲染完成
+            setTimeout(function() {
+              const startupScreen = document.getElementById('startup-screen');
+              if (startupScreen) {
+                startupScreen.classList.add('hidden');
+                // 动画结束后移除元素
+                setTimeout(function() {
+                  startupScreen.remove();
+                }, 300);
+              }
+            }, 200);
+          }
+        }
+
+        // 超时保护：15秒后强制隐藏（防止卡住）
         setTimeout(function() {
+          const startupScreen = document.getElementById('startup-screen');
           if (startupScreen && !startupScreen.classList.contains('hidden')) {
             console.warn('[Startup] Timeout - forcing hide');
+            updateStatus('加载超时');
             startupScreen.classList.add('hidden');
             setTimeout(function() {
               if (startupScreen.parentNode) {
@@ -181,7 +197,7 @@
               }
             }, 300);
           }
-        }, 3000);
+        }, 15000);
       })();
     </script>
   </body>
